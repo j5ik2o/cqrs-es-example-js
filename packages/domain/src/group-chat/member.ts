@@ -10,10 +10,13 @@ class MemberId {
 type MemberRole = "admin" | "member";
 
 class Member {
-  constructor(
+  private constructor(
     public readonly userAccountId: UserAccountId,
     public readonly memberRole: MemberRole,
   ) {}
+  static of(userAccountId: UserAccountId, memberRole: MemberRole): Member {
+    return new Member(userAccountId, memberRole);
+  }
 }
 
 export { MemberId, MemberRole, Member };

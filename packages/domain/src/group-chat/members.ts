@@ -34,6 +34,20 @@ class Members {
     return new Members(map);
   }
 
+  isMember(userAccountId: UserAccountId): boolean {
+    const member = this._values.get(userAccountId.value);
+    return member !== undefined && member.memberRole === "member";
+  }
+
+  isAdministrator(userAccountId: UserAccountId): boolean {
+    const member = this._values.get(userAccountId.value);
+    return member !== undefined && member.memberRole === "admin";
+  }
+
+  findById(userAccountId: UserAccountId): Member | undefined {
+    return this._values.get(userAccountId.value);
+  }
+
   toArray(): Member[] {
     return Array.from(this._values.values());
   }

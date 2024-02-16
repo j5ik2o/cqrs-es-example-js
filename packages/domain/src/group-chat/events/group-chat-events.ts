@@ -3,7 +3,8 @@ import { GroupChatId } from "../group-chat-id";
 import { UserAccountId } from "../../user-account";
 import { GroupChatName } from "../group-chat-name";
 import { Members } from "../members";
-import {ulid} from "ulidx";
+import { ulid } from "ulidx";
+import { Member } from "../member";
 
 interface GroupChatEvent extends Event<GroupChatId> {
   get executorId(): UserAccountId;
@@ -47,11 +48,12 @@ class GroupChatCreated implements GroupChatEvent {
 }
 const GroupChatMemberAddedSymbol = Symbol("GroupChatMemberAdded");
 class GroupChatMemberAdded implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMemberAddedSymbol = GroupChatMemberAddedSymbol;
+  readonly symbol: typeof GroupChatMemberAddedSymbol =
+    GroupChatMemberAddedSymbol;
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
-    public readonly member: UserAccountId,
+    public readonly member: Member,
     public readonly executorId: UserAccountId,
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
@@ -59,7 +61,7 @@ class GroupChatMemberAdded implements GroupChatEvent {
 
   static of(
     aggregateId: GroupChatId,
-    member: UserAccountId,
+    member: Member,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatMemberAdded {
