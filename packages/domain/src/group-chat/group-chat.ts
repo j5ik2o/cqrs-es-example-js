@@ -22,7 +22,11 @@ class AddMemberError {
 
 type GroupChatError = AddMemberError;
 
+const GroupChatSymbol = Symbol("GroupChat");
+
 class GroupChat implements Aggregate<GroupChat, GroupChatId> {
+  readonly symbol: typeof GroupChatSymbol = GroupChatSymbol;
+
   private constructor(
     public readonly id: GroupChatId,
     private readonly deleted: boolean,

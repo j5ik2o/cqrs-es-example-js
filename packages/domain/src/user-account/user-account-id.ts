@@ -1,8 +1,11 @@
 import { ulid } from "ulidx";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
+const UserAccountIdSymbol = Symbol("UserAccountId");
 
 class UserAccountId {
+  readonly symbol: typeof UserAccountIdSymbol = UserAccountIdSymbol;
+
   private readonly _value: string;
 
   private constructor(value?: string) {

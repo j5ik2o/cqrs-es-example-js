@@ -1,7 +1,11 @@
 import { Member } from "./member";
 import { UserAccountId } from "../user-account";
 
+const MembersSymbol = Symbol("Members");
+
 class Members {
+  readonly symbol: typeof MembersSymbol = MembersSymbol;
+
   private readonly _values: Map<string, Member>;
 
   private constructor(values: Map<string, Member>) {

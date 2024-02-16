@@ -9,7 +9,11 @@ class MemberId {
 
 type MemberRole = "admin" | "member";
 
+const MemberSymbol = Symbol("Member");
+
 class Member {
+  readonly symbol: typeof MemberSymbol = MemberSymbol;
+
   private constructor(
     public readonly userAccountId: UserAccountId,
     public readonly memberRole: MemberRole,

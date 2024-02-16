@@ -2,8 +2,11 @@ import { ulid } from "ulidx";
 import { AggregateId } from "event-store-adapter-js";
 
 const GROUP_CHAT_PREFIX: string = "GroupChat";
+const GroupChatIdSymbol = Symbol("GroupChatId");
 
 class GroupChatId implements AggregateId {
+  readonly symbol: typeof GroupChatIdSymbol = GroupChatIdSymbol;
+
   private _value: string;
   constructor(value?: string) {
     if (value === undefined) {
