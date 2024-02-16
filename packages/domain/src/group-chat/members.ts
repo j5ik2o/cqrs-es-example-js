@@ -39,10 +39,10 @@ class Members {
     );
   }
 
-  removeMember(userAccountId: UserAccountId): Members {
-    const map = new Map(this._values);
-    map.delete(userAccountId.value);
-    return new Members(map);
+  removeMemberById(userAccountId: UserAccountId): Members {
+    const newMap = new Map(this._values);
+    newMap.delete(userAccountId.value);
+    return new Members(newMap);
   }
 
   isMember(userAccountId: UserAccountId): boolean {
