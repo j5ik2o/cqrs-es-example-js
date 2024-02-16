@@ -5,7 +5,7 @@ const USER_ACCOUNT_PREFIX: string = "UserAccount";
 class UserAccountId {
   private readonly _value: string;
 
-  constructor(value?: string) {
+  private constructor(value?: string) {
     if (value === undefined) {
       this._value = ulid();
     } else {
@@ -14,6 +14,14 @@ class UserAccountId {
       }
       this._value = value;
     }
+  }
+
+  static of(value: string): UserAccountId {
+    return new UserAccountId(value);
+  }
+
+  static newId(): UserAccountId {
+    return new UserAccountId();
   }
 
   asString(): string {
