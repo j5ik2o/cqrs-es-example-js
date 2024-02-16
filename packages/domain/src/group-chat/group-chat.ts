@@ -35,9 +35,9 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   static of(
     id: GroupChatId,
     name: GroupChatName,
-    members: Members,
     executorId: UserAccountId,
   ): [GroupChat, GroupChatCreated] {
+    const members = Members.ofSingle(executorId);
     const sequenceNumber = 1;
     const version = 1;
     return [

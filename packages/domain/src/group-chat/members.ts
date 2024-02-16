@@ -3,13 +3,20 @@ import { UserAccountId } from "../user-account";
 
 class Members {
   private readonly _values: Map<string, Member>;
+
   private constructor(values: Map<string, Member>) {
     this._values = values;
   }
 
+  static ofSingle(userAccountId: UserAccountId): Members {
+    return new Members(
+      new Map([[userAccountId.value, Member.of(userAccountId, "admin")]]),
+    );
+  }
+
   static fromMap(values: Map<UserAccountId, Member>): Members {
     return new Members(
-      new Map<string, Member>(
+      new Map(
         Array.from(values, ([userAccountId, member]) => [
           userAccountId.value,
           member,
