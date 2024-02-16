@@ -57,6 +57,9 @@ importers:
       event-store-adapter-js:
         specifier: 2.0.15-snapshot.2
         version: 2.0.15-snapshot.2
+      fp-ts:
+        specifier: ^2.16.2
+        version: 2.16.2
       ulidx:
         specifier: ^2.3.0
         version: 2.3.0
@@ -3025,6 +3028,10 @@ packages:
       cross-spawn: 7.0.3
       signal-exit: 4.1.0
     dev: true
+
+  /fp-ts@2.16.2:
+    resolution: {integrity: sha512-CkqAjnIKFqvo3sCyoBTqgJvF+bHrSik584S9nhTjtBESLx26cbtVMR/T9a6ApChOcSDAaM3JydDmWDUn4EEXng==}
+    dev: false
 
   /fs-constants@1.0.0:
     resolution: {integrity: sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==}

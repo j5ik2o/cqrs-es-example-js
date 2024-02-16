@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "event-store-adapter-js": "2.0.15-snapshot.2",
+    "fp-ts": "^2.16.2",
     "ulidx": "^2.3.0"
   }
 }

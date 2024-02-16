@@ -3,12 +3,16 @@ import { GroupChatId } from "../group-chat-id";
 import { UserAccountId } from "../../user-account";
 import { GroupChatName } from "../group-chat-name";
 import { Members } from "../members";
+import {ulid} from "ulidx";
 
 interface GroupChatEvent extends Event<GroupChatId> {
-  GetExecutorId(): UserAccountId;
+  get executorId(): UserAccountId;
 }
 
+const GroupChatCreatedSymbol = Symbol("GroupChatCreated");
+
 class GroupChatCreated implements GroupChatEvent {
+  readonly symbol: typeof GroupChatCreatedSymbol = GroupChatCreatedSymbol;
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -20,7 +24,6 @@ class GroupChatCreated implements GroupChatEvent {
   ) {}
 
   static of(
-    id: string,
     aggregateId: GroupChatId,
     name: GroupChatName,
     members: Members,
@@ -28,7 +31,7 @@ class GroupChatCreated implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatCreated {
     return new GroupChatCreated(
-      id,
+      ulid(),
       aggregateId,
       name,
       members,
@@ -41,10 +44,38 @@ class GroupChatCreated implements GroupChatEvent {
   get isCreated(): boolean {
     return true;
   }
+}
+const GroupChatMemberAddedSymbol = Symbol("GroupChatMemberAdded");
+class GroupChatMemberAdded implements GroupChatEvent {
+  readonly symbol: typeof GroupChatMemberAddedSymbol = GroupChatMemberAddedSymbol;
+  private constructor(
+    public readonly id: string,
+    public readonly aggregateId: GroupChatId,
+    public readonly member: UserAccountId,
+    public readonly executorId: UserAccountId,
+    public readonly sequenceNumber: number,
+    public readonly occurredAt: Date,
+  ) {}
 
-  GetExecutorId(): UserAccountId {
-    return this.executorId;
+  static of(
+    aggregateId: GroupChatId,
+    member: UserAccountId,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMemberAdded {
+    return new GroupChatMemberAdded(
+      ulid(),
+      aggregateId,
+      member,
+      executorId,
+      sequenceNumber,
+      new Date(),
+    );
+  }
+
+  get isCreated(): boolean {
+    return false;
   }
 }
 
-export { GroupChatEvent, GroupChatCreated };
+export { GroupChatEvent, GroupChatCreated, GroupChatMemberAdded };

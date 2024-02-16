@@ -2,9 +2,19 @@ import { Aggregate } from "event-store-adapter-js/src/types";
 import { GroupChatId } from "./group-chat-id";
 import { GroupChatName } from "./group-chat-name";
 import { Members } from "./members";
-import { GroupChatCreated } from "./events/group-chat-events";
-import { ulid } from "ulidx";
+import {GroupChatCreated, GroupChatMemberAdded} from "./events/group-chat-events";
 import { UserAccountId } from "../user-account";
+import {MemberRole} from "./member";
+import {Either} from "fp-ts/Either";
+
+const AddMemberErrorSymbol = Symbol("AddMemberError");
+
+class AddMemberError {
+  readonly symbol: typeof AddMemberErrorSymbol = AddMemberErrorSymbol;
+}
+
+type GroupChatError = AddMemberError;
+
 
 class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   private constructor(
@@ -20,13 +30,12 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     name: GroupChatName,
     members: Members,
     executorId: UserAccountId,
-    sequenceNumber: number,
-    version: number,
   ): [GroupChat, GroupChatCreated] {
+    const sequenceNumber = 1;
+    const version = 1;
     return [
       new GroupChat(id, name, members, sequenceNumber, version),
       GroupChatCreated.of(
-        ulid(),
         id,
         name,
         members,
@@ -45,6 +54,10 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   ): GroupChat {
     return new GroupChat(id, name, members, sequenceNumber, version);
   }
+
+  // addMember(userAccountId: UserAccountId, memberRole: MemberRole, executorId: UserAccountId): Either<GroupChatError, [GroupChat, GroupChatMemberAdded]> {
+  //   return null;
+  // }
 
   withVersion(version: number): GroupChat {
     return GroupChat.from(
@@ -66,4 +79,4 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   }
 }
 
-export { GroupChat };
+export { GroupChat, GroupChatError, AddMemberError };
