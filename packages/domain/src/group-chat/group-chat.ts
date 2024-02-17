@@ -6,10 +6,12 @@ import {
   GroupChatCreated,
   GroupChatDeleted,
   GroupChatMemberAdded,
+  GroupChatMemberRemoved,
 } from "./events/group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
 import * as E from "fp-ts/lib/Either";
+import * as O from "fp-ts/lib/Option";
 
 const GroupChatAddMemberErrorSymbol = Symbol("GroupChatAddMemberError");
 
@@ -19,6 +21,16 @@ class GroupChatAddMemberError {
   private constructor(public readonly message: string) {}
   static of(message: string): GroupChatAddMemberError {
     return new GroupChatAddMemberError(message);
+  }
+}
+
+const GroupChatRemoveMemberErrorSymbol = Symbol("GroupChatMemberRemoveError");
+class GroupChatRemoveMemberError {
+  readonly symbol: typeof GroupChatRemoveMemberErrorSymbol =
+    GroupChatRemoveMemberErrorSymbol;
+  private constructor(public readonly message: string) {}
+  static of(message: string): GroupChatRemoveMemberError {
+    return new GroupChatRemoveMemberError(message);
   }
 }
 
@@ -116,6 +128,47 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     return E.right([newGroupChat, event]);
   }
 
+  removeMemberById(
+    userAccountId: UserAccountId,
+    executorId: UserAccountId,
+  ): E.Either<GroupChatRemoveMemberError, [GroupChat, GroupChatMemberRemoved]> {
+    if (this.deleted) {
+      return E.left(GroupChatRemoveMemberError.of("The group chat is deleted"));
+    }
+    if (!this.members.contains(userAccountId)) {
+      return E.left(
+        GroupChatRemoveMemberError.of(
+          "The userAccountId is not the member of the group chat",
+        ),
+      );
+    }
+    const newMembersOpt = this.members.removeMemberById(userAccountId);
+    if (O.isNone(newMembersOpt)) {
+      return E.left(
+        GroupChatRemoveMemberError.of(
+          "The userAccountId is not the member of the group chat",
+        ),
+      );
+    }
+    const [newMembers, removedMember] = newMembersOpt.value;
+    const sequenceNumber = this.sequenceNumber + 1;
+    const newGroupChat = GroupChat.from(
+      this.id,
+      this.deleted,
+      this.name,
+      newMembers,
+      sequenceNumber,
+      this.version,
+    );
+    const event = GroupChatMemberRemoved.of(
+      this.id,
+      removedMember,
+      executorId,
+      sequenceNumber,
+    );
+    return E.right([newGroupChat, event]);
+  }
+
   delete(
     executorId: UserAccountId,
   ): E.Either<GroupChatDeleteError, [GroupChat, GroupChatDeleted]> {
@@ -180,5 +233,6 @@ export {
   GroupChat,
   GroupChatError,
   GroupChatAddMemberError,
+  GroupChatRemoveMemberError,
   GroupChatDeleteError,
 };

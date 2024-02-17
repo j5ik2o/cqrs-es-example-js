@@ -1,6 +1,6 @@
 import { Member } from "./member";
 import { UserAccountId } from "../user-account";
-
+import * as O from "fp-ts/lib/Option";
 const MembersSymbol = Symbol("Members");
 
 class Members {
@@ -39,10 +39,14 @@ class Members {
     );
   }
 
-  removeMemberById(userAccountId: UserAccountId): Members {
+  removeMemberById(userAccountId: UserAccountId): O.Option<[Members, Member]> {
+    const member = this._values.get(userAccountId.value);
+    if (member === undefined) {
+      return O.none;
+    }
     const newMap = new Map(this._values);
     newMap.delete(userAccountId.value);
-    return new Members(newMap);
+    return O.some([new Members(newMap), member]);
   }
 
   contains(userAccountId: UserAccountId): boolean {

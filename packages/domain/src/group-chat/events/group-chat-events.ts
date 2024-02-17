@@ -81,6 +81,41 @@ class GroupChatMemberAdded implements GroupChatEvent {
   }
 }
 
+const GroupChatMemberRemovedSymbol = Symbol("GroupChatMemberRemoved");
+
+class GroupChatMemberRemoved implements GroupChatEvent {
+  readonly symbol: typeof GroupChatMemberRemovedSymbol =
+    GroupChatMemberRemovedSymbol;
+  private constructor(
+    public readonly id: string,
+    public readonly aggregateId: GroupChatId,
+    public readonly member: Member,
+    public readonly executorId: UserAccountId,
+    public readonly sequenceNumber: number,
+    public readonly occurredAt: Date,
+  ) {}
+
+  static of(
+    aggregateId: GroupChatId,
+    member: Member,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMemberRemoved {
+    return new GroupChatMemberRemoved(
+      ulid(),
+      aggregateId,
+      member,
+      executorId,
+      sequenceNumber,
+      new Date(),
+    );
+  }
+
+  get isCreated(): boolean {
+    return false;
+  }
+}
+
 const GroupChatDeletedSymbol = Symbol("GroupChatDeleted");
 
 class GroupChatDeleted implements GroupChatEvent {
@@ -116,5 +151,6 @@ export {
   GroupChatEvent,
   GroupChatCreated,
   GroupChatMemberAdded,
+  GroupChatMemberRemoved,
   GroupChatDeleted,
 };
