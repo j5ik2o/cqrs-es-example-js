@@ -46,6 +46,7 @@ class GroupChatCreated implements GroupChatEvent {
     return true;
   }
 }
+
 const GroupChatMemberAddedSymbol = Symbol("GroupChatMemberAdded");
 class GroupChatMemberAdded implements GroupChatEvent {
   readonly symbol: typeof GroupChatMemberAddedSymbol =
@@ -80,4 +81,40 @@ class GroupChatMemberAdded implements GroupChatEvent {
   }
 }
 
-export { GroupChatEvent, GroupChatCreated, GroupChatMemberAdded };
+const GroupChatDeletedSymbol = Symbol("GroupChatDeleted");
+
+class GroupChatDeleted implements GroupChatEvent {
+  readonly symbol: typeof GroupChatDeletedSymbol = GroupChatDeletedSymbol;
+  private constructor(
+    public readonly id: string,
+    public readonly aggregateId: GroupChatId,
+    public readonly executorId: UserAccountId,
+    public readonly sequenceNumber: number,
+    public readonly occurredAt: Date,
+  ) {}
+
+  static of(
+    aggregateId: GroupChatId,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatDeleted {
+    return new GroupChatDeleted(
+      ulid(),
+      aggregateId,
+      executorId,
+      sequenceNumber,
+      new Date(),
+    );
+  }
+
+  get isCreated(): boolean {
+    return false;
+  }
+}
+
+export {
+  GroupChatEvent,
+  GroupChatCreated,
+  GroupChatMemberAdded,
+  GroupChatDeleted,
+};

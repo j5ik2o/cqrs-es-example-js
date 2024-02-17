@@ -4,6 +4,7 @@ import { GroupChatName } from "./group-chat-name";
 import { Members } from "./members";
 import {
   GroupChatCreated,
+  GroupChatDeleted,
   GroupChatMemberAdded,
 } from "./events/group-chat-events";
 import { UserAccountId } from "../user-account";
@@ -101,6 +102,30 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     return right([newGroupChat, event]);
   }
 
+  delete(
+    executorId: UserAccountId,
+  ): Either<GroupChatError, [GroupChat, GroupChatDeleted]> {
+    if (this.deleted) {
+      return left(AddMemberError.of("The group chat is deleted"));
+    }
+    if (!this.members.isAdministrator(executorId)) {
+      return left(
+        AddMemberError.of("The executorId is not the member of the group chat"),
+      );
+    }
+    const sequenceNumber = this.sequenceNumber + 1;
+    const newGroupChat = GroupChat.from(
+      this.id,
+      true,
+      this.name,
+      this.members,
+      sequenceNumber,
+      this.version,
+    );
+    const event = GroupChatDeleted.of(this.id, executorId, sequenceNumber);
+    return right([newGroupChat, event]);
+  }
+
   withVersion(version: number): GroupChat {
     return GroupChat.from(
       this.id,
@@ -111,6 +136,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       version,
     );
   }
+
   updateVersion(version: (value: number) => number): GroupChat {
     return GroupChat.from(
       this.id,

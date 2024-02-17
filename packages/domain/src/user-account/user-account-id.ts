@@ -24,7 +24,7 @@ class UserAccountId implements AggregateId {
     return new UserAccountId(value);
   }
 
-  static newId(): UserAccountId {
+  static generate(): UserAccountId {
     return new UserAccountId();
   }
 

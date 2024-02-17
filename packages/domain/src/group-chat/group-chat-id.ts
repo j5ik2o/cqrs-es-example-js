@@ -7,8 +7,9 @@ const GroupChatIdSymbol = Symbol("GroupChatId");
 class GroupChatId implements AggregateId {
   readonly symbol: typeof GroupChatIdSymbol = GroupChatIdSymbol;
 
-  private _value: string;
-  constructor(value?: string) {
+  private readonly _value: string;
+
+  private constructor(value?: string) {
     if (value === undefined) {
       this._value = ulid();
     } else {
@@ -17,6 +18,14 @@ class GroupChatId implements AggregateId {
       }
       this._value = value;
     }
+  }
+
+  static of(value: string): GroupChatId {
+    return new GroupChatId(value);
+  }
+
+  static generate(): GroupChatId {
+    return new GroupChatId();
   }
 
   get asString(): string {
