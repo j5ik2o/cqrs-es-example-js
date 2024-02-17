@@ -106,7 +106,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     if (this.deleted) {
       return E.left(GroupChatRemoveMemberError.of("The group chat is deleted"));
     }
-    if (!this.members.contains(userAccountId)) {
+    if (!this.members.containsById(userAccountId)) {
       return E.left(
         GroupChatRemoveMemberError.of(
           "The userAccountId is not the member of the group chat",

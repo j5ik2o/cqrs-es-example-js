@@ -66,7 +66,7 @@ describe("GroupChat", () => {
       },
     )(memberEither);
     expect(actualGroupChat.id).toEqual(id);
-    expect(actualGroupChat.members.contains(memberId)).toEqual(true);
+    expect(actualGroupChat.members.containsById(memberId)).toEqual(true);
     expect(groupChatMemberAdded.aggregateId).toEqual(id);
     expect(groupChatMemberAdded.member.userAccountId).toEqual(memberId);
   });
@@ -98,7 +98,7 @@ describe("GroupChat", () => {
       },
     )(removeEither);
     expect(actualGroupChat2.id).toEqual(id);
-    expect(actualGroupChat2.members.contains(memberId)).toEqual(false);
+    expect(actualGroupChat2.members.containsById(memberId)).toEqual(false);
     expect(groupChatMemberRemoved.aggregateId).toEqual(id);
     expect(groupChatMemberRemoved.member.userAccountId).toEqual(memberId);
   });
