@@ -7,45 +7,16 @@ import {
   GroupChatDeleted,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
-} from "./events/group-chat-events";
+} from "./group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
 import * as E from "fp-ts/lib/Either";
 import * as O from "fp-ts/lib/Option";
-
-const GroupChatAddMemberErrorSymbol = Symbol("GroupChatAddMemberError");
-
-class GroupChatAddMemberError {
-  readonly symbol: typeof GroupChatAddMemberErrorSymbol =
-    GroupChatAddMemberErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatAddMemberError {
-    return new GroupChatAddMemberError(message);
-  }
-}
-
-const GroupChatRemoveMemberErrorSymbol = Symbol("GroupChatMemberRemoveError");
-class GroupChatRemoveMemberError {
-  readonly symbol: typeof GroupChatRemoveMemberErrorSymbol =
-    GroupChatRemoveMemberErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatRemoveMemberError {
-    return new GroupChatRemoveMemberError(message);
-  }
-}
-
-const GroupChatDeleteErrorSymbol = Symbol("GroupChatDeleteError");
-
-class GroupChatDeleteError {
-  readonly symbol: typeof GroupChatDeleteErrorSymbol =
-    GroupChatDeleteErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatDeleteError {
-    return new GroupChatDeleteError(message);
-  }
-}
-
-type GroupChatError = GroupChatDeleteError | GroupChatAddMemberError;
+import {
+  GroupChatAddMemberError,
+  GroupChatDeleteError,
+  GroupChatRemoveMemberError,
+} from "./group-chat-errors";
 
 const GroupChatSymbol = Symbol("GroupChat");
 
@@ -229,10 +200,4 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   }
 }
 
-export {
-  GroupChat,
-  GroupChatError,
-  GroupChatAddMemberError,
-  GroupChatRemoveMemberError,
-  GroupChatDeleteError,
-};
+export { GroupChat };

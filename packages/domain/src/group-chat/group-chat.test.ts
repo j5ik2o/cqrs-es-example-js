@@ -13,7 +13,7 @@ import {
   GroupChatDeleted,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
-} from "./events/group-chat-events";
+} from "./group-chat-events";
 
 afterEach(() => {
   jest.useRealTimers();

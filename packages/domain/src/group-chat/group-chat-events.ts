@@ -1,10 +1,10 @@
 import { Event } from "event-store-adapter-js";
-import { GroupChatId } from "../group-chat-id";
-import { UserAccountId } from "../../user-account";
-import { GroupChatName } from "../group-chat-name";
-import { Members } from "../members";
+import { GroupChatId } from "./group-chat-id";
+import { UserAccountId } from "../user-account";
+import { GroupChatName } from "./group-chat-name";
+import { Members } from "./members";
 import { ulid } from "ulidx";
-import { Member } from "../member";
+import { Member } from "./member";
 
 interface GroupChatEvent extends Event<GroupChatId> {
   get executorId(): UserAccountId;
