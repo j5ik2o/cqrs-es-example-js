@@ -26,15 +26,18 @@ describe("GroupChat", () => {
     const [groupChat] = GroupChat.of(id, name, adminId);
     const memberId = UserAccountId.generate();
 
-    const memberEither = groupChat.addMember(memberId, "member", adminId);
+    const memberEither: E.Either<
+      AddMemberError,
+      [GroupChat, GroupChatMemberAdded]
+    > = groupChat.addMember(memberId, "member", adminId);
 
     expect(E.isRight(memberEither)).toEqual(true);
     const [actualGroupChat, groupChatMemberAdded] = E.fold(
       (err: AddMemberError) => {
         throw new Error(err.message);
       },
-      (v: [GroupChat, GroupChatMemberAdded]) => {
-        return v;
+      (values: [GroupChat, GroupChatMemberAdded]) => {
+        return values;
       },
     )(memberEither);
     expect(actualGroupChat.id).toEqual(id);
