@@ -49,7 +49,7 @@ class Members {
     return O.some([new Members(newMap), member]);
   }
 
-  contains(userAccountId: UserAccountId): boolean {
+  containsById(userAccountId: UserAccountId): boolean {
     return this._values.has(userAccountId.value);
   }
 

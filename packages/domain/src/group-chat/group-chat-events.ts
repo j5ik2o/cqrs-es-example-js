@@ -5,6 +5,7 @@ import { GroupChatName } from "./group-chat-name";
 import { Members } from "./members";
 import { ulid } from "ulidx";
 import { Member } from "./member";
+import { Message } from "./message";
 
 interface GroupChatEvent extends Event<GroupChatId> {
   get executorId(): UserAccountId;
@@ -147,10 +148,81 @@ class GroupChatDeleted implements GroupChatEvent {
   }
 }
 
+const GroupChatMessagePostedSymbol = Symbol("GroupChatMessagePosted");
+
+class GroupChatMessagePosted implements GroupChatEvent {
+  readonly symbol: typeof GroupChatMessagePostedSymbol =
+    GroupChatMessagePostedSymbol;
+  private constructor(
+    public readonly id: string,
+    public readonly aggregateId: GroupChatId,
+    public readonly message: Message,
+    public readonly executorId: UserAccountId,
+    public readonly sequenceNumber: number,
+    public readonly occurredAt: Date,
+  ) {}
+
+  static of(
+    aggregateId: GroupChatId,
+    message: Message,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMessagePosted {
+    return new GroupChatMessagePosted(
+      ulid(),
+      aggregateId,
+      message,
+      executorId,
+      sequenceNumber,
+      new Date(),
+    );
+  }
+
+  get isCreated(): boolean {
+    return false;
+  }
+}
+
+const GroupChatMessageDeletedSymbol = Symbol("GroupChatMessageDeleted");
+class GroupChatMessageDeleted implements GroupChatEvent {
+  readonly symbol: typeof GroupChatMessageDeletedSymbol =
+    GroupChatMessageDeletedSymbol;
+  private constructor(
+    public readonly id: string,
+    public readonly aggregateId: GroupChatId,
+    public readonly message: Message,
+    public readonly executorId: UserAccountId,
+    public readonly sequenceNumber: number,
+    public readonly occurredAt: Date,
+  ) {}
+
+  static of(
+    aggregateId: GroupChatId,
+    message: Message,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMessageDeleted {
+    return new GroupChatMessageDeleted(
+      ulid(),
+      aggregateId,
+      message,
+      executorId,
+      sequenceNumber,
+      new Date(),
+    );
+  }
+
+  get isCreated(): boolean {
+    return false;
+  }
+}
+
 export {
   GroupChatEvent,
   GroupChatCreated,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
+  GroupChatMessagePosted,
+  GroupChatMessageDeleted,
   GroupChatDeleted,
 };
