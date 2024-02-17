@@ -1,4 +1,4 @@
-import { Aggregate } from "event-store-adapter-js/src/types";
+import { Aggregate } from "event-store-adapter-js";
 import { GroupChatId } from "./group-chat-id";
 import { GroupChatName } from "./group-chat-name";
 import { Members } from "./members";

@@ -1,9 +1,10 @@
 import { ulid } from "ulidx";
+import { AggregateId } from "event-store-adapter-js";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdSymbol = Symbol("UserAccountId");
 
-class UserAccountId {
+class UserAccountId implements AggregateId {
   readonly symbol: typeof UserAccountIdSymbol = UserAccountIdSymbol;
 
   private readonly _value: string;
@@ -27,7 +28,7 @@ class UserAccountId {
     return new UserAccountId();
   }
 
-  asString(): string {
+  get asString(): string {
     return `${this.typeName}-${this._value}`;
   }
 
