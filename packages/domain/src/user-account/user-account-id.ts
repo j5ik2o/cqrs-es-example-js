@@ -39,6 +39,10 @@ class UserAccountId implements AggregateId {
   get typeName(): string {
     return USER_ACCOUNT_PREFIX;
   }
+
+  equals(anotherId: UserAccountId): boolean {
+    return this._value === anotherId.value;
+  }
 }
 
 export { UserAccountId };

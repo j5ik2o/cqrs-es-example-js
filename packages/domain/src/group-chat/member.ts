@@ -21,6 +21,22 @@ class Member {
   static of(userAccountId: UserAccountId, memberRole: MemberRole): Member {
     return new Member(userAccountId, memberRole);
   }
+
+  isAdministrator(): boolean {
+    return this.memberRole === "admin";
+  }
+
+  isMember(): boolean {
+    return this.memberRole === "member";
+  }
+
+  changeRole(memberRole: MemberRole): Member {
+    return new Member(this.userAccountId, memberRole);
+  }
+
+  equals(other: Member): boolean {
+    return this.userAccountId.value === other.userAccountId.value;
+  }
 }
 
 export { MemberId, MemberRole, Member };

@@ -9,7 +9,7 @@ import {
 } from "./events/group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
-import { Either, left, right } from "fp-ts/Either";
+import * as E from "fp-ts/lib/Either";
 
 const AddMemberErrorSymbol = Symbol("AddMemberError");
 
@@ -66,19 +66,19 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     userAccountId: UserAccountId,
     memberRole: MemberRole,
     executorId: UserAccountId,
-  ): Either<GroupChatError, [GroupChat, GroupChatMemberAdded]> {
+  ): E.Either<GroupChatError, [GroupChat, GroupChatMemberAdded]> {
     if (this.deleted) {
-      return left(AddMemberError.of("The group chat is deleted"));
+      return E.left(AddMemberError.of("The group chat is deleted"));
     }
     if (this.members.isMember(userAccountId)) {
-      return left(
+      return E.left(
         AddMemberError.of(
           "The userAccountId is already the member of the group chat",
         ),
       );
     }
     if (!this.members.isAdministrator(executorId)) {
-      return left(
+      return E.left(
         AddMemberError.of("The executorId is not the member of the group chat"),
       );
     }
@@ -99,17 +99,17 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       executorId,
       sequenceNumber,
     );
-    return right([newGroupChat, event]);
+    return E.right([newGroupChat, event]);
   }
 
   delete(
     executorId: UserAccountId,
-  ): Either<GroupChatError, [GroupChat, GroupChatDeleted]> {
+  ): E.Either<GroupChatError, [GroupChat, GroupChatDeleted]> {
     if (this.deleted) {
-      return left(AddMemberError.of("The group chat is deleted"));
+      return E.left(AddMemberError.of("The group chat is deleted"));
     }
     if (!this.members.isAdministrator(executorId)) {
-      return left(
+      return E.left(
         AddMemberError.of("The executorId is not the member of the group chat"),
       );
     }
@@ -123,7 +123,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       this.version,
     );
     const event = GroupChatDeleted.of(this.id, executorId, sequenceNumber);
-    return right([newGroupChat, event]);
+    return E.right([newGroupChat, event]);
   }
 
   withVersion(version: number): GroupChat {
@@ -145,6 +145,17 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       this.members,
       this.sequenceNumber,
       version(this.version),
+    );
+  }
+
+  equals(other: GroupChat): boolean {
+    return (
+      this.id.equals(other.id) &&
+      this.deleted === other.deleted &&
+      this.name.equals(other.name) &&
+      this.members.equals(other.members) &&
+      this.sequenceNumber === other.sequenceNumber &&
+      this.version === other.version
     );
   }
 }

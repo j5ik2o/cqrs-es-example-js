@@ -39,6 +39,10 @@ class GroupChatId implements AggregateId {
   get typeName(): string {
     return GROUP_CHAT_PREFIX;
   }
+
+  equals(anotherId: GroupChatId): boolean {
+    return this.value === anotherId.value;
+  }
 }
 
 export { GroupChatId };

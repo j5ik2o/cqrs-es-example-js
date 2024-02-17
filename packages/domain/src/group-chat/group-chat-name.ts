@@ -12,6 +12,10 @@ class GroupChatName {
   get asString(): string {
     return this.value;
   }
+
+  equals(other: GroupChatName): boolean {
+    return this.value === other.value;
+  }
 }
 
 export { GroupChatName };

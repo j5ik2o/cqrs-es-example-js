@@ -45,14 +45,18 @@ class Members {
     return new Members(newMap);
   }
 
+  contains(userAccountId: UserAccountId): boolean {
+    return this._values.has(userAccountId.value);
+  }
+
   isMember(userAccountId: UserAccountId): boolean {
     const member = this._values.get(userAccountId.value);
-    return member !== undefined && member.memberRole === "member";
+    return member !== undefined && member.isMember();
   }
 
   isAdministrator(userAccountId: UserAccountId): boolean {
     const member = this._values.get(userAccountId.value);
-    return member !== undefined && member.memberRole === "admin";
+    return member !== undefined && member.isAdministrator();
   }
 
   findById(userAccountId: UserAccountId): Member | undefined {
@@ -70,6 +74,19 @@ class Members {
         value,
       ]),
     );
+  }
+
+  equals(other: Members): boolean {
+    if (this._values.size !== other._values.size) {
+      return false;
+    }
+    for (const [key, value] of this._values) {
+      const otherValue = other._values.get(key);
+      if (otherValue === undefined || !value.equals(otherValue)) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 
