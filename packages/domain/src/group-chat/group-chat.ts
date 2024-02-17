@@ -32,7 +32,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     public readonly version: number,
   ) {}
 
-  static of(
+  static create(
     id: GroupChatId,
     name: GroupChatName,
     executorId: UserAccountId,

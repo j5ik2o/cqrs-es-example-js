@@ -1,10 +1,5 @@
 import { describe } from "node:test";
-import {
-  GroupChatAddMemberError,
-  GroupChat,
-  GroupChatDeleteError,
-  GroupChatRemoveMemberError,
-} from "./group-chat";
+import { GroupChat } from "./group-chat";
 import { GroupChatId } from "./group-chat-id";
 import { GroupChatName } from "./group-chat-name";
 import { UserAccountId } from "../user-account";
@@ -14,6 +9,11 @@ import {
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
 } from "./group-chat-events";
+import {
+  GroupChatAddMemberError,
+  GroupChatDeleteError,
+  GroupChatRemoveMemberError,
+} from "./group-chat-errors";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -24,7 +24,7 @@ describe("GroupChat", () => {
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
-    const [groupChat] = GroupChat.of(id, name, adminId);
+    const [groupChat] = GroupChat.create(id, name, adminId);
     expect(groupChat.id).toEqual(id);
     expect(groupChat.name).toEqual(name);
   });
@@ -32,7 +32,7 @@ describe("GroupChat", () => {
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
-    const [groupChat] = GroupChat.of(id, name, adminId);
+    const [groupChat] = GroupChat.create(id, name, adminId);
 
     const deleteEither = groupChat.delete(adminId);
 
@@ -51,7 +51,7 @@ describe("GroupChat", () => {
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
-    const [groupChat] = GroupChat.of(id, name, adminId);
+    const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
 
     const memberEither = groupChat.addMember(memberId, "member", adminId);
@@ -74,7 +74,7 @@ describe("GroupChat", () => {
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
-    const [groupChat] = GroupChat.of(id, name, adminId);
+    const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
     const memberEither = groupChat.addMember(memberId, "member", adminId);
     const [actualGroupChat] = E.fold(
