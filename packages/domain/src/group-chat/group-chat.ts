@@ -11,17 +11,29 @@ import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
 import * as E from "fp-ts/lib/Either";
 
-const AddMemberErrorSymbol = Symbol("AddMemberError");
+const GroupChatAddMemberErrorSymbol = Symbol("GroupChatAddMemberError");
 
-class AddMemberError {
-  readonly symbol: typeof AddMemberErrorSymbol = AddMemberErrorSymbol;
+class GroupChatAddMemberError {
+  readonly symbol: typeof GroupChatAddMemberErrorSymbol =
+    GroupChatAddMemberErrorSymbol;
   private constructor(public readonly message: string) {}
-  static of(message: string): AddMemberError {
-    return new AddMemberError(message);
+  static of(message: string): GroupChatAddMemberError {
+    return new GroupChatAddMemberError(message);
   }
 }
 
-type GroupChatError = AddMemberError;
+const GroupChatDeleteErrorSymbol = Symbol("GroupChatDeleteError");
+
+class GroupChatDeleteError {
+  readonly symbol: typeof GroupChatDeleteErrorSymbol =
+    GroupChatDeleteErrorSymbol;
+  private constructor(public readonly message: string) {}
+  static of(message: string): GroupChatDeleteError {
+    return new GroupChatDeleteError(message);
+  }
+}
+
+type GroupChatError = GroupChatDeleteError | GroupChatAddMemberError;
 
 const GroupChatSymbol = Symbol("GroupChat");
 
@@ -66,20 +78,22 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     userAccountId: UserAccountId,
     memberRole: MemberRole,
     executorId: UserAccountId,
-  ): E.Either<GroupChatError, [GroupChat, GroupChatMemberAdded]> {
+  ): E.Either<GroupChatAddMemberError, [GroupChat, GroupChatMemberAdded]> {
     if (this.deleted) {
-      return E.left(AddMemberError.of("The group chat is deleted"));
+      return E.left(GroupChatAddMemberError.of("The group chat is deleted"));
     }
     if (this.members.isMember(userAccountId)) {
       return E.left(
-        AddMemberError.of(
+        GroupChatAddMemberError.of(
           "The userAccountId is already the member of the group chat",
         ),
       );
     }
     if (!this.members.isAdministrator(executorId)) {
       return E.left(
-        AddMemberError.of("The executorId is not the member of the group chat"),
+        GroupChatAddMemberError.of(
+          "The executorId is not the member of the group chat",
+        ),
       );
     }
     const newMember = Member.of(userAccountId, memberRole);
@@ -104,13 +118,15 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
 
   delete(
     executorId: UserAccountId,
-  ): E.Either<GroupChatError, [GroupChat, GroupChatDeleted]> {
+  ): E.Either<GroupChatDeleteError, [GroupChat, GroupChatDeleted]> {
     if (this.deleted) {
-      return E.left(AddMemberError.of("The group chat is deleted"));
+      return E.left(GroupChatDeleteError.of("The group chat is deleted"));
     }
     if (!this.members.isAdministrator(executorId)) {
       return E.left(
-        AddMemberError.of("The executorId is not the member of the group chat"),
+        GroupChatDeleteError.of(
+          "The executorId is not the member of the group chat",
+        ),
       );
     }
     const sequenceNumber = this.sequenceNumber + 1;
@@ -160,4 +176,9 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   }
 }
 
-export { GroupChat, GroupChatError, AddMemberError };
+export {
+  GroupChat,
+  GroupChatError,
+  GroupChatAddMemberError,
+  GroupChatDeleteError,
+};
