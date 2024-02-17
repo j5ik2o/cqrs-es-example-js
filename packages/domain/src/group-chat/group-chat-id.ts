@@ -14,9 +14,10 @@ class GroupChatId implements AggregateId {
       this._value = ulid();
     } else {
       if (value.startsWith(GROUP_CHAT_PREFIX + "-")) {
-        value = value.substring(GROUP_CHAT_PREFIX.length + 1);
+        this._value = value.substring(GROUP_CHAT_PREFIX.length + 1);
+      } else {
+        this._value = value;
       }
-      this._value = value;
     }
   }
 

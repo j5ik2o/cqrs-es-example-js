@@ -14,9 +14,10 @@ class UserAccountId implements AggregateId {
       this._value = ulid();
     } else {
       if (value.startsWith(USER_ACCOUNT_PREFIX + "-")) {
-        value = value.substring(USER_ACCOUNT_PREFIX.length + 1);
+        this._value = value.substring(USER_ACCOUNT_PREFIX.length + 1);
+      } else {
+        this._value = value;
       }
-      this._value = value;
     }
   }
 
