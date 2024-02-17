@@ -12,6 +12,10 @@ class Messages {
     return new Messages(new Map([[message.id.asString, message]]));
   }
 
+  static ofEmpty(): Messages {
+    return new Messages(new Map());
+  }
+
   static fromArray(messages: Message[]): Messages {
     return new Messages(
       new Map(messages.map((message) => [message.id.asString, message])),

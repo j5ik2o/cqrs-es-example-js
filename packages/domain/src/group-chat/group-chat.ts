@@ -6,7 +6,7 @@ import {
   GroupChatCreated,
   GroupChatDeleted,
   GroupChatMemberAdded,
-  GroupChatMemberRemoved,
+  GroupChatMemberRemoved, GroupChatMessagePosted,
 } from "./group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
@@ -14,9 +14,11 @@ import * as E from "fp-ts/lib/Either";
 import * as O from "fp-ts/lib/Option";
 import {
   GroupChatAddMemberError,
-  GroupChatDeleteError,
+  GroupChatDeleteError, GroupChatPostError,
   GroupChatRemoveMemberError,
 } from "./group-chat-errors";
+import {Message} from "./message";
+import {Messages} from "./messages";
 
 const GroupChatSymbol = Symbol("GroupChat");
 
@@ -28,6 +30,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     private readonly deleted: boolean,
     public readonly name: GroupChatName,
     public readonly members: Members,
+    public readonly messages: Messages,
     public readonly sequenceNumber: number,
     public readonly version: number,
   ) {}
@@ -41,7 +44,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     const sequenceNumber = 1;
     const version = 1;
     return [
-      new GroupChat(id, false, name, members, sequenceNumber, version),
+      new GroupChat(id, false, name, members, Messages.ofEmpty(), sequenceNumber, version),
       GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
     ];
   }
@@ -51,10 +54,11 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     deleted: boolean,
     name: GroupChatName,
     members: Members,
+    messages: Messages,
     sequenceNumber: number,
     version: number,
   ): GroupChat {
-    return new GroupChat(id, deleted, name, members, sequenceNumber, version);
+    return new GroupChat(id, deleted, name, members, messages, sequenceNumber, version);
   }
 
   addMember(
@@ -87,6 +91,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       this.deleted,
       this.name,
       newMembers,
+      this.messages,
       sequenceNumber,
       this.version,
     );
@@ -128,6 +133,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       this.deleted,
       this.name,
       newMembers,
+      this.messages,
       sequenceNumber,
       this.version,
     );
@@ -137,6 +143,46 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       executorId,
       sequenceNumber,
     );
+    return E.right([newGroupChat, event]);
+  }
+
+  postMessage(message: Message, executorId: UserAccountId): E.Either<GroupChatPostError, [GroupChat, GroupChatMessagePosted]> {
+    if (this.deleted) {
+      return E.left(GroupChatPostError.of("The group chat is deleted"));
+    }
+    if (!this.members.containsById(executorId)) {
+      return E.left(
+        GroupChatPostError.of(
+          "The executorId is not the member of the group chat",
+        ),
+      );
+    }
+    if (!this.members.containsById(message.senderId)) {
+        return E.left(
+            GroupChatPostError.of(
+            "The sender id is not the member of the group chat",
+            ),
+        );
+    }
+    if (this.messages.containsById(message.id)) {
+        return E.left(
+            GroupChatPostError.of(
+            "The message id is already exists in the group chat",
+            ),
+        );
+    }
+    const sequenceNumber = this.sequenceNumber + 1;
+    const newMessages = this.messages.addMessage(message);
+    const newGroupChat = GroupChat.from(
+        this.id,
+        this.deleted,
+        this.name,
+        this.members,
+        newMessages,
+        sequenceNumber,
+        this.version,
+    );
+    const event = GroupChatMessagePosted.of(this.id, message, executorId, sequenceNumber);
     return E.right([newGroupChat, event]);
   }
 
@@ -159,6 +205,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       true,
       this.name,
       this.members,
+      this.messages,
       sequenceNumber,
       this.version,
     );
@@ -172,6 +219,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       this.deleted,
       this.name,
       this.members,
+      this.messages,
       this.sequenceNumber,
       version,
     );
@@ -183,6 +231,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       this.deleted,
       this.name,
       this.members,
+      this.messages,
       this.sequenceNumber,
       version(this.version),
     );
