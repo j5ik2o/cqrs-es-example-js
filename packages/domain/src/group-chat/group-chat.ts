@@ -6,6 +6,7 @@ import {
   GroupChatDeleted,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
+  GroupChatMessageDeleted,
   GroupChatMessagePosted,
 } from "./group-chat-events";
 import { UserAccountId } from "../user-account";
@@ -15,11 +16,13 @@ import * as O from "fp-ts/lib/Option";
 import {
   GroupChatAddMemberError,
   GroupChatDeleteError,
-  GroupChatPostError,
+  GroupChatDeleteMessageError,
+  GroupChatPostMessageError,
   GroupChatRemoveMemberError,
 } from "./group-chat-errors";
 import { Message } from "./message";
 import { Messages } from "./messages";
+import { MessageId } from "./message-id";
 
 const GroupChatSymbol = Symbol("GroupChat");
 
@@ -47,7 +50,14 @@ type GroupChat = Readonly<{
   postMessage: (
     message: Message,
     executorId: UserAccountId,
-  ) => E.Either<GroupChatPostError, [GroupChat, GroupChatMessagePosted]>;
+  ) => E.Either<GroupChatPostMessageError, [GroupChat, GroupChatMessagePosted]>;
+  deleteMessage: (
+    messageId: MessageId,
+    executorId: UserAccountId,
+  ) => E.Either<
+    GroupChatDeleteMessageError,
+    [GroupChat, GroupChatMessageDeleted]
+  >;
   delete: (
     executorId: UserAccountId,
   ) => E.Either<GroupChatDeleteError, [GroupChat, GroupChatDeleted]>;
@@ -153,25 +163,27 @@ function initialize(params: GroupChatParams): GroupChat {
     },
     postMessage(message: Message, executorId: UserAccountId) {
       if (this.deleted) {
-        return E.left(GroupChatPostError.of("The group chat is deleted"));
+        return E.left(
+          GroupChatPostMessageError.of("The group chat is deleted"),
+        );
       }
       if (!this.members.containsById(executorId)) {
         return E.left(
-          GroupChatPostError.of(
+          GroupChatPostMessageError.of(
             "The executorId is not the member of the group chat",
           ),
         );
       }
       if (!this.members.containsById(message.senderId)) {
         return E.left(
-          GroupChatPostError.of(
+          GroupChatPostMessageError.of(
             "The sender id is not the member of the group chat",
           ),
         );
       }
       if (this.messages.containsById(message.id)) {
         return E.left(
-          GroupChatPostError.of(
+          GroupChatPostMessageError.of(
             "The message id is already exists in the group chat",
           ),
         );
@@ -186,6 +198,42 @@ function initialize(params: GroupChatParams): GroupChat {
       const event = GroupChatMessagePosted.of(
         this.id,
         message,
+        executorId,
+        newSequenceNumber,
+      );
+      return E.right([newGroupChat, event]);
+    },
+    deleteMessage(messageId: MessageId, executorId: UserAccountId) {
+      if (this.deleted) {
+        return E.left(
+          GroupChatDeleteMessageError.of("The group chat is deleted"),
+        );
+      }
+      if (!this.members.containsById(executorId)) {
+        return E.left(
+          GroupChatDeleteMessageError.of(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      const result = this.messages.removeMessageById(messageId);
+      if (O.isNone(result)) {
+        return E.left(
+          GroupChatDeleteMessageError.of(
+            "The message id is not exists in the group chat",
+          ),
+        );
+      }
+      const [newMessages, removedMessage] = result.value;
+      const newSequenceNumber = this.sequenceNumber + 1;
+      const newGroupChat: GroupChat = initialize({
+        ...this,
+        messages: newMessages,
+        sequenceNumber: newSequenceNumber,
+      });
+      const event = GroupChatMessageDeleted.of(
+        this.id,
+        removedMessage,
         executorId,
         newSequenceNumber,
       );

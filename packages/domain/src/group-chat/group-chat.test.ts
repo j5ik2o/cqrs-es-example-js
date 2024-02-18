@@ -8,12 +8,16 @@ import {
   GroupChatDeleted,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
+  GroupChatMessagePosted,
 } from "./group-chat-events";
 import {
   GroupChatAddMemberError,
   GroupChatDeleteError,
+  GroupChatPostMessageError,
   GroupChatRemoveMemberError,
 } from "./group-chat-errors";
+import { Message } from "./message";
+import { MessageId } from "./message-id";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -102,5 +106,45 @@ describe("GroupChat", () => {
     expect(actualGroupChat2.members.containsById(memberId)).toEqual(false);
     expect(groupChatMemberRemoved.aggregateId).toEqual(id);
     expect(groupChatMemberRemoved.member.userAccountId).toEqual(memberId);
+  });
+  test("PostMessage", () => {
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat] = GroupChat.create(id, name, adminId);
+    const memberId = UserAccountId.generate();
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
+    const [actualGroupChat] = E.fold(
+      (err: GroupChatAddMemberError) => {
+        throw new Error(err.message);
+      },
+      (values: [GroupChat, GroupChatMemberAdded]) => {
+        return values;
+      },
+    )(addMemberEither);
+    expect(actualGroupChat.id).toEqual(id);
+    expect(actualGroupChat.members.containsById(memberId)).toEqual(true);
+
+    const message = Message.of(
+      MessageId.generate(),
+      "content",
+      memberId,
+      new Date(),
+    );
+    const postMessageEither = actualGroupChat.postMessage(message, memberId);
+    expect(E.isRight(postMessageEither)).toEqual(true);
+
+    const [actualGroupChat2] = E.fold(
+      (err: GroupChatPostMessageError) => {
+        throw new Error(err.message);
+      },
+      (values: [GroupChat, GroupChatMessagePosted]) => {
+        return values;
+      },
+    )(postMessageEither);
+
+    expect(actualGroupChat2.id).toEqual(id);
+    expect(actualGroupChat2.messages.size()).toEqual(1);
+    expect(actualGroupChat2.messages.toArray()[0].id).toEqual(message.id);
   });
 });

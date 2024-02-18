@@ -48,15 +48,31 @@ const GroupChatDeleteError = {
 
 const GroupChatPostErrorSymbol = Symbol("GroupChatPostError");
 
-type GroupChatPostError = Readonly<{
+type GroupChatPostMessageError = Readonly<{
   symbol: typeof GroupChatPostErrorSymbol;
   message: string;
 }>;
 
-const GroupChatPostError = {
-  of(message: string): GroupChatPostError {
+const GroupChatPostMessageError = {
+  of(message: string): GroupChatPostMessageError {
     return {
       symbol: GroupChatPostErrorSymbol,
+      message,
+    };
+  },
+};
+
+const GroupChatDeleteMessageErrorSymbol = Symbol("GroupChatPostError");
+
+type GroupChatDeleteMessageError = Readonly<{
+  symbol: typeof GroupChatDeleteMessageErrorSymbol;
+  message: string;
+}>;
+
+const GroupChatDeleteMessageError = {
+  of(message: string): GroupChatDeleteMessageError {
+    return {
+      symbol: GroupChatDeleteMessageErrorSymbol,
       message,
     };
   },
@@ -66,12 +82,14 @@ type GroupChatError =
   | GroupChatDeleteError
   | GroupChatAddMemberError
   | GroupChatRemoveMemberError
-  | GroupChatPostError;
+  | GroupChatPostMessageError
+  | GroupChatDeleteMessageError;
 
 export {
   GroupChatError,
   GroupChatAddMemberError,
   GroupChatRemoveMemberError,
-  GroupChatPostError,
+  GroupChatPostMessageError,
+  GroupChatDeleteMessageError,
   GroupChatDeleteError,
 };
