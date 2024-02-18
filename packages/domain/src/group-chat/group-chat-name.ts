@@ -7,12 +7,7 @@ type GroupChatName = Readonly<{
   equals: (anotherName: GroupChatName) => boolean;
 }>;
 
-function initialize(value: string): GroupChatName {
-  const _value: string = value;
-
-  const equals = (anotherName: GroupChatName): boolean =>
-    _value === anotherName.value;
-
+function initialize(_value: string): GroupChatName {
   return {
     symbol: GroupChatNameSymbol,
     get value() {
@@ -21,7 +16,9 @@ function initialize(value: string): GroupChatName {
     get asString() {
       return _value;
     },
-    equals,
+    equals(anotherName: GroupChatName): boolean {
+      return _value === anotherName.value;
+    },
   };
 }
 

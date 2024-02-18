@@ -9,9 +9,13 @@ type Messages = Readonly<{
   findById: (messageId: MessageId) => Message | undefined;
   toArray: () => Message[];
   toMap: () => Map<MessageId, Message>;
+  size: () => number;
+  equals: (anotherMessages: Messages) => boolean;
 }>;
 
 function initialize(values: Map<string, Message>): Messages {
+  let _toArray: Message[] | undefined = undefined;
+  let _toMap: Map<MessageId, Message> | undefined = undefined;
   return {
     addMessage: (message: Message) =>
       initialize(new Map(values).set(message.id.asString, message)),
@@ -28,23 +32,38 @@ function initialize(values: Map<string, Message>): Messages {
     },
     containsById: (messageId: MessageId) => values.has(messageId.value),
     findById: (messageId: MessageId) => values.get(messageId.value),
-    toArray: () =>
-      Array.from(values.values()).sort((a, b) =>
-        a.id.value.localeCompare(b.id.value),
-      ),
-    toMap: () =>
-      new Map(
-        Array.from(values.entries()).map(([k, v]) => [MessageId.of(k), v]),
-      ),
+    toArray() {
+      if (_toArray === undefined) {
+        _toArray = Array.from(values.values());
+      }
+      return _toArray;
+    },
+    toMap() {
+      if (_toMap === undefined) {
+        _toMap = new Map(
+          Array.from(values.entries()).map(([k, v]) => [MessageId.of(k), v]),
+        );
+      }
+      return _toMap;
+    },
+    size: () => values.size,
+    equals(anotherMessages: Messages) {
+      return (
+        this.size() === anotherMessages.size() &&
+        this.toArray().every((message, index) =>
+          message.equals(anotherMessages.toArray()[index]),
+        )
+      );
+    },
   };
 }
 
 const Messages = {
-  ofSingle(message: Message): Messages {
-    return initialize(new Map([[message.id.asString, message]]));
-  },
   ofEmpty(): Messages {
     return initialize(new Map());
+  },
+  ofSingle(message: Message): Messages {
+    return initialize(new Map([[message.id.asString, message]]));
   },
   fromArray(messages: Message[]): Messages {
     return initialize(

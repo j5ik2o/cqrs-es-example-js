@@ -21,8 +21,12 @@ function initialize(
     symbol: MemberSymbol,
     userAccountId,
     memberRole,
-    isAdministrator() { return memberRole === "admin" },
-    isMember() { return memberRole === "member" },
+    isAdministrator() {
+      return memberRole === "admin";
+    },
+    isMember() {
+      return memberRole === "member";
+    },
     equals(other: Member) {
       return userAccountId.value === other.userAccountId.value;
     },

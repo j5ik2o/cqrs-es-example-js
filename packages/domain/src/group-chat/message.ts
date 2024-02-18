@@ -9,6 +9,7 @@ type Message = Readonly<{
   content: string;
   senderId: UserAccountId;
   sentAt: Date;
+  equals: (anotherMessage: Message) => boolean;
 }>;
 
 function initialize(
@@ -23,6 +24,14 @@ function initialize(
     content,
     senderId,
     sentAt,
+    equals(anotherMessage: Message): boolean {
+      return (
+        id.equals(anotherMessage.id) &&
+        content === anotherMessage.content &&
+        senderId.equals(anotherMessage.senderId) &&
+        sentAt.getTime() === anotherMessage.sentAt.getTime()
+      );
+    },
   };
 }
 

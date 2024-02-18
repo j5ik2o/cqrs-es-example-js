@@ -6,6 +6,7 @@ type MessageId = Readonly<{
   symbol: typeof MessageIdSymbol;
   value: string;
   asString: string;
+  equals: (anotherId: MessageId) => boolean;
 }>;
 
 function initialize(value: string): MessageId {
@@ -14,6 +15,9 @@ function initialize(value: string): MessageId {
     value,
     get asString() {
       return value;
+    },
+    equals(anotherId: MessageId): boolean {
+      return value === anotherId.value;
     },
   };
 }

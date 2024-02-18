@@ -76,7 +76,7 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const memberEither = groupChat.addMember(memberId, "member", adminId);
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
     const [actualGroupChat] = E.fold(
       (err: GroupChatAddMemberError) => {
         throw new Error(err.message);
@@ -84,10 +84,11 @@ describe("GroupChat", () => {
       (values: [GroupChat, GroupChatMemberAdded]) => {
         return values;
       },
-    )(memberEither);
+    )(addMemberEither);
+    expect(actualGroupChat.id).toEqual(id);
+    expect(actualGroupChat.members.containsById(memberId)).toEqual(true);
 
     const removeEither = actualGroupChat.removeMemberById(memberId, adminId);
-
     expect(E.isRight(removeEither)).toEqual(true);
     const [actualGroupChat2, groupChatMemberRemoved] = E.fold(
       (err: GroupChatRemoveMemberError) => {

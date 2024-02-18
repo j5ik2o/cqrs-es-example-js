@@ -24,9 +24,6 @@ function initialize(value?: string): GroupChatId {
     }
   }
 
-  const equals = (anotherId: GroupChatId): boolean =>
-    _value === anotherId.value;
-
   return {
     symbol: GroupChatIdSymbol,
     get value() {
@@ -38,7 +35,9 @@ function initialize(value?: string): GroupChatId {
     get asString() {
       return `${GROUP_CHAT_PREFIX}-${_value}`;
     },
-    equals,
+    equals(anotherId: GroupChatId): boolean {
+      return _value === anotherId.value;
+    },
   };
 }
 
