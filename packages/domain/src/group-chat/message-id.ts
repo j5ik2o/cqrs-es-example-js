@@ -8,7 +8,7 @@ type MessageId = Readonly<{
   asString: string;
 }>;
 
-function newMessageId(value: string): MessageId {
+function initialize(value: string): MessageId {
   return {
     symbol: MessageIdSymbol,
     value,
@@ -20,10 +20,10 @@ function newMessageId(value: string): MessageId {
 
 const MessageId = {
   of(value: string): MessageId {
-    return newMessageId(value);
+    return initialize(value);
   },
   generate(): MessageId {
-    return newMessageId(ulid());
+    return initialize(ulid());
   },
 };
 

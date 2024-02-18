@@ -11,7 +11,7 @@ type Message = Readonly<{
   sentAt: Date;
 }>;
 
-function newMessage(
+function initialize(
   id: MessageId,
   content: string,
   senderId: UserAccountId,
@@ -33,7 +33,7 @@ const Message = {
     senderId: UserAccountId,
     sentAt: Date,
   ): Message {
-    return newMessage(id, content, senderId, sentAt);
+    return initialize(id, content, senderId, sentAt);
   },
 };
 

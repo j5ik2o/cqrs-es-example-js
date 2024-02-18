@@ -11,10 +11,10 @@ type Messages = Readonly<{
   toMap: () => Map<MessageId, Message>;
 }>;
 
-function newMessages(values: Map<string, Message>): Messages {
+function initialize(values: Map<string, Message>): Messages {
   return {
     addMessage: (message: Message) =>
-      newMessages(new Map(values).set(message.id.asString, message)),
+      initialize(new Map(values).set(message.id.asString, message)),
     removeMessageById: (
       messageId: MessageId,
     ): O.Option<[Messages, Message]> => {
@@ -24,7 +24,7 @@ function newMessages(values: Map<string, Message>): Messages {
       }
       const newMap = new Map(values);
       newMap.delete(messageId.value);
-      return O.some([newMessages(newMap), message]);
+      return O.some([initialize(newMap), message]);
     },
     containsById: (messageId: MessageId) => values.has(messageId.value),
     findById: (messageId: MessageId) => values.get(messageId.value),
@@ -41,18 +41,18 @@ function newMessages(values: Map<string, Message>): Messages {
 
 const Messages = {
   ofSingle(message: Message): Messages {
-    return newMessages(new Map([[message.id.asString, message]]));
+    return initialize(new Map([[message.id.asString, message]]));
   },
   ofEmpty(): Messages {
-    return newMessages(new Map());
+    return initialize(new Map());
   },
   fromArray(messages: Message[]): Messages {
-    return newMessages(
+    return initialize(
       new Map(messages.map((message) => [message.id.asString, message])),
     );
   },
   fromMap(messages: Map<MessageId, Message>): Messages {
-    return newMessages(
+    return initialize(
       new Map(Array.from(messages.entries()).map(([k, v]) => [k.asString, v])),
     );
   },

@@ -7,7 +7,7 @@ type GroupChatName = Readonly<{
   equals: (anotherName: GroupChatName) => boolean;
 }>;
 
-function newGroupChatName(value: string): GroupChatName {
+function initialize(value: string): GroupChatName {
   const _value: string = value;
 
   const equals = (anotherName: GroupChatName): boolean =>
@@ -27,7 +27,7 @@ function newGroupChatName(value: string): GroupChatName {
 
 const GroupChatName = {
   of(value: string): GroupChatName {
-    return newGroupChatName(value);
+    return initialize(value);
   },
 };
 

@@ -11,7 +11,7 @@ type GroupChatId = Readonly<{
   equals: (anotherId: GroupChatId) => boolean;
 }>;
 
-function newGroupChatId(value?: string): GroupChatId {
+function initialize(value?: string): GroupChatId {
   const _value: string = initializeValue(value);
 
   function initializeValue(value?: string): string {
@@ -44,10 +44,10 @@ function newGroupChatId(value?: string): GroupChatId {
 
 const GroupChatId = {
   of(value: string): GroupChatId {
-    return newGroupChatId(value);
+    return initialize(value);
   },
   generate(): GroupChatId {
-    return newGroupChatId();
+    return initialize();
   },
 };
 

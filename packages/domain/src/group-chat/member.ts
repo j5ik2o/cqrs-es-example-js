@@ -13,7 +13,7 @@ type Member = Readonly<{
   equals: (other: Member) => boolean;
 }>;
 
-function newMember(
+function initialize(
   userAccountId: UserAccountId,
   memberRole: MemberRole,
 ): Member {
@@ -21,16 +21,17 @@ function newMember(
     symbol: MemberSymbol,
     userAccountId,
     memberRole,
-    isAdministrator: () => memberRole === "admin",
-    isMember: () => memberRole === "member",
-    equals: (other: Member) =>
-      userAccountId.value === other.userAccountId.value,
+    isAdministrator() { return memberRole === "admin" },
+    isMember() { return memberRole === "member" },
+    equals(other: Member) {
+      return userAccountId.value === other.userAccountId.value;
+    },
   };
 }
 
 const Member = {
   of(userAccountId: UserAccountId, memberRole: MemberRole): Member {
-    return newMember(userAccountId, memberRole);
+    return initialize(userAccountId, memberRole);
   },
 };
 

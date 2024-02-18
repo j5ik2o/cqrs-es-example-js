@@ -11,7 +11,7 @@ type UserAccountId = Readonly<{
   equals: (anotherId: UserAccountId) => boolean;
 }>;
 
-function newUserAccountId(value?: string): UserAccountId {
+function initialize(value?: string): UserAccountId {
   const _value: string = initializeValue(value);
 
   function initializeValue(value?: string): string {
@@ -44,10 +44,10 @@ function newUserAccountId(value?: string): UserAccountId {
 
 const UserAccountId = {
   of(value: string): UserAccountId {
-    return newUserAccountId(value);
+    return initialize(value);
   },
   generate(): UserAccountId {
-    return newUserAccountId();
+    return initialize();
   },
 };
 

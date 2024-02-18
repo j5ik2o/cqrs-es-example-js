@@ -56,7 +56,7 @@ type GroupChat = Readonly<{
   equals: (other: GroupChat) => boolean;
 }>;
 
-function newGroupChat(
+function initialize(
   id: GroupChatId,
   deleted: boolean,
   name: GroupChatName,
@@ -99,7 +99,7 @@ function newGroupChat(
       const newMember = Member.of(userAccountId, memberRole);
       const newMembers = members.addMember(newMember);
       const newSequenceNumber = sequenceNumber + 1;
-      const groupChatUpdated: GroupChat = {
+      const newGroupChat: GroupChat = {
         ...this,
         members: newMembers,
         sequenceNumber: newSequenceNumber,
@@ -110,7 +110,7 @@ function newGroupChat(
         executorId,
         newSequenceNumber,
       );
-      return E.right([groupChatUpdated, event]);
+      return E.right([newGroupChat, event]);
     },
     removeMemberById(userAccountId: UserAccountId, executorId: UserAccountId) {
       if (deleted) {
@@ -135,7 +135,7 @@ function newGroupChat(
       }
       const [newMembers, removedMember] = newMembersOpt.value;
       const newSequenceNumber = sequenceNumber + 1;
-      const groupChatUpdated: GroupChat = {
+      const newGroupChat: GroupChat = {
         ...this,
         members: newMembers,
         sequenceNumber: newSequenceNumber,
@@ -146,7 +146,7 @@ function newGroupChat(
         executorId,
         newSequenceNumber,
       );
-      return E.right([groupChatUpdated, event]);
+      return E.right([newGroupChat, event]);
     },
     postMessage(message: Message, executorId: UserAccountId) {
       if (deleted) {
@@ -175,7 +175,7 @@ function newGroupChat(
       }
       const newSequenceNumber = sequenceNumber + 1;
       const newMessages = messages.addMessage(message);
-      const groupChatUpdated: GroupChat = {
+      const newGroupChat: GroupChat = {
         ...this,
         messages: newMessages,
         sequenceNumber: newSequenceNumber,
@@ -186,7 +186,7 @@ function newGroupChat(
         executorId,
         newSequenceNumber,
       );
-      return E.right([groupChatUpdated, event]);
+      return E.right([newGroupChat, event]);
     },
     delete(
       executorId: UserAccountId,
@@ -202,13 +202,13 @@ function newGroupChat(
         );
       }
       const newSequenceNumber = sequenceNumber + 1;
-      const groupChatUpdated: GroupChat = {
+      const newGroupChat: GroupChat = {
         ...this,
         deleted: true,
         sequenceNumber: newSequenceNumber,
       };
       const event = GroupChatDeleted.of(id, executorId, newSequenceNumber);
-      return E.right([groupChatUpdated, event]);
+      return E.right([newGroupChat, event]);
     },
     withVersion(version: number): GroupChat {
       return { ...this, version };
@@ -239,7 +239,7 @@ const GroupChat = {
     const sequenceNumber = 1;
     const version = 1;
     return [
-      newGroupChat(
+      initialize(
         id,
         false,
         name,
