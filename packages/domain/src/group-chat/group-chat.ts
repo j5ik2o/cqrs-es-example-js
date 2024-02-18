@@ -57,30 +57,32 @@ type GroupChat = Readonly<{
   toString: () => string;
 }>;
 
-function initialize(
-  id: GroupChatId,
-  deleted: boolean,
-  name: GroupChatName,
-  members: Members,
-  messages: Messages,
-  sequenceNumber: number,
-  version: number,
-): GroupChat {
+type GroupChatParams = {
+  id: GroupChatId;
+  deleted: boolean;
+  name: GroupChatName;
+  members: Members;
+  messages: Messages;
+  sequenceNumber: number;
+  version: number;
+};
+
+function initialize(params: GroupChatParams): GroupChat {
   return {
     symbol: GroupChatSymbol,
-    id,
-    deleted,
-    name,
-    members,
-    messages,
-    sequenceNumber,
-    version,
+    id: params.id,
+    deleted: params.deleted,
+    name: params.name,
+    members: params.members,
+    messages: params.messages,
+    sequenceNumber: params.sequenceNumber,
+    version: params.version,
     addMember(
       userAccountId: UserAccountId,
       memberRole: MemberRole,
       executorId: UserAccountId,
     ) {
-      if (deleted) {
+      if (this.deleted) {
         return E.left(GroupChatAddMemberError.of("The group chat is deleted"));
       }
       if (this.members.isMember(userAccountId)) {
@@ -100,11 +102,11 @@ function initialize(
       const newMember = Member.of(userAccountId, memberRole);
       const newMembers = this.members.addMember(newMember);
       const newSequenceNumber = this.sequenceNumber + 1;
-      const newGroupChat: GroupChat = {
+      const newGroupChat: GroupChat = initialize({
         ...this,
         members: newMembers,
         sequenceNumber: newSequenceNumber,
-      };
+      });
       const event = GroupChatMemberAdded.of(
         this.id,
         newMember,
@@ -114,7 +116,7 @@ function initialize(
       return E.right([newGroupChat, event]);
     },
     removeMemberById(userAccountId: UserAccountId, executorId: UserAccountId) {
-      if (deleted) {
+      if (this.deleted) {
         return E.left(
           GroupChatRemoveMemberError.of("The group chat is deleted"),
         );
@@ -136,11 +138,11 @@ function initialize(
       }
       const [newMembers, removedMember] = newMembersOpt.value;
       const newSequenceNumber = this.sequenceNumber + 1;
-      const newGroupChat: GroupChat = {
+      const newGroupChat: GroupChat = initialize({
         ...this,
         members: newMembers,
         sequenceNumber: newSequenceNumber,
-      };
+      });
       const event = GroupChatMemberRemoved.of(
         this.id,
         removedMember,
@@ -150,7 +152,7 @@ function initialize(
       return E.right([newGroupChat, event]);
     },
     postMessage(message: Message, executorId: UserAccountId) {
-      if (deleted) {
+      if (this.deleted) {
         return E.left(GroupChatPostError.of("The group chat is deleted"));
       }
       if (!this.members.containsById(executorId)) {
@@ -176,11 +178,11 @@ function initialize(
       }
       const newSequenceNumber = this.sequenceNumber + 1;
       const newMessages = this.messages.addMessage(message);
-      const newGroupChat: GroupChat = {
+      const newGroupChat: GroupChat = initialize({
         ...this,
         messages: newMessages,
         sequenceNumber: newSequenceNumber,
-      };
+      });
       const event = GroupChatMessagePosted.of(
         this.id,
         message,
@@ -192,7 +194,7 @@ function initialize(
     delete(
       executorId: UserAccountId,
     ): E.Either<GroupChatDeleteError, [GroupChat, GroupChatDeleted]> {
-      if (deleted) {
+      if (this.deleted) {
         return E.left(GroupChatDeleteError.of("The group chat is deleted"));
       }
       if (!this.members.isAdministrator(executorId)) {
@@ -203,11 +205,11 @@ function initialize(
         );
       }
       const newSequenceNumber = this.sequenceNumber + 1;
-      const newGroupChat: GroupChat = {
+      const newGroupChat: GroupChat = initialize({
         ...this,
         deleted: true,
         sequenceNumber: newSequenceNumber,
-      };
+      });
       const event = GroupChatDeleted.of(this.id, executorId, newSequenceNumber);
       return E.right([newGroupChat, event]);
     },
@@ -243,15 +245,15 @@ const GroupChat = {
     const sequenceNumber = 1;
     const version = 1;
     return [
-      initialize(
+      initialize({
         id,
-        false,
+        deleted: false,
         name,
         members,
-        Messages.ofEmpty(),
+        messages: Messages.ofEmpty(),
         sequenceNumber,
         version,
-      ),
+      }),
       GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
     ];
   },
