@@ -1,43 +1,66 @@
 const GroupChatAddMemberErrorSymbol = Symbol("GroupChatAddMemberError");
 
-class GroupChatAddMemberError {
-  readonly symbol: typeof GroupChatAddMemberErrorSymbol =
-    GroupChatAddMemberErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatAddMemberError {
-    return new GroupChatAddMemberError(message);
-  }
-}
+type GroupChatAddMemberError = Readonly<{
+  symbol: typeof GroupChatAddMemberErrorSymbol;
+  message: string;
+}>;
+
+const GroupChatAddMemberError = {
+  of(message: string): GroupChatAddMemberError {
+    return {
+      symbol: GroupChatAddMemberErrorSymbol,
+      message,
+    };
+  },
+};
 
 const GroupChatRemoveMemberErrorSymbol = Symbol("GroupChatMemberRemoveError");
-class GroupChatRemoveMemberError {
-  readonly symbol: typeof GroupChatRemoveMemberErrorSymbol =
-    GroupChatRemoveMemberErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatRemoveMemberError {
-    return new GroupChatRemoveMemberError(message);
-  }
-}
+
+type GroupChatRemoveMemberError = Readonly<{
+  symbol: typeof GroupChatRemoveMemberErrorSymbol;
+  message: string;
+}>;
+
+const GroupChatRemoveMemberError = {
+  of(message: string): GroupChatRemoveMemberError {
+    return {
+      symbol: GroupChatRemoveMemberErrorSymbol,
+      message,
+    };
+  },
+};
 
 const GroupChatDeleteErrorSymbol = Symbol("GroupChatDeleteError");
 
-class GroupChatDeleteError {
-  readonly symbol: typeof GroupChatDeleteErrorSymbol =
-    GroupChatDeleteErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatDeleteError {
-    return new GroupChatDeleteError(message);
-  }
-}
+type GroupChatDeleteError = Readonly<{
+  symbol: typeof GroupChatDeleteErrorSymbol;
+  message: string;
+}>;
+
+const GroupChatDeleteError = {
+  of(message: string): GroupChatDeleteError {
+    return {
+      symbol: GroupChatDeleteErrorSymbol,
+      message,
+    };
+  },
+};
 
 const GroupChatPostErrorSymbol = Symbol("GroupChatPostError");
-class GroupChatPostError {
-  readonly symbol: typeof GroupChatPostErrorSymbol = GroupChatPostErrorSymbol;
-  private constructor(public readonly message: string) {}
-  static of(message: string): GroupChatPostError {
-    return new GroupChatPostError(message);
-  }
-}
+
+type GroupChatPostError = Readonly<{
+  symbol: typeof GroupChatPostErrorSymbol;
+  message: string;
+}>;
+
+const GroupChatPostError = {
+  of(message: string): GroupChatPostError {
+    return {
+      symbol: GroupChatPostErrorSymbol,
+      message,
+    };
+  },
+};
 
 type GroupChatError =
   | GroupChatDeleteError
