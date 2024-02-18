@@ -1,49 +1,54 @@
 import { ulid } from "ulidx";
-import { AggregateId } from "event-store-adapter-js";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdSymbol = Symbol("UserAccountId");
 
-class UserAccountId implements AggregateId {
-  readonly symbol: typeof UserAccountIdSymbol = UserAccountIdSymbol;
+type UserAccountId = Readonly<{
+  symbol: typeof UserAccountIdSymbol;
+  value: string;
+  typeName: string;
+  asString: string;
+  equals: (anotherId: UserAccountId) => boolean;
+}>;
 
-  private readonly _value: string;
+function newUserAccountId(value?: string): UserAccountId {
+  const _value: string = initializeValue(value);
 
-  private constructor(value?: string) {
+  function initializeValue(value?: string): string {
     if (value === undefined) {
-      this._value = ulid();
+      return ulid();
     } else {
-      if (value.startsWith(USER_ACCOUNT_PREFIX + "-")) {
-        this._value = value.substring(USER_ACCOUNT_PREFIX.length + 1);
-      } else {
-        this._value = value;
-      }
+      return value.startsWith(USER_ACCOUNT_PREFIX + "-")
+        ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
+        : value;
     }
   }
 
-  static of(value: string): UserAccountId {
-    return new UserAccountId(value);
-  }
+  const equals = (anotherId: UserAccountId): boolean =>
+    _value === anotherId.value;
 
-  static generate(): UserAccountId {
-    return new UserAccountId();
-  }
-
-  get asString(): string {
-    return `${this.typeName}-${this._value}`;
-  }
-
-  get value(): string {
-    return this._value;
-  }
-
-  get typeName(): string {
-    return USER_ACCOUNT_PREFIX;
-  }
-
-  equals(anotherId: UserAccountId): boolean {
-    return this._value === anotherId.value;
-  }
+  return {
+    symbol: UserAccountIdSymbol,
+    get value() {
+      return _value;
+    },
+    get typeName() {
+      return USER_ACCOUNT_PREFIX;
+    },
+    get asString() {
+      return `${USER_ACCOUNT_PREFIX}-${_value}`;
+    },
+    equals,
+  };
 }
+
+const UserAccountId = {
+  of(value: string): UserAccountId {
+    return newUserAccountId(value);
+  },
+  generate(): UserAccountId {
+    return newUserAccountId();
+  },
+};
 
 export { UserAccountId };

@@ -13,209 +13,201 @@ interface GroupChatEvent extends Event<GroupChatId> {
 
 const GroupChatCreatedSymbol = Symbol("GroupChatCreated");
 
-class GroupChatCreated implements GroupChatEvent {
-  readonly symbol: typeof GroupChatCreatedSymbol = GroupChatCreatedSymbol;
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly name: GroupChatName,
-    public readonly members: Members,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
+type GroupChatCreated = Readonly<{
+  symbol: typeof GroupChatCreatedSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  name: GroupChatName;
+  members: Members;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}>;
 
-  static of(
+const GroupChatCreated = {
+  of(
     aggregateId: GroupChatId,
     name: GroupChatName,
     members: Members,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatCreated {
-    return new GroupChatCreated(
-      ulid(),
+    return {
+      symbol: GroupChatCreatedSymbol,
+      id: ulid(),
       aggregateId,
       name,
       members,
       executorId,
       sequenceNumber,
-      new Date(),
-    );
-  }
-
-  get isCreated(): boolean {
-    return true;
-  }
-}
+      occurredAt: new Date(),
+      isCreated: true,
+    };
+  },
+};
 
 const GroupChatMemberAddedSymbol = Symbol("GroupChatMemberAdded");
-class GroupChatMemberAdded implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMemberAddedSymbol =
-    GroupChatMemberAddedSymbol;
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly member: Member,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
 
-  static of(
+type GroupChatMemberAdded = Readonly<{
+  symbol: typeof GroupChatMemberAddedSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  member: Member;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}>;
+
+const GroupChatMemberAdded = {
+  of(
     aggregateId: GroupChatId,
     member: Member,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatMemberAdded {
-    return new GroupChatMemberAdded(
-      ulid(),
+    return {
+      symbol: GroupChatMemberAddedSymbol,
+      id: ulid(),
       aggregateId,
       member,
       executorId,
       sequenceNumber,
-      new Date(),
-    );
-  }
-
-  get isCreated(): boolean {
-    return false;
-  }
-}
+      occurredAt: new Date(),
+      isCreated: false,
+    };
+  },
+};
 
 const GroupChatMemberRemovedSymbol = Symbol("GroupChatMemberRemoved");
 
-class GroupChatMemberRemoved implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMemberRemovedSymbol =
-    GroupChatMemberRemovedSymbol;
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly member: Member,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
+type GroupChatMemberRemoved = Readonly<{
+  symbol: typeof GroupChatMemberRemovedSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  member: Member;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}>;
 
-  static of(
+const GroupChatMemberRemoved = {
+  of(
     aggregateId: GroupChatId,
     member: Member,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatMemberRemoved {
-    return new GroupChatMemberRemoved(
-      ulid(),
+    return {
+      symbol: GroupChatMemberRemovedSymbol,
+      id: ulid(),
       aggregateId,
       member,
       executorId,
       sequenceNumber,
-      new Date(),
-    );
-  }
-
-  get isCreated(): boolean {
-    return false;
-  }
-}
+      occurredAt: new Date(),
+      isCreated: false,
+    };
+  },
+};
 
 const GroupChatDeletedSymbol = Symbol("GroupChatDeleted");
 
-class GroupChatDeleted implements GroupChatEvent {
-  readonly symbol: typeof GroupChatDeletedSymbol = GroupChatDeletedSymbol;
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
+type GroupChatDeleted = Readonly<{
+  symbol: typeof GroupChatDeletedSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}>;
 
-  static of(
+const GroupChatDeleted = {
+  of(
     aggregateId: GroupChatId,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatDeleted {
-    return new GroupChatDeleted(
-      ulid(),
+    return {
+      symbol: GroupChatDeletedSymbol,
+      id: ulid(),
       aggregateId,
       executorId,
       sequenceNumber,
-      new Date(),
-    );
-  }
-
-  get isCreated(): boolean {
-    return false;
-  }
-}
+      occurredAt: new Date(),
+      isCreated: false,
+    };
+  },
+};
 
 const GroupChatMessagePostedSymbol = Symbol("GroupChatMessagePosted");
 
-class GroupChatMessagePosted implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMessagePostedSymbol =
-    GroupChatMessagePostedSymbol;
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly message: Message,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
+type GroupChatMessagePosted = Readonly<{
+  symbol: typeof GroupChatMessagePostedSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  message: Message;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}>;
 
-  static of(
+const GroupChatMessagePosted = {
+  of(
     aggregateId: GroupChatId,
     message: Message,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatMessagePosted {
-    return new GroupChatMessagePosted(
-      ulid(),
+    return {
+      symbol: GroupChatMessagePostedSymbol,
+      id: ulid(),
       aggregateId,
       message,
       executorId,
       sequenceNumber,
-      new Date(),
-    );
-  }
-
-  get isCreated(): boolean {
-    return false;
-  }
-}
+      occurredAt: new Date(),
+      isCreated: false,
+    };
+  },
+};
 
 const GroupChatMessageDeletedSymbol = Symbol("GroupChatMessageDeleted");
-class GroupChatMessageDeleted implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMessageDeletedSymbol =
-    GroupChatMessageDeletedSymbol;
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly message: Message,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
 
-  static of(
+type GroupChatMessageDeleted = Readonly<{
+  symbol: typeof GroupChatMessageDeletedSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  message: Message;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}>;
+
+const GroupChatMessageDeleted = {
+  of(
     aggregateId: GroupChatId,
     message: Message,
     executorId: UserAccountId,
     sequenceNumber: number,
   ): GroupChatMessageDeleted {
-    return new GroupChatMessageDeleted(
-      ulid(),
+    return {
+      symbol: GroupChatMessageDeletedSymbol,
+      id: ulid(),
       aggregateId,
       message,
       executorId,
       sequenceNumber,
-      new Date(),
-    );
-  }
-
-  get isCreated(): boolean {
-    return false;
-  }
-}
+      occurredAt: new Date(),
+      isCreated: false,
+    };
+  },
+};
 
 export {
   GroupChatEvent,

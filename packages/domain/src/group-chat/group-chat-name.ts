@@ -1,21 +1,34 @@
 const GroupChatNameSymbol = Symbol("GroupChatName");
 
-class GroupChatName {
-  readonly symbol: typeof GroupChatNameSymbol = GroupChatNameSymbol;
+type GroupChatName = Readonly<{
+  symbol: typeof GroupChatNameSymbol;
+  value: string;
+  asString: string;
+  equals: (anotherName: GroupChatName) => boolean;
+}>;
 
-  private constructor(private value: string) {}
+function newGroupChatName(value: string): GroupChatName {
+  const _value: string = value;
 
-  static of(value: string): GroupChatName {
-    return new GroupChatName(value);
-  }
+  const equals = (anotherName: GroupChatName): boolean =>
+    _value === anotherName.value;
 
-  get asString(): string {
-    return this.value;
-  }
-
-  equals(other: GroupChatName): boolean {
-    return this.value === other.value;
-  }
+  return {
+    symbol: GroupChatNameSymbol,
+    get value() {
+      return _value;
+    },
+    get asString() {
+      return _value;
+    },
+    equals,
+  };
 }
+
+const GroupChatName = {
+  of(value: string): GroupChatName {
+    return newGroupChatName(value);
+  },
+};
 
 export { GroupChatName };

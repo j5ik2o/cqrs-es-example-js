@@ -2,22 +2,29 @@ import { ulid } from "ulidx";
 
 const MessageIdSymbol = Symbol("MessageId");
 
-class MessageId {
-  readonly symbol: typeof MessageIdSymbol = MessageIdSymbol;
+type MessageId = Readonly<{
+  symbol: typeof MessageIdSymbol;
+  value: string;
+  asString: string;
+}>;
 
-  private constructor(public readonly value: string) {}
-
-  static of(value: string): MessageId {
-    return new MessageId(value);
-  }
-
-  static generate(): MessageId {
-    return new MessageId(ulid());
-  }
-
-  get asString(): string {
-    return this.value;
-  }
+function newMessageId(value: string): MessageId {
+  return {
+    symbol: MessageIdSymbol,
+    value,
+    get asString() {
+      return value;
+    },
+  };
 }
+
+const MessageId = {
+  of(value: string): MessageId {
+    return newMessageId(value);
+  },
+  generate(): MessageId {
+    return newMessageId(ulid());
+  },
+};
 
 export { MessageId };

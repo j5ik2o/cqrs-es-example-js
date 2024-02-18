@@ -1,49 +1,54 @@
 import { ulid } from "ulidx";
-import { AggregateId } from "event-store-adapter-js";
 
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdSymbol = Symbol("GroupChatId");
 
-class GroupChatId implements AggregateId {
-  readonly symbol: typeof GroupChatIdSymbol = GroupChatIdSymbol;
+type GroupChatId = Readonly<{
+  symbol: typeof GroupChatIdSymbol;
+  value: string;
+  typeName: string;
+  asString: string;
+  equals: (anotherId: GroupChatId) => boolean;
+}>;
 
-  private readonly _value: string;
+function newGroupChatId(value?: string): GroupChatId {
+  const _value: string = initializeValue(value);
 
-  private constructor(value?: string) {
+  function initializeValue(value?: string): string {
     if (value === undefined) {
-      this._value = ulid();
+      return ulid();
     } else {
-      if (value.startsWith(GROUP_CHAT_PREFIX + "-")) {
-        this._value = value.substring(GROUP_CHAT_PREFIX.length + 1);
-      } else {
-        this._value = value;
-      }
+      return value.startsWith(GROUP_CHAT_PREFIX + "-")
+        ? value.substring(GROUP_CHAT_PREFIX.length + 1)
+        : value;
     }
   }
 
-  static of(value: string): GroupChatId {
-    return new GroupChatId(value);
-  }
+  const equals = (anotherId: GroupChatId): boolean =>
+    _value === anotherId.value;
 
-  static generate(): GroupChatId {
-    return new GroupChatId();
-  }
-
-  get asString(): string {
-    return `${this.typeName}-${this._value}`;
-  }
-
-  get value(): string {
-    return this._value;
-  }
-
-  get typeName(): string {
-    return GROUP_CHAT_PREFIX;
-  }
-
-  equals(anotherId: GroupChatId): boolean {
-    return this.value === anotherId.value;
-  }
+  return {
+    symbol: GroupChatIdSymbol,
+    get value() {
+      return _value;
+    },
+    get typeName() {
+      return GROUP_CHAT_PREFIX;
+    },
+    get asString() {
+      return `${GROUP_CHAT_PREFIX}-${_value}`;
+    },
+    equals,
+  };
 }
 
-export { GroupChatId };
+const GroupChatId = {
+  of(value: string): GroupChatId {
+    return newGroupChatId(value);
+  },
+  generate(): GroupChatId {
+    return newGroupChatId();
+  },
+};
+
+export { GroupChatId, GroupChatIdSymbol };

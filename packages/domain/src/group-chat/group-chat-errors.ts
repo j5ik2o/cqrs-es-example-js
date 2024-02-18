@@ -32,14 +32,18 @@ class GroupChatDeleteError {
 
 const GroupChatPostErrorSymbol = Symbol("GroupChatPostError");
 class GroupChatPostError {
-    readonly symbol: typeof GroupChatPostErrorSymbol = GroupChatPostErrorSymbol;
-    private constructor(public readonly message: string) {}
-    static of(message: string): GroupChatPostError {
-        return new GroupChatPostError(message);
-    }
+  readonly symbol: typeof GroupChatPostErrorSymbol = GroupChatPostErrorSymbol;
+  private constructor(public readonly message: string) {}
+  static of(message: string): GroupChatPostError {
+    return new GroupChatPostError(message);
+  }
 }
 
-type GroupChatError = GroupChatDeleteError | GroupChatAddMemberError | GroupChatRemoveMemberError | GroupChatPostError;
+type GroupChatError =
+  | GroupChatDeleteError
+  | GroupChatAddMemberError
+  | GroupChatRemoveMemberError
+  | GroupChatPostError;
 
 export {
   GroupChatError,

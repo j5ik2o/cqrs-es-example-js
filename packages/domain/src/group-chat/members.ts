@@ -1,25 +1,89 @@
 import { Member } from "./member";
 import { UserAccountId } from "../user-account";
 import * as O from "fp-ts/lib/Option";
+
 const MembersSymbol = Symbol("Members");
 
-class Members {
-  readonly symbol: typeof MembersSymbol = MembersSymbol;
+type Members = Readonly<{
+  symbol: typeof MembersSymbol;
+  addMember: (member: Member) => Members;
+  removeMemberById: (
+    userAccountId: UserAccountId,
+  ) => O.Option<[Members, Member]>;
+  containsById: (userAccountId: UserAccountId) => boolean;
+  isMember: (userAccountId: UserAccountId) => boolean;
+  isAdministrator: (userAccountId: UserAccountId) => boolean;
+  findById: (userAccountId: UserAccountId) => Member | undefined;
+  toArray: () => Member[];
+  toMap: () => Map<UserAccountId, Member>;
+  equals: (other: Members) => boolean;
+}>;
 
-  private readonly _values: Map<string, Member>;
+function newMembers(_values: Map<string, Member>): Members {
+  return {
+    symbol: MembersSymbol,
+    addMember(member: Member): Members {
+      return newMembers(
+        new Map(_values).set(member.userAccountId.value, member),
+      );
+    },
+    removeMemberById(
+      userAccountId: UserAccountId,
+    ): O.Option<[Members, Member]> {
+      const member = _values.get(userAccountId.value);
+      if (member === undefined) {
+        return O.none;
+      }
+      const newMap = new Map(_values);
+      newMap.delete(userAccountId.value);
+      return O.some([newMembers(newMap), member]);
+    },
+    containsById(userAccountId: UserAccountId): boolean {
+      return _values.has(userAccountId.value);
+    },
+    isMember(userAccountId: UserAccountId): boolean {
+      const member = _values.get(userAccountId.value);
+      return member !== undefined && member.isMember();
+    },
+    isAdministrator(userAccountId: UserAccountId): boolean {
+      const member = _values.get(userAccountId.value);
+      return member !== undefined && member.isAdministrator();
+    },
+    findById(userAccountId: UserAccountId): Member | undefined {
+      return _values.get(userAccountId.value);
+    },
+    toArray(): Member[] {
+      return Array.from(_values.values());
+    },
+    toMap(): Map<UserAccountId, Member> {
+      return new Map(
+        Array.from(_values, ([key, value]) => [UserAccountId.of(key), value]),
+      );
+    },
+    equals(other: Members): boolean {
+      const values = this.toMap();
+      if (values.size !== other.toMap().size) {
+        return false;
+      }
+      for (const [key, value] of values) {
+        const otherValue = _values.get(key.value);
+        if (otherValue === undefined || !value.equals(otherValue)) {
+          return false;
+        }
+      }
+      return true;
+    },
+  };
+}
 
-  private constructor(values: Map<string, Member>) {
-    this._values = values;
-  }
-
-  static ofSingle(userAccountId: UserAccountId): Members {
-    return new Members(
+const Members = {
+  ofSingle(userAccountId: UserAccountId): Members {
+    return newMembers(
       new Map([[userAccountId.value, Member.of(userAccountId, "admin")]]),
     );
-  }
-
-  static fromMap(values: Map<UserAccountId, Member>): Members {
-    return new Members(
+  },
+  fromMap(values: Map<UserAccountId, Member>): Members {
+    return newMembers(
       new Map(
         Array.from(values, ([userAccountId, member]) => [
           userAccountId.value,
@@ -27,71 +91,10 @@ class Members {
         ]),
       ),
     );
-  }
-
-  static fromArray(values: Member[]): Members {
-    return new Members(new Map(values.map((m) => [m.userAccountId.value, m])));
-  }
-
-  addMember(member: Member): Members {
-    return new Members(
-      new Map(this._values).set(member.userAccountId.value, member),
-    );
-  }
-
-  removeMemberById(userAccountId: UserAccountId): O.Option<[Members, Member]> {
-    const member = this._values.get(userAccountId.value);
-    if (member === undefined) {
-      return O.none;
-    }
-    const newMap = new Map(this._values);
-    newMap.delete(userAccountId.value);
-    return O.some([new Members(newMap), member]);
-  }
-
-  containsById(userAccountId: UserAccountId): boolean {
-    return this._values.has(userAccountId.value);
-  }
-
-  isMember(userAccountId: UserAccountId): boolean {
-    const member = this._values.get(userAccountId.value);
-    return member !== undefined && member.isMember();
-  }
-
-  isAdministrator(userAccountId: UserAccountId): boolean {
-    const member = this._values.get(userAccountId.value);
-    return member !== undefined && member.isAdministrator();
-  }
-
-  findById(userAccountId: UserAccountId): Member | undefined {
-    return this._values.get(userAccountId.value);
-  }
-
-  toArray(): Member[] {
-    return Array.from(this._values.values());
-  }
-
-  toMap(): Map<UserAccountId, Member> {
-    return new Map(
-      Array.from(this._values, ([key, value]) => [
-        UserAccountId.of(key),
-        value,
-      ]),
-    );
-  }
-
-  equals(other: Members): boolean {
-    if (this._values.size !== other._values.size) {
-      return false;
-    }
-    for (const [key, value] of this._values) {
-      const otherValue = other._values.get(key);
-      if (otherValue === undefined || !value.equals(otherValue)) {
-        return false;
-      }
-    }
-    return true;
-  }
-}
+  },
+  fromArray(values: Member[]): Members {
+    return newMembers(new Map(values.map((m) => [m.userAccountId.value, m])));
+  },
+};
 
 export { Members };
