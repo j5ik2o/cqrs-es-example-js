@@ -4,14 +4,14 @@ type MemberRole = "admin" | "member";
 
 const MemberSymbol = Symbol("Member");
 
-type Member = Readonly<{
+interface Member {
   symbol: typeof MemberSymbol;
   userAccountId: UserAccountId;
   memberRole: MemberRole;
   isAdministrator: () => boolean;
   isMember: () => boolean;
   equals: (other: Member) => boolean;
-}>;
+}
 
 function initialize(
   userAccountId: UserAccountId,

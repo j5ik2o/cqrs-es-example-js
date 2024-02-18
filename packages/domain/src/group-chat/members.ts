@@ -4,7 +4,7 @@ import * as O from "fp-ts/lib/Option";
 
 const MembersSymbol = Symbol("Members");
 
-type Members = Readonly<{
+interface Members {
   symbol: typeof MembersSymbol;
   addMember: (member: Member) => Members;
   removeMemberById: (
@@ -17,13 +17,13 @@ type Members = Readonly<{
   toArray: () => Member[];
   toMap: () => Map<UserAccountId, Member>;
   equals: (other: Members) => boolean;
-}>;
+}
 
-function newMembers(_values: Map<string, Member>): Members {
+function initialize(_values: Map<string, Member>): Members {
   return {
     symbol: MembersSymbol,
     addMember(member: Member): Members {
-      return newMembers(
+      return initialize(
         new Map(_values).set(member.userAccountId.value, member),
       );
     },
@@ -36,7 +36,7 @@ function newMembers(_values: Map<string, Member>): Members {
       }
       const newMap = new Map(_values);
       newMap.delete(userAccountId.value);
-      return O.some([newMembers(newMap), member]);
+      return O.some([initialize(newMap), member]);
     },
     containsById(userAccountId: UserAccountId): boolean {
       return _values.has(userAccountId.value);
@@ -78,12 +78,12 @@ function newMembers(_values: Map<string, Member>): Members {
 
 const Members = {
   ofSingle(userAccountId: UserAccountId): Members {
-    return newMembers(
+    return initialize(
       new Map([[userAccountId.value, Member.of(userAccountId, "admin")]]),
     );
   },
   fromMap(values: Map<UserAccountId, Member>): Members {
-    return newMembers(
+    return initialize(
       new Map(
         Array.from(values, ([userAccountId, member]) => [
           userAccountId.value,
@@ -93,7 +93,7 @@ const Members = {
     );
   },
   fromArray(values: Member[]): Members {
-    return newMembers(new Map(values.map((m) => [m.userAccountId.value, m])));
+    return initialize(new Map(values.map((m) => [m.userAccountId.value, m])));
   },
 };
 

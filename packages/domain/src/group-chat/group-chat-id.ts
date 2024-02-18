@@ -3,13 +3,13 @@ import { ulid } from "ulidx";
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdSymbol = Symbol("GroupChatId");
 
-type GroupChatId = Readonly<{
+interface GroupChatId {
   symbol: typeof GroupChatIdSymbol;
   value: string;
   typeName: string;
   asString: string;
   equals: (anotherId: GroupChatId) => boolean;
-}>;
+}
 
 function initialize(value?: string): GroupChatId {
   const _value: string = initializeValue(value);

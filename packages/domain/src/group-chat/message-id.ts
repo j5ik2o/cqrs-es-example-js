@@ -2,12 +2,12 @@ import { ulid } from "ulidx";
 
 const MessageIdSymbol = Symbol("MessageId");
 
-type MessageId = Readonly<{
+interface MessageId {
   symbol: typeof MessageIdSymbol;
   value: string;
   asString: string;
   equals: (anotherId: MessageId) => boolean;
-}>;
+}
 
 function initialize(value: string): MessageId {
   return {

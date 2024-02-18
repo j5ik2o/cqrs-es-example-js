@@ -3,14 +3,14 @@ import { MessageId } from "./message-id";
 
 const MessageSymbol = Symbol("Message");
 
-type Message = Readonly<{
+interface Message {
   symbol: typeof MessageSymbol;
   id: MessageId;
   content: string;
   senderId: UserAccountId;
   sentAt: Date;
   equals: (anotherMessage: Message) => boolean;
-}>;
+}
 
 function initialize(
   id: MessageId,

@@ -13,7 +13,7 @@ interface GroupChatEvent extends Event<GroupChatId> {
 
 const GroupChatCreatedSymbol = Symbol("GroupChatCreated");
 
-type GroupChatCreated = Readonly<{
+interface GroupChatCreated extends GroupChatEvent {
   symbol: typeof GroupChatCreatedSymbol;
   id: string;
   aggregateId: GroupChatId;
@@ -23,7 +23,7 @@ type GroupChatCreated = Readonly<{
   sequenceNumber: number;
   occurredAt: Date;
   isCreated: boolean;
-}>;
+}
 
 const GroupChatCreated = {
   of(
@@ -49,7 +49,7 @@ const GroupChatCreated = {
 
 const GroupChatMemberAddedSymbol = Symbol("GroupChatMemberAdded");
 
-type GroupChatMemberAdded = Readonly<{
+interface GroupChatMemberAdded extends GroupChatEvent {
   symbol: typeof GroupChatMemberAddedSymbol;
   id: string;
   aggregateId: GroupChatId;
@@ -58,7 +58,7 @@ type GroupChatMemberAdded = Readonly<{
   sequenceNumber: number;
   occurredAt: Date;
   isCreated: boolean;
-}>;
+}
 
 const GroupChatMemberAdded = {
   of(
@@ -82,7 +82,7 @@ const GroupChatMemberAdded = {
 
 const GroupChatMemberRemovedSymbol = Symbol("GroupChatMemberRemoved");
 
-type GroupChatMemberRemoved = Readonly<{
+interface GroupChatMemberRemoved extends GroupChatEvent {
   symbol: typeof GroupChatMemberRemovedSymbol;
   id: string;
   aggregateId: GroupChatId;
@@ -91,7 +91,7 @@ type GroupChatMemberRemoved = Readonly<{
   sequenceNumber: number;
   occurredAt: Date;
   isCreated: boolean;
-}>;
+}
 
 const GroupChatMemberRemoved = {
   of(
@@ -115,7 +115,7 @@ const GroupChatMemberRemoved = {
 
 const GroupChatDeletedSymbol = Symbol("GroupChatDeleted");
 
-type GroupChatDeleted = Readonly<{
+interface GroupChatDeleted extends GroupChatEvent {
   symbol: typeof GroupChatDeletedSymbol;
   id: string;
   aggregateId: GroupChatId;
@@ -123,7 +123,7 @@ type GroupChatDeleted = Readonly<{
   sequenceNumber: number;
   occurredAt: Date;
   isCreated: boolean;
-}>;
+}
 
 const GroupChatDeleted = {
   of(
@@ -145,7 +145,7 @@ const GroupChatDeleted = {
 
 const GroupChatMessagePostedSymbol = Symbol("GroupChatMessagePosted");
 
-type GroupChatMessagePosted = Readonly<{
+interface GroupChatMessagePosted extends GroupChatEvent {
   symbol: typeof GroupChatMessagePostedSymbol;
   id: string;
   aggregateId: GroupChatId;
@@ -154,7 +154,7 @@ type GroupChatMessagePosted = Readonly<{
   sequenceNumber: number;
   occurredAt: Date;
   isCreated: boolean;
-}>;
+}
 
 const GroupChatMessagePosted = {
   of(
@@ -178,7 +178,7 @@ const GroupChatMessagePosted = {
 
 const GroupChatMessageDeletedSymbol = Symbol("GroupChatMessageDeleted");
 
-type GroupChatMessageDeleted = Readonly<{
+interface GroupChatMessageDeleted extends GroupChatEvent {
   symbol: typeof GroupChatMessageDeletedSymbol;
   id: string;
   aggregateId: GroupChatId;
@@ -187,7 +187,7 @@ type GroupChatMessageDeleted = Readonly<{
   sequenceNumber: number;
   occurredAt: Date;
   isCreated: boolean;
-}>;
+}
 
 const GroupChatMessageDeleted = {
   of(

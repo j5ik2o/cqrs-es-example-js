@@ -2,7 +2,7 @@ import { Message } from "./message";
 import { MessageId } from "./message-id";
 import * as O from "fp-ts/Option";
 
-type Messages = Readonly<{
+interface Messages {
   addMessage: (message: Message) => Messages;
   removeMessageById: (messageId: MessageId) => O.Option<[Messages, Message]>;
   containsById: (messageId: MessageId) => boolean;
@@ -11,7 +11,7 @@ type Messages = Readonly<{
   toMap: () => Map<MessageId, Message>;
   size: () => number;
   equals: (anotherMessages: Messages) => boolean;
-}>;
+}
 
 function initialize(values: Map<string, Message>): Messages {
   let _toArray: Message[] | undefined = undefined;

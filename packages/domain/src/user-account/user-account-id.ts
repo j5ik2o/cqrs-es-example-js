@@ -3,13 +3,13 @@ import { ulid } from "ulidx";
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdSymbol = Symbol("UserAccountId");
 
-type UserAccountId = Readonly<{
+interface UserAccountId {
   symbol: typeof UserAccountIdSymbol;
   value: string;
   typeName: string;
   asString: string;
   equals: (anotherId: UserAccountId) => boolean;
-}>;
+}
 
 function initialize(value?: string): UserAccountId {
   const _value: string = initializeValue(value);

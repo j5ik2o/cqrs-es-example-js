@@ -26,7 +26,7 @@ import { MessageId } from "./message-id";
 
 const GroupChatSymbol = Symbol("GroupChat");
 
-type GroupChat = Readonly<{
+interface GroupChat {
   symbol: typeof GroupChatSymbol;
   id: GroupChatId;
   deleted: boolean;
@@ -65,9 +65,9 @@ type GroupChat = Readonly<{
   updateVersion: (version: (value: number) => number) => GroupChat;
   equals: (other: GroupChat) => boolean;
   toString: () => string;
-}>;
+}
 
-type GroupChatParams = {
+interface GroupChatParams {
   id: GroupChatId;
   deleted: boolean;
   name: GroupChatName;
@@ -75,7 +75,7 @@ type GroupChatParams = {
   messages: Messages;
   sequenceNumber: number;
   version: number;
-};
+}
 
 function initialize(params: GroupChatParams): GroupChat {
   return {

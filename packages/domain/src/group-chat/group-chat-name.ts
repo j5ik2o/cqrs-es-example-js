@@ -1,11 +1,11 @@
 const GroupChatNameSymbol = Symbol("GroupChatName");
 
-type GroupChatName = Readonly<{
+interface GroupChatName {
   symbol: typeof GroupChatNameSymbol;
   value: string;
   asString: string;
   equals: (anotherName: GroupChatName) => boolean;
-}>;
+}
 
 function initialize(_value: string): GroupChatName {
   return {
