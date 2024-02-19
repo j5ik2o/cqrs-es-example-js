@@ -112,8 +112,8 @@ describe("GroupChatRepository", () => {
 
     const name2 = GroupChatName.of("name2");
     const renameEither = groupChat1.rename(name2, adminId);
-    if (E.isLeft(renameEither)){
-        throw new Error("renameEither is left");
+    if (E.isLeft(renameEither)) {
+      throw new Error("renameEither is left");
     }
     const [, groupChatRenamed] = renameEither.right;
     await repository.storeEvent(groupChatRenamed, groupChat1.version);
@@ -124,6 +124,7 @@ describe("GroupChatRepository", () => {
     }
 
     expect(groupChat3.id.equals(id)).toEqual(true);
+    expect(groupChat3.name.equals(name2)).toEqual(true);
   });
 });
 

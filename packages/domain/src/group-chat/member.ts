@@ -51,9 +51,4 @@ function convertJSONToMember(jsonString: string): Member {
   return Member.of(id, obj.memberRole);
 }
 
-export {
-  MemberRole,
-  Member,
-  MemberTypeSymbol,
-  convertJSONToMember,
-};
+export { MemberRole, Member, MemberTypeSymbol, convertJSONToMember };

@@ -69,11 +69,7 @@ describe("GroupChat", () => {
     const memberId = UserAccountId.generate();
 
     // When
-    const addMemberEither = groupChat.addMember(
-      memberId,
-      "member",
-      adminId,
-    );
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
 
     // Then
     expect(E.isRight(addMemberEither)).toEqual(true);
@@ -91,11 +87,7 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const addMemberEither = groupChat.addMember(
-      memberId,
-        "member",
-      adminId,
-    );
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
     expect(actualGroupChat1.id).toEqual(id);
     expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
@@ -119,11 +111,7 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const addMemberEither = groupChat.addMember(
-      memberId,
-        "member",
-      adminId,
-    );
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
     expect(actualGroupChat1.id).toEqual(id);
     expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
@@ -151,11 +139,7 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const addMemberEither = groupChat.addMember(
-      memberId,
-        "member",
-      adminId,
-    );
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
     expect(actualGroupChat1.id).toEqual(id);
     expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);

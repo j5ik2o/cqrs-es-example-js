@@ -14,7 +14,8 @@ import {
   GroupChatMessageDeletedTypeSymbol,
   GroupChatMessagePosted,
   GroupChatMessagePostedTypeSymbol,
-  GroupChatRenamed, GroupChatRenamedTypeSymbol,
+  GroupChatRenamed,
+  GroupChatRenamedTypeSymbol,
 } from "./group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
@@ -326,15 +327,12 @@ function initialize(params: GroupChatParams): GroupChat {
     applyEvent(event: GroupChatEvent): GroupChat {
       switch (event.symbol) {
         case GroupChatRenamedTypeSymbol: {
-            const typedEvent = event as GroupChatRenamed;
-            const result = this.rename(
-              typedEvent.name,
-              event.executorId,
-            );
-            if (E.isLeft(result)) {
-              throw new Error(result.left.message);
-            }
-            return result.right[0];
+          const typedEvent = event as GroupChatRenamed;
+          const result = this.rename(typedEvent.name, event.executorId);
+          if (E.isLeft(result)) {
+            throw new Error(result.left.message);
+          }
+          return result.right[0];
         }
         case GroupChatMemberAddedTypeSymbol: {
           const typedEvent = event as GroupChatMemberAdded;
@@ -438,8 +436,8 @@ function convertJSONToGroupChat(jsonString: string): GroupChat {
     members,
     messages,
     sequenceNumber: obj.data.sequenceNumber,
-    version: obj.data.version}
-  );
+    version: obj.data.version,
+  });
 }
 
 export { GroupChat, GroupChatTypeSymbol, convertJSONToGroupChat };

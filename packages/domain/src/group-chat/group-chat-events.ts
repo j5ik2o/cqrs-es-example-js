@@ -1,11 +1,11 @@
 import { Event } from "event-store-adapter-js";
-import {convertJSONToGroupChatId, GroupChatId} from "./group-chat-id";
-import {convertJSONToUserAccountId, UserAccountId} from "../user-account";
-import {convertJSONToGroupChatName, GroupChatName} from "./group-chat-name";
-import {convertJSONToMembers, Members} from "./members";
+import { convertJSONToGroupChatId, GroupChatId } from "./group-chat-id";
+import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
+import { convertJSONToGroupChatName, GroupChatName } from "./group-chat-name";
+import { convertJSONToMembers, Members } from "./members";
 import { ulid } from "ulidx";
-import {convertJSONToMember, Member} from "./member";
-import {convertJSONToMessage, Message} from "./message";
+import { convertJSONToMember, Member } from "./member";
+import { convertJSONToMessage, Message } from "./message";
 
 type GroupChatEventTypeSymbol =
   | typeof GroupChatCreatedTypeSymbol
@@ -264,27 +264,24 @@ const GroupChatMessageDeleted = {
 function convertJSONToGroupChatEvent(jsonString: string): GroupChatEvent {
   const obj = JSON.parse(jsonString);
   const id = convertJSONToGroupChatId(JSON.stringify(obj.data.aggregateId));
-  const executorId = convertJSONToUserAccountId(JSON.stringify(obj.data.executorId))
+  const executorId = convertJSONToUserAccountId(
+    JSON.stringify(obj.data.executorId),
+  );
   switch (obj.type) {
     case "GroupChatCreated": {
       const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
       const members = convertJSONToMembers(JSON.stringify(obj.data.members));
       return GroupChatCreated.of(
-          id,
-          name,
-          members,
-          executorId,
-          obj.data.sequenceNumber,
+        id,
+        name,
+        members,
+        executorId,
+        obj.data.sequenceNumber,
       );
     }
     case "GroupChatRenamed": {
       const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
-      return GroupChatRenamed.of(
-          id,
-          name,
-          executorId,
-          obj.data.sequenceNumber,
-      );
+      return GroupChatRenamed.of(id, name, executorId, obj.data.sequenceNumber);
     }
     case "GroupChatMemberAdded": {
       const member = convertJSONToMember(JSON.stringify(obj.data.member));
@@ -298,36 +295,32 @@ function convertJSONToGroupChatEvent(jsonString: string): GroupChatEvent {
     case "GroupChatMemberRemoved": {
       const member = convertJSONToMember(JSON.stringify(obj.data.member));
       return GroupChatMemberRemoved.of(
-          id,
-          member,
-          executorId,
-          obj.sequenceNumber,
+        id,
+        member,
+        executorId,
+        obj.sequenceNumber,
       );
     }
     case "GroupChatMessagePosted": {
       const message = convertJSONToMessage(JSON.stringify(obj.data.message));
       return GroupChatMessagePosted.of(
-          id,
-          message,
-          executorId,
-          obj.sequenceNumber,
+        id,
+        message,
+        executorId,
+        obj.sequenceNumber,
       );
     }
     case "GroupChatMessageDeleted": {
       const message = convertJSONToMessage(JSON.stringify(obj.data.message));
       return GroupChatMessageDeleted.of(
-          id,
-          message,
-          executorId,
-          obj.sequenceNumber,
+        id,
+        message,
+        executorId,
+        obj.sequenceNumber,
       );
     }
     case "GroupChatDeleted": {
-      return GroupChatDeleted.of(
-          id,
-          executorId,
-          obj.sequenceNumber,
-      );
+      return GroupChatDeleted.of(id, executorId, obj.sequenceNumber);
     }
     default:
       throw new Error(`Unknown type: ${obj.type}`);
