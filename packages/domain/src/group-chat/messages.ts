@@ -89,8 +89,8 @@ function convertJSONToMessages(jsonString: string): Messages {
   const obj = JSON.parse(jsonString);
   // console.log("convertJSONToMessages = ", obj);
   return Messages.fromArray(
-      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-      obj.values.map((v: any) => convertJSONToMessage(JSON.stringify(v))),
+    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    obj.values.map((v: any) => convertJSONToMessage(JSON.stringify(v))),
   );
 }
 
