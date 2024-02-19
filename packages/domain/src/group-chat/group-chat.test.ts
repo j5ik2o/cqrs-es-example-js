@@ -6,13 +6,16 @@ import { UserAccountId } from "../user-account";
 import * as E from "fp-ts/lib/Either";
 import {
   GroupChatDeleted,
+  GroupChatDeletedSymbol,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
+  GroupChatMessageDeleted,
   GroupChatMessagePosted,
 } from "./group-chat-events";
 import {
   GroupChatAddMemberError,
   GroupChatDeleteError,
+  GroupChatDeleteMessageError,
   GroupChatPostMessageError,
   GroupChatRemoveMemberError,
 } from "./group-chat-errors";
@@ -25,126 +28,220 @@ afterEach(() => {
 
 describe("GroupChat", () => {
   test("Create", () => {
+    // Given
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
-    const [groupChat] = GroupChat.create(id, name, adminId);
+
+    // When
+    const [groupChat, groupChatCreated] = GroupChat.create(id, name, adminId);
+
+    // Then
     expect(groupChat.id).toEqual(id);
     expect(groupChat.name).toEqual(name);
-  });
-  test("Delete", () => {
-    const id = GroupChatId.generate();
-    const name = GroupChatName.of("name");
-    const adminId = UserAccountId.generate();
-    const [groupChat] = GroupChat.create(id, name, adminId);
-
-    const deleteEither = groupChat.delete(adminId);
-
-    const [actualGroupChat, groupChatDeleted] = E.fold(
-      (err: GroupChatDeleteError) => {
-        throw new Error(err.message);
-      },
-      (values: [GroupChat, GroupChatDeleted]) => {
-        return values;
-      },
-    )(deleteEither);
-    expect(actualGroupChat.id).toEqual(id);
-    expect(groupChatDeleted.aggregateId).toEqual(id);
+    expect(groupChat.members.containsById(adminId)).toEqual(true);
+    expect(groupChatCreated.aggregateId).toEqual(id);
+    expect(groupChatCreated.name).toEqual(name);
   });
   test("AddMember", () => {
+    // Given
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
 
-    const memberEither = groupChat.addMember(memberId, "member", adminId);
+    // When
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
 
-    expect(E.isRight(memberEither)).toEqual(true);
-    const [actualGroupChat, groupChatMemberAdded] = E.fold(
-      (err: GroupChatAddMemberError) => {
-        throw new Error(err.message);
-      },
-      (values: [GroupChat, GroupChatMemberAdded]) => {
-        return values;
-      },
-    )(memberEither);
+    // Then
+    expect(E.isRight(addMemberEither)).toEqual(true);
+    const [actualGroupChat, groupChatMemberAdded] =
+      parseAddMemberResult(addMemberEither);
     expect(actualGroupChat.id).toEqual(id);
     expect(actualGroupChat.members.containsById(memberId)).toEqual(true);
     expect(groupChatMemberAdded.aggregateId).toEqual(id);
     expect(groupChatMemberAdded.member.userAccountId).toEqual(memberId);
   });
   test("RemoveMember", () => {
+    // Given
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
     const addMemberEither = groupChat.addMember(memberId, "member", adminId);
-    const [actualGroupChat] = E.fold(
-      (err: GroupChatAddMemberError) => {
-        throw new Error(err.message);
-      },
-      (values: [GroupChat, GroupChatMemberAdded]) => {
-        return values;
-      },
-    )(addMemberEither);
-    expect(actualGroupChat.id).toEqual(id);
-    expect(actualGroupChat.members.containsById(memberId)).toEqual(true);
+    const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
+    expect(actualGroupChat1.id).toEqual(id);
+    expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
 
-    const removeEither = actualGroupChat.removeMemberById(memberId, adminId);
+    // When
+    const removeEither = actualGroupChat1.removeMemberById(memberId, adminId);
+
+    // Then
     expect(E.isRight(removeEither)).toEqual(true);
-    const [actualGroupChat2, groupChatMemberRemoved] = E.fold(
-      (err: GroupChatRemoveMemberError) => {
-        throw new Error(err.message);
-      },
-      (values: [GroupChat, GroupChatMemberRemoved]) => {
-        return values;
-      },
-    )(removeEither);
+    const [actualGroupChat2, groupChatMemberRemoved] =
+      parseRemoveMemberResult(removeEither);
     expect(actualGroupChat2.id).toEqual(id);
     expect(actualGroupChat2.members.containsById(memberId)).toEqual(false);
     expect(groupChatMemberRemoved.aggregateId).toEqual(id);
     expect(groupChatMemberRemoved.member.userAccountId).toEqual(memberId);
   });
   test("PostMessage", () => {
+    // Given
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
     const addMemberEither = groupChat.addMember(memberId, "member", adminId);
-    const [actualGroupChat] = E.fold(
-      (err: GroupChatAddMemberError) => {
-        throw new Error(err.message);
-      },
-      (values: [GroupChat, GroupChatMemberAdded]) => {
-        return values;
-      },
-    )(addMemberEither);
-    expect(actualGroupChat.id).toEqual(id);
-    expect(actualGroupChat.members.containsById(memberId)).toEqual(true);
-
+    const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
+    expect(actualGroupChat1.id).toEqual(id);
+    expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
     const message = Message.of(
       MessageId.generate(),
       "content",
       memberId,
       new Date(),
     );
-    const postMessageEither = actualGroupChat.postMessage(message, memberId);
+
+    // When
+    const postMessageEither = actualGroupChat1.postMessage(message, memberId);
+
+    // Then
     expect(E.isRight(postMessageEither)).toEqual(true);
-
-    const [actualGroupChat2] = E.fold(
-      (err: GroupChatPostMessageError) => {
-        throw new Error(err.message);
-      },
-      (values: [GroupChat, GroupChatMessagePosted]) => {
-        return values;
-      },
-    )(postMessageEither);
-
+    const [actualGroupChat2] = parsePostMessageResult(postMessageEither);
     expect(actualGroupChat2.id).toEqual(id);
     expect(actualGroupChat2.messages.size()).toEqual(1);
     expect(actualGroupChat2.messages.toArray()[0].id).toEqual(message.id);
   });
+  test("DeleteMessage", () => {
+    // Given
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat] = GroupChat.create(id, name, adminId);
+    const memberId = UserAccountId.generate();
+    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
+    const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
+    expect(actualGroupChat1.id).toEqual(id);
+    expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
+    const message = Message.of(
+      MessageId.generate(),
+      "content",
+      memberId,
+      new Date(),
+    );
+    const postMessageEither = actualGroupChat1.postMessage(message, memberId);
+    const [actualGroupChat2] = parsePostMessageResult(postMessageEither);
+    expect(actualGroupChat2.id).toEqual(id);
+    expect(actualGroupChat2.messages.size()).toEqual(1);
+    expect(actualGroupChat2.messages.toArray()[0].id).toEqual(message.id);
+
+    // When
+    const deleteMessageEither = actualGroupChat2.deleteMessage(
+      message.id,
+      memberId,
+    );
+    const [actualGroupChat3, groupChatMessageDeleted] =
+      parseDeleteMessageResult(deleteMessageEither);
+    expect(actualGroupChat3.id).toEqual(id);
+    expect(actualGroupChat3.messages.size()).toEqual(0);
+    expect(groupChatMessageDeleted.aggregateId).toEqual(id);
+    expect(groupChatMessageDeleted.message.id).toEqual(message.id);
+  });
+  test("Delete", () => {
+    // Given
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat] = GroupChat.create(id, name, adminId);
+
+    // When
+    const deleteEither = groupChat.delete(adminId);
+
+    // Then
+    const [actualGroupChat, groupChatDeleted] =
+      parseDeleteGroupChatResult(deleteEither);
+    expect(actualGroupChat.id).toEqual(id);
+    expect(groupChatDeleted.aggregateId).toEqual(id);
+    expect(groupChatDeleted.symbol).toEqual(GroupChatDeletedSymbol);
+  });
 });
+
+function parseAddMemberResult(
+  addMemberEither: E.Either<
+    GroupChatAddMemberError,
+    [GroupChat, GroupChatMemberAdded]
+  >,
+) {
+  return E.fold(
+    (err: GroupChatAddMemberError) => {
+      throw new Error(err.message);
+    },
+    (values: [GroupChat, GroupChatMemberAdded]) => {
+      return values;
+    },
+  )(addMemberEither);
+}
+
+function parseRemoveMemberResult(
+  removeEither: E.Either<
+    GroupChatRemoveMemberError,
+    [GroupChat, GroupChatMemberRemoved]
+  >,
+) {
+  return E.fold(
+    (err: GroupChatRemoveMemberError) => {
+      throw new Error(err.message);
+    },
+    (values: [GroupChat, GroupChatMemberRemoved]) => {
+      return values;
+    },
+  )(removeEither);
+}
+
+function parsePostMessageResult(
+  postMessageEither: E.Either<
+    GroupChatPostMessageError,
+    [GroupChat, GroupChatMessagePosted]
+  >,
+) {
+  return E.fold(
+    (err: GroupChatPostMessageError) => {
+      throw new Error(err.message);
+    },
+    (values: [GroupChat, GroupChatMessagePosted]) => {
+      return values;
+    },
+  )(postMessageEither);
+}
+
+function parseDeleteMessageResult(
+  deleteMessageEither: E.Either<
+    GroupChatDeleteMessageError,
+    [GroupChat, GroupChatMessageDeleted]
+  >,
+) {
+  return E.fold(
+    (err: GroupChatDeleteMessageError) => {
+      throw new Error(err.message);
+    },
+    (values: [GroupChat, GroupChatMessageDeleted]) => {
+      return values;
+    },
+  )(deleteMessageEither);
+}
+
+function parseDeleteGroupChatResult(
+  deleteEither: E.Either<GroupChatDeleteError, [GroupChat, GroupChatDeleted]>,
+) {
+  return E.fold(
+    (err: GroupChatDeleteError) => {
+      throw new Error(err.message);
+    },
+    (values: [GroupChat, GroupChatDeleted]) => {
+      return values;
+    },
+  )(deleteEither);
+}

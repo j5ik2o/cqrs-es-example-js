@@ -212,9 +212,15 @@ const GroupChatMessageDeleted = {
 export {
   GroupChatEvent,
   GroupChatCreated,
+  GroupChatCreatedSymbol,
   GroupChatMemberAdded,
+  GroupChatMemberAddedSymbol,
   GroupChatMemberRemoved,
+  GroupChatMemberRemovedSymbol,
   GroupChatMessagePosted,
+  GroupChatMessagePostedSymbol,
   GroupChatMessageDeleted,
+  GroupChatMessageDeletedSymbol,
   GroupChatDeleted,
+  GroupChatDeletedSymbol,
 };
