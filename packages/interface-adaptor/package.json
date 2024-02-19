@@ -38,6 +38,7 @@
     "cqrs-es-example-js-domain": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "aws-sdk": "^2.1459.0",
-    "moment": "^2.29.4"
+    "moment": "^2.29.4",
+    "fp-ts": "^2.16.2"
   }
 }

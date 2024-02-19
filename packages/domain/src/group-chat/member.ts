@@ -1,9 +1,6 @@
 import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
 
-const MemberSymbol = Symbol("Member");
-const AdministratorSymbol = Symbol("Administrator");
-
-type MemberRole = typeof AdministratorSymbol | typeof MemberSymbol;
+type MemberRole = "administrator" | "member";
 
 const MemberTypeSymbol = Symbol("Member");
 
@@ -28,10 +25,10 @@ function initialize(params: MemberParams): Member {
     userAccountId: params.userAccountId,
     memberRole: params.memberRole,
     isAdministrator() {
-      return this.memberRole === AdministratorSymbol;
+      return this.memberRole === "administrator";
     },
     isMember() {
-      return this.memberRole === MemberSymbol;
+      return this.memberRole === "member";
     },
     withRole(role: MemberRole) {
       return initialize({ ...this, memberRole: role });
@@ -56,8 +53,6 @@ function convertJSONToMember(jsonString: string): Member {
 
 export {
   MemberRole,
-  MemberSymbol,
-  AdministratorSymbol,
   Member,
   MemberTypeSymbol,
   convertJSONToMember,

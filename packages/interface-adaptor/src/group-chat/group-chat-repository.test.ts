@@ -1,5 +1,6 @@
 import { describe } from "node:test";
 import { GroupChatRepository } from "./group-chat-repository";
+import * as E from "fp-ts/lib/Either";
 import {
   GroupChatId,
   GroupChat,
@@ -107,15 +108,22 @@ describe("GroupChatRepository", () => {
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat1, groupChatCreated] = GroupChat.create(id, name, adminId);
-
     await repository.storeEventAndSnapshot(groupChatCreated, groupChat1);
 
-    const groupChat2 = await repository.findById(id);
-    if (groupChat2 === undefined) {
+    const name2 = GroupChatName.of("name2");
+    const renameEither = groupChat1.rename(name2, adminId);
+    if (E.isLeft(renameEither)){
+        throw new Error("renameEither is left");
+    }
+    const [, groupChatRenamed] = renameEither.right;
+    await repository.storeEvent(groupChatRenamed, groupChat1.version);
+
+    const groupChat3 = await repository.findById(id);
+    if (groupChat3 === undefined) {
       throw new Error("groupChat2 is undefined");
     }
 
-    expect(groupChat2.id.equals(id)).toEqual(true);
+    expect(groupChat3.id.equals(id)).toEqual(true);
   });
 });
 

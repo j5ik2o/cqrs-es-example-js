@@ -14,7 +14,7 @@ import {
   GroupChatMessageDeletedTypeSymbol,
   GroupChatMessagePosted,
   GroupChatMessagePostedTypeSymbol,
-  GroupChatRenamed,
+  GroupChatRenamed, GroupChatRenamedTypeSymbol,
 } from "./group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
@@ -95,7 +95,7 @@ interface GroupChatParams {
 function initialize(params: GroupChatParams): GroupChat {
   return {
     symbol: GroupChatTypeSymbol,
-    typeName: GroupChatTypeSymbol.toString(),
+    typeName: "GroupChat",
     id: params.id,
     deleted: params.deleted,
     name: params.name,
@@ -308,10 +308,10 @@ function initialize(params: GroupChatParams): GroupChat {
       return E.right([newGroupChat, event]);
     },
     withVersion(version: number): GroupChat {
-      return { ...this, version };
+      return initialize({ ...this, version });
     },
     updateVersion(versionF: (value: number) => number): GroupChat {
-      return { ...this, version: versionF(this.version) };
+      return initialize({ ...this, version: versionF(this.version) });
     },
     equals(other: GroupChat) {
       return (
@@ -325,6 +325,17 @@ function initialize(params: GroupChatParams): GroupChat {
     },
     applyEvent(event: GroupChatEvent): GroupChat {
       switch (event.symbol) {
+        case GroupChatRenamedTypeSymbol: {
+            const typedEvent = event as GroupChatRenamed;
+            const result = this.rename(
+              typedEvent.name,
+              event.executorId,
+            );
+            if (E.isLeft(result)) {
+              throw new Error(result.left.message);
+            }
+            return result.right[0];
+        }
         case GroupChatMemberAddedTypeSymbol: {
           const typedEvent = event as GroupChatMemberAdded;
           const result = this.addMember(
@@ -405,24 +416,6 @@ const GroupChat = {
       GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
     ];
   },
-  from(
-    id: GroupChatId,
-    name: GroupChatName,
-    members: Members,
-    messages: Messages,
-    sequenceNumber: number,
-    version: number,
-  ): GroupChat {
-    return initialize({
-      id,
-      deleted: false,
-      name,
-      members,
-      messages,
-      sequenceNumber,
-      version,
-    });
-  },
   replay(events: GroupChatEvent[], snapshot: GroupChat): GroupChat {
     return events.reduce(
       (groupChat, event) => groupChat.applyEvent(event),
@@ -438,13 +431,14 @@ function convertJSONToGroupChat(jsonString: string): GroupChat {
   const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
   const members = convertJSONToMembers(JSON.stringify(obj.data.members));
   const messages = convertJSONToMessages(JSON.stringify(obj.data.messages));
-  return GroupChat.from(
+  return initialize({
     id,
+    deleted: false,
     name,
     members,
     messages,
-    obj.data.sequenceNumber,
-    obj.data.version,
+    sequenceNumber: obj.data.sequenceNumber,
+    version: obj.data.version}
   );
 }
 

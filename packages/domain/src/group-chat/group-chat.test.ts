@@ -23,7 +23,6 @@ import {
 } from "./group-chat-errors";
 import { Message } from "./message";
 import { MessageId } from "./message-id";
-import { MemberSymbol } from "./member";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -72,7 +71,7 @@ describe("GroupChat", () => {
     // When
     const addMemberEither = groupChat.addMember(
       memberId,
-      MemberSymbol,
+      "member",
       adminId,
     );
 
@@ -94,7 +93,7 @@ describe("GroupChat", () => {
     const memberId = UserAccountId.generate();
     const addMemberEither = groupChat.addMember(
       memberId,
-      MemberSymbol,
+        "member",
       adminId,
     );
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
@@ -122,7 +121,7 @@ describe("GroupChat", () => {
     const memberId = UserAccountId.generate();
     const addMemberEither = groupChat.addMember(
       memberId,
-      MemberSymbol,
+        "member",
       adminId,
     );
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
@@ -154,7 +153,7 @@ describe("GroupChat", () => {
     const memberId = UserAccountId.generate();
     const addMemberEither = groupChat.addMember(
       memberId,
-      MemberSymbol,
+        "member",
       adminId,
     );
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);

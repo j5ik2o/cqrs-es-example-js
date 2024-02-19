@@ -1,12 +1,11 @@
 import { Event } from "event-store-adapter-js";
-import { GroupChatId } from "./group-chat-id";
-import { UserAccountId } from "../user-account";
-import { GroupChatName } from "./group-chat-name";
-import { Members } from "./members";
+import {convertJSONToGroupChatId, GroupChatId} from "./group-chat-id";
+import {convertJSONToUserAccountId, UserAccountId} from "../user-account";
+import {convertJSONToGroupChatName, GroupChatName} from "./group-chat-name";
+import {convertJSONToMembers, Members} from "./members";
 import { ulid } from "ulidx";
-import { Member } from "./member";
-import { Message } from "./message";
-import { MessageId } from "./message-id";
+import {convertJSONToMember, Member} from "./member";
+import {convertJSONToMessage, Message} from "./message";
 
 type GroupChatEventTypeSymbol =
   | typeof GroupChatCreatedTypeSymbol
@@ -47,7 +46,7 @@ const GroupChatCreated = {
   ): GroupChatCreated {
     return {
       symbol: GroupChatCreatedTypeSymbol,
-      typeName: GroupChatCreatedTypeSymbol.toString(),
+      typeName: "GroupChatCreated",
       id: ulid(),
       aggregateId,
       name,
@@ -82,7 +81,7 @@ const GroupChatRenamed = {
   ): GroupChatRenamed {
     return {
       symbol: GroupChatRenamedTypeSymbol,
-      typeName: GroupChatRenamedTypeSymbol.toString(),
+      typeName: "GroupChatRenamed",
       id: ulid(),
       aggregateId,
       name,
@@ -116,7 +115,7 @@ const GroupChatMemberAdded = {
   ): GroupChatMemberAdded {
     return {
       symbol: GroupChatMemberAddedTypeSymbol,
-      typeName: GroupChatMemberAddedTypeSymbol.toString(),
+      typeName: "GroupChatMemberAdded",
       id: ulid(),
       aggregateId,
       member,
@@ -150,7 +149,7 @@ const GroupChatMemberRemoved = {
   ): GroupChatMemberRemoved {
     return {
       symbol: GroupChatMemberRemovedTypeSymbol,
-      typeName: GroupChatMemberRemovedTypeSymbol.toString(),
+      typeName: "GroupChatMemberRemoved",
       id: ulid(),
       aggregateId,
       member,
@@ -182,7 +181,7 @@ const GroupChatDeleted = {
   ): GroupChatDeleted {
     return {
       symbol: GroupChatDeletedTypeSymbol,
-      typeName: GroupChatDeletedTypeSymbol.toString(),
+      typeName: "GroupChatDeleted",
       id: ulid(),
       aggregateId,
       executorId,
@@ -215,7 +214,7 @@ const GroupChatMessagePosted = {
   ): GroupChatMessagePosted {
     return {
       symbol: GroupChatMessagePostedTypeSymbol,
-      typeName: GroupChatMessagePostedTypeSymbol.toString(),
+      typeName: "GroupChatMessagePosted",
       id: ulid(),
       aggregateId,
       message,
@@ -249,7 +248,7 @@ const GroupChatMessageDeleted = {
   ): GroupChatMessageDeleted {
     return {
       symbol: GroupChatMessageDeletedTypeSymbol,
-      typeName: GroupChatMessageDeletedTypeSymbol.toString(),
+      typeName: "GroupChatMessageDeleted",
       id: ulid(),
       aggregateId,
       message,
@@ -264,74 +263,74 @@ const GroupChatMessageDeleted = {
 // eslint @typescript-eslint/no-explicit-any
 function convertJSONToGroupChatEvent(jsonString: string): GroupChatEvent {
   const obj = JSON.parse(jsonString);
-  switch (obj.symbol) {
-    case GroupChatCreatedTypeSymbol:
+  const id = convertJSONToGroupChatId(JSON.stringify(obj.data.aggregateId));
+  const executorId = convertJSONToUserAccountId(JSON.stringify(obj.data.executorId))
+  switch (obj.type) {
+    case "GroupChatCreated": {
+      const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
+      const members = convertJSONToMembers(JSON.stringify(obj.data.members));
       return GroupChatCreated.of(
-        GroupChatId.of(obj.aggregateId.value),
-        GroupChatName.of(obj.name.value),
-        Members.fromArray(obj.members),
-        UserAccountId.of(obj.executorId.value),
-        obj.sequenceNumber,
+          id,
+          name,
+          members,
+          executorId,
+          obj.data.sequenceNumber,
       );
-    case GroupChatRenamedTypeSymbol:
+    }
+    case "GroupChatRenamed": {
+      const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
       return GroupChatRenamed.of(
-        GroupChatId.of(obj.aggregateId.value),
-        GroupChatName.of(obj.name.value),
-        UserAccountId.of(obj.executorId.value),
-        obj.sequenceNumber,
+          id,
+          name,
+          executorId,
+          obj.data.sequenceNumber,
       );
-    case GroupChatMemberAddedTypeSymbol:
+    }
+    case "GroupChatMemberAdded": {
+      const member = convertJSONToMember(JSON.stringify(obj.data.member));
       return GroupChatMemberAdded.of(
-        GroupChatId.of(obj.aggregateId.value),
-        Member.of(
-          UserAccountId.of(obj.member.userAccountId.value),
-          obj.member.isAdmin,
-        ),
-        UserAccountId.of(obj.executorId.value),
+        id,
+        member,
+        executorId,
         obj.sequenceNumber,
       );
-    case GroupChatMemberRemovedTypeSymbol:
+    }
+    case "GroupChatMemberRemoved": {
+      const member = convertJSONToMember(JSON.stringify(obj.data.member));
       return GroupChatMemberRemoved.of(
-        GroupChatId.of(obj.aggregateId.value),
-        Member.of(
-          UserAccountId.of(obj.member.userAccountId.value),
-          obj.member.isAdmin,
-        ),
-        UserAccountId.of(obj.executorId.value),
-        obj.sequenceNumber,
+          id,
+          member,
+          executorId,
+          obj.sequenceNumber,
       );
-    case GroupChatMessagePostedTypeSymbol:
+    }
+    case "GroupChatMessagePosted": {
+      const message = convertJSONToMessage(JSON.stringify(obj.data.message));
       return GroupChatMessagePosted.of(
-        GroupChatId.of(obj.aggregateId.value),
-        Message.of(
-          MessageId.of(obj.message.id.value),
-          obj.message.context,
-          UserAccountId.of(obj.message.sender.value),
-          obj.message.sentAt,
-        ),
-        UserAccountId.of(obj.executorId.value),
-        obj.sequenceNumber,
+          id,
+          message,
+          executorId,
+          obj.sequenceNumber,
       );
-    case GroupChatMessageDeletedTypeSymbol:
+    }
+    case "GroupChatMessageDeleted": {
+      const message = convertJSONToMessage(JSON.stringify(obj.data.message));
       return GroupChatMessageDeleted.of(
-        GroupChatId.of(obj.aggregateId.value),
-        Message.of(
-          MessageId.of(obj.message.id.value),
-          obj.message.context,
-          UserAccountId.of(obj.message.sender.value),
-          obj.message.sentAt,
-        ),
-        UserAccountId.of(obj.executorId.value),
-        obj.sequenceNumber,
+          id,
+          message,
+          executorId,
+          obj.sequenceNumber,
       );
-    case GroupChatDeletedTypeSymbol:
+    }
+    case "GroupChatDeleted": {
       return GroupChatDeleted.of(
-        GroupChatId.of(obj.aggregateId.value),
-        UserAccountId.of(obj.executorId.value),
-        obj.sequenceNumber,
+          id,
+          executorId,
+          obj.sequenceNumber,
       );
+    }
     default:
-      throw new Error(`Unknown symbol: ${obj.symbol}`);
+      throw new Error(`Unknown type: ${obj.type}`);
   }
 }
 
