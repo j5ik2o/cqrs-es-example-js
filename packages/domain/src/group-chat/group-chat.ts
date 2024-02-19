@@ -405,6 +405,12 @@ const GroupChat = {
       GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
     ];
   },
+  replay(events: GroupChatEvent[], snapshot: GroupChat): GroupChat {
+    return events.reduce(
+      (groupChat, event) => groupChat.applyEvent(event),
+      snapshot,
+    );
+  },
 };
 
 export { GroupChat };

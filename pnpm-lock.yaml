@@ -6,8 +6,16 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  packages/domain:
     dependencies:
+      event-store-adapter-js:
+        specifier: 2.0.15-snapshot.2
+        version: 2.0.15-snapshot.2
+      fp-ts:
+        specifier: ^2.16.2
+        version: 2.16.2
       ulidx:
         specifier: ^2.3.0
         version: 2.3.0
@@ -52,17 +60,14 @@ importers:
         specifier: ^5.2.2
         version: 5.3.3
 
-  packages/domain:
+  packages/interface-adaptor:
     dependencies:
+      domain:
+        specifier: workspace:*
+        version: link:../domain
       event-store-adapter-js:
         specifier: 2.0.15-snapshot.2
         version: 2.0.15-snapshot.2
-      fp-ts:
-        specifier: ^2.16.2
-        version: 2.16.2
-      ulidx:
-        specifier: ^2.3.0
-        version: 2.3.0
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
