@@ -1,3 +1,19 @@
+const GroupChatRenameErrorTypeSymbol = Symbol("GroupChatRenameError");
+
+interface GroupChatRenameError {
+  symbol: typeof GroupChatRenameErrorTypeSymbol;
+  message: string;
+}
+
+const GroupChatRenameError = {
+  of(message: string): GroupChatRenameError {
+    return {
+      symbol: GroupChatRenameErrorTypeSymbol,
+      message,
+    };
+  },
+};
+
 const GroupChatAddMemberErrorTypeSymbol = Symbol("GroupChatAddMemberError");
 
 interface GroupChatAddMemberError {
@@ -89,6 +105,8 @@ type GroupChatError =
 
 export {
   GroupChatError,
+  GroupChatRenameError,
+  GroupChatRenameErrorTypeSymbol,
   GroupChatAddMemberError,
   GroupChatAddMemberErrorTypeSymbol,
   GroupChatRemoveMemberError,

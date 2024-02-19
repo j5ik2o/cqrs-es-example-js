@@ -4,10 +4,17 @@ import { Members } from "./members";
 import {
   GroupChatCreated,
   GroupChatDeleted,
+  GroupChatDeletedTypeSymbol,
+  GroupChatEvent,
   GroupChatMemberAdded,
+  GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
+  GroupChatMemberRemovedTypeSymbol,
   GroupChatMessageDeleted,
+  GroupChatMessageDeletedTypeSymbol,
   GroupChatMessagePosted,
+  GroupChatMessagePostedTypeSymbol,
+  GroupChatRenamed,
 } from "./group-chat-events";
 import { UserAccountId } from "../user-account";
 import { Member, MemberRole } from "./member";
@@ -19,6 +26,7 @@ import {
   GroupChatDeleteMessageError,
   GroupChatPostMessageError,
   GroupChatRemoveMemberError,
+  GroupChatRenameError,
 } from "./group-chat-errors";
 import { Message } from "./message";
 import { Messages } from "./messages";
@@ -35,6 +43,10 @@ interface GroupChat {
   messages: Messages;
   sequenceNumber: number;
   version: number;
+  rename: (
+    name: GroupChatName,
+    executorId: UserAccountId,
+  ) => E.Either<GroupChatRenameError, [GroupChat, GroupChatRenamed]>;
   addMember: (
     userAccountId: UserAccountId,
     memberRole: MemberRole,
@@ -65,6 +77,7 @@ interface GroupChat {
   updateVersion: (version: (value: number) => number) => GroupChat;
   equals: (other: GroupChat) => boolean;
   toString: () => string;
+  applyEvent: (event: GroupChatEvent) => GroupChat;
 }
 
 interface GroupChatParams {
@@ -87,6 +100,36 @@ function initialize(params: GroupChatParams): GroupChat {
     messages: params.messages,
     sequenceNumber: params.sequenceNumber,
     version: params.version,
+    rename(name: GroupChatName, executorId: UserAccountId) {
+      if (this.deleted) {
+        return E.left(GroupChatRenameError.of("The group chat is deleted"));
+      }
+      if (!this.members.isAdministrator(executorId)) {
+        return E.left(
+          GroupChatRenameError.of(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      if (this.name.equals(name)) {
+        return E.left(
+          GroupChatRenameError.of("The new name is the same as the old name"),
+        );
+      }
+      const newSequenceNumber = this.sequenceNumber + 1;
+      const newGroupChat: GroupChat = initialize({
+        ...this,
+        name,
+        sequenceNumber: newSequenceNumber,
+      });
+      const event = GroupChatRenamed.of(
+        this.id,
+        name,
+        executorId,
+        newSequenceNumber,
+      );
+      return E.right([newGroupChat, event]);
+    },
     addMember(
       userAccountId: UserAccountId,
       memberRole: MemberRole,
@@ -279,6 +322,63 @@ function initialize(params: GroupChatParams): GroupChat {
     },
     toString(): string {
       return JSON.stringify(this);
+    },
+    applyEvent(event: GroupChatEvent): GroupChat {
+      switch (event.symbol) {
+        case GroupChatMemberAddedTypeSymbol: {
+          const typedEvent = event as GroupChatMemberAdded;
+          const result = this.addMember(
+            typedEvent.member.userAccountId,
+            typedEvent.member.memberRole,
+            event.executorId,
+          );
+          if (E.isLeft(result)) {
+            throw new Error(result.left.message);
+          }
+          return result.right[0];
+        }
+        case GroupChatMemberRemovedTypeSymbol: {
+          const typedEvent = event as GroupChatMemberRemoved;
+          const result = this.removeMemberById(
+            typedEvent.member.userAccountId,
+            event.executorId,
+          );
+          if (E.isLeft(result)) {
+            throw new Error(result.left.message);
+          }
+          return result.right[0];
+        }
+        case GroupChatMessagePostedTypeSymbol: {
+          const typedEvent = event as GroupChatMessagePosted;
+          const result = this.postMessage(typedEvent.message, event.executorId);
+          if (E.isLeft(result)) {
+            throw new Error(result.left.message);
+          }
+          return result.right[0];
+        }
+        case GroupChatMessageDeletedTypeSymbol: {
+          const typedEvent = event as GroupChatMessageDeleted;
+          const result = this.deleteMessage(
+            typedEvent.message.id,
+            event.executorId,
+          );
+          if (E.isLeft(result)) {
+            throw new Error(result.left.message);
+          }
+          return result.right[0];
+        }
+        case GroupChatDeletedTypeSymbol: {
+          const typedEvent = event as GroupChatDeleted;
+          const result = this.delete(typedEvent.executorId);
+          if (E.isLeft(result)) {
+            throw new Error(result.left.message);
+          }
+          return result.right[0];
+        }
+        default: {
+          throw new Error("Unknown event");
+        }
+      }
     },
   };
 }

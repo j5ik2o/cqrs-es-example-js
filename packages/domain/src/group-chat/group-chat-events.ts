@@ -7,7 +7,17 @@ import { ulid } from "ulidx";
 import { Member } from "./member";
 import { Message } from "./message";
 
+type GroupChatEventTypeSymbol =
+  | typeof GroupChatCreatedTypeSymbol
+  | typeof GroupChatRenamedTypeSymbol
+  | typeof GroupChatMemberAddedTypeSymbol
+  | typeof GroupChatMemberRemovedTypeSymbol
+  | typeof GroupChatMessagePostedTypeSymbol
+  | typeof GroupChatMessageDeletedTypeSymbol
+  | typeof GroupChatDeletedTypeSymbol;
+
 interface GroupChatEvent extends Event<GroupChatId> {
+  symbol: GroupChatEventTypeSymbol;
   get executorId(): UserAccountId;
 }
 
@@ -43,6 +53,39 @@ const GroupChatCreated = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: true,
+    };
+  },
+};
+
+const GroupChatRenamedTypeSymbol = Symbol("GroupChatRenamed");
+
+interface GroupChatRenamed extends GroupChatEvent {
+  symbol: typeof GroupChatRenamedTypeSymbol;
+  id: string;
+  aggregateId: GroupChatId;
+  name: GroupChatName;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
+}
+
+const GroupChatRenamed = {
+  of(
+    aggregateId: GroupChatId,
+    name: GroupChatName,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatRenamed {
+    return {
+      symbol: GroupChatRenamedTypeSymbol,
+      id: ulid(),
+      aggregateId,
+      name,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+      isCreated: false,
     };
   },
 };
@@ -211,8 +254,11 @@ const GroupChatMessageDeleted = {
 
 export {
   GroupChatEvent,
+  GroupChatEventTypeSymbol,
   GroupChatCreated,
   GroupChatCreatedTypeSymbol,
+  GroupChatRenamed,
+  GroupChatRenamedTypeSymbol,
   GroupChatMemberAdded,
   GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,

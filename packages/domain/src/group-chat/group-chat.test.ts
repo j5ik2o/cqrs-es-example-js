@@ -11,6 +11,7 @@ import {
   GroupChatMemberRemoved,
   GroupChatMessageDeleted,
   GroupChatMessagePosted,
+  GroupChatRenamed,
 } from "./group-chat-events";
 import {
   GroupChatAddMemberError,
@@ -18,6 +19,7 @@ import {
   GroupChatDeleteMessageError,
   GroupChatPostMessageError,
   GroupChatRemoveMemberError,
+  GroupChatRenameError,
 } from "./group-chat-errors";
 import { Message } from "./message";
 import { MessageId } from "./message-id";
@@ -43,6 +45,21 @@ describe("GroupChat", () => {
     expect(groupChat.members.containsById(adminId)).toEqual(true);
     expect(groupChatCreated.aggregateId).toEqual(id);
     expect(groupChatCreated.name).toEqual(name);
+  });
+  test("Rename", () => {
+    // Given
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat] = GroupChat.create(id, name, adminId);
+
+    const newName = GroupChatName.of("newName");
+    const result = groupChat.rename(newName, adminId);
+    const [actualGroupChat, groupChatRenamed] = parseRenameResult(result);
+    expect(actualGroupChat.id).toEqual(id);
+    expect(actualGroupChat.name).toEqual(newName);
+    expect(groupChatRenamed.aggregateId).toEqual(id);
+    expect(groupChatRenamed.name).toEqual(newName);
   });
   test("AddMember", () => {
     // Given
@@ -185,6 +202,19 @@ describe("GroupChat", () => {
     expect(groupChatDeleted.symbol).toEqual(GroupChatDeletedTypeSymbol);
   });
 });
+
+function parseRenameResult(
+  renameEither: E.Either<GroupChatRenameError, [GroupChat, GroupChatRenamed]>,
+) {
+  return E.fold(
+    (err: GroupChatRenameError) => {
+      throw new Error(err.message);
+    },
+    (values: [GroupChat, GroupChatRenamed]) => {
+      return values;
+    },
+  )(renameEither);
+}
 
 function parseAddMemberResult(
   addMemberEither: E.Either<
