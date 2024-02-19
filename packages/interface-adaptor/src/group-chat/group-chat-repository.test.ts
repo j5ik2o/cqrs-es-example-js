@@ -101,8 +101,6 @@ describe("GroupChatRepository", () => {
   }, TIMEOUT);
 
   test("store and reply", async () => {
-    // const eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent> =
-    //   EventStoreFactory.ofMemory<GroupChatId, GroupChat, GroupChatEvent>();
     const repository = GroupChatRepository.of(eventStore);
 
     const id = GroupChatId.generate();
