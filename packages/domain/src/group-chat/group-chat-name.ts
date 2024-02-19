@@ -28,4 +28,9 @@ const GroupChatName = {
   },
 };
 
-export { GroupChatName, GroupChatNameTypeSymbol };
+function convertJSONToGroupChatName(jsonString: string): GroupChatName {
+  const obj = JSON.parse(jsonString);
+  return GroupChatName.of(obj.value);
+}
+
+export { GroupChatName, GroupChatNameTypeSymbol, convertJSONToGroupChatName };

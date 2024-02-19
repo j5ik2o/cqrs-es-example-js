@@ -1,4 +1,4 @@
-import { AdministratorSymbol, Member } from "./member";
+import { AdministratorSymbol, convertJSONToMember, Member } from "./member";
 import { UserAccountId } from "../user-account";
 import * as O from "fp-ts/lib/Option";
 
@@ -6,6 +6,7 @@ const MembersTypeSymbol = Symbol("Members");
 
 interface Members {
   symbol: typeof MembersTypeSymbol;
+  values: Member[];
   addMember: (member: Member) => Members;
   removeMemberById: (
     userAccountId: UserAccountId,
@@ -22,6 +23,9 @@ interface Members {
 function initialize(_values: Map<string, Member>): Members {
   return {
     symbol: MembersTypeSymbol,
+    get values() {
+      return this.toArray();
+    },
     addMember(member: Member): Members {
       return initialize(
         new Map(_values).set(member.userAccountId.value, member),
@@ -99,4 +103,13 @@ const Members = {
   },
 };
 
-export { Members, MembersTypeSymbol };
+function convertJSONToMembers(jsonString: string): Members {
+  const obj = JSON.parse(jsonString);
+  // console.log("convertJSONToMembers = ", obj);
+  return Members.fromArray(
+    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    obj.values.map((v: any) => convertJSONToMember(JSON.stringify(v))),
+  );
+}
+
+export { Members, MembersTypeSymbol, convertJSONToMembers };

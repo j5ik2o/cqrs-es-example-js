@@ -1,4 +1,4 @@
-import { Message } from "./message";
+import { convertJSONToMessage, Message } from "./message";
 import { MessageId } from "./message-id";
 import * as O from "fp-ts/Option";
 
@@ -6,6 +6,7 @@ const MessagesTypeSymbol = Symbol("Messages");
 
 interface Messages {
   symbol: typeof MessagesTypeSymbol;
+  values: Message[];
   addMessage: (message: Message) => Messages;
   removeMessageById: (messageId: MessageId) => O.Option<[Messages, Message]>;
   containsById: (messageId: MessageId) => boolean;
@@ -21,6 +22,9 @@ function initialize(values: Map<string, Message>): Messages {
   let _toMap: Map<MessageId, Message> | undefined = undefined;
   return {
     symbol: MessagesTypeSymbol,
+    get values() {
+      return this.toArray();
+    },
     addMessage: (message: Message) =>
       initialize(new Map(values).set(message.id.asString, message)),
     removeMessageById: (
@@ -81,4 +85,13 @@ const Messages = {
   },
 };
 
-export { Messages, MessagesTypeSymbol };
+function convertJSONToMessages(jsonString: string): Messages {
+  const obj = JSON.parse(jsonString);
+  // console.log("convertJSONToMessages = ", obj);
+  return Messages.fromArray(
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+      obj.values.map((v: any) => convertJSONToMessage(JSON.stringify(v))),
+  );
+}
+
+export { Messages, MessagesTypeSymbol, convertJSONToMessages };

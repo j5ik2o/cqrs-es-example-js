@@ -50,4 +50,9 @@ const GroupChatId = {
   },
 };
 
-export { GroupChatId, GroupChatIdTypeSymbol };
+function convertJSONToGroupChatId(jsonString: string): GroupChatId {
+  const obj = JSON.parse(jsonString);
+  return GroupChatId.of(obj.value);
+}
+
+export { GroupChatId, GroupChatIdTypeSymbol, convertJSONToGroupChatId };

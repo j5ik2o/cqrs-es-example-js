@@ -31,4 +31,10 @@ const MessageId = {
   },
 };
 
-export { MessageId, MessageIdTypeSymbol };
+function convertJSONToMessageId(jsonString: string): MessageId {
+  const obj = JSON.parse(jsonString);
+  // console.log("convertJSONToMessageId = ", obj);
+  return initialize(obj.value);
+}
+
+export { MessageId, MessageIdTypeSymbol, convertJSONToMessageId };

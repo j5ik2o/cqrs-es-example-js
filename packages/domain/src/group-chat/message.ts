@@ -1,5 +1,5 @@
-import { UserAccountId } from "../user-account";
-import { MessageId } from "./message-id";
+import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
+import { convertJSONToMessageId, MessageId } from "./message-id";
 
 const MessageTypeSymbol = Symbol("Message");
 
@@ -46,4 +46,12 @@ const Message = {
   },
 };
 
-export { Message, MessageTypeSymbol };
+function convertJSONToMessage(jsonString: string): Message {
+  const obj = JSON.parse(jsonString);
+  // console.log("convertJSONToMessage = ", obj);
+  const id = convertJSONToMessageId(JSON.stringify(obj.id));
+  const senderId = convertJSONToUserAccountId(JSON.stringify(obj.senderId));
+  return initialize(id, obj.content, senderId, new Date(obj.sentAt));
+}
+
+export { Message, MessageTypeSymbol, convertJSONToMessage };

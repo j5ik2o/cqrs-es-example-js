@@ -11,8 +11,8 @@ importers:
   packages/domain:
     dependencies:
       event-store-adapter-js:
-        specifier: 2.0.15-snapshot.2
-        version: 2.0.15-snapshot.2
+        specifier: 2.0.16
+        version: 2.0.16
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -62,12 +62,21 @@ importers:
 
   packages/interface-adaptor:
     dependencies:
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.413.0
+        version: 3.515.0
+      aws-sdk:
+        specifier: ^2.1459.0
+        version: 2.1559.0
       cqrs-es-example-js-domain:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
-        specifier: 2.0.15-snapshot.2
-        version: 2.0.15-snapshot.2
+        specifier: 2.0.16
+        version: 2.0.16
+      moment:
+        specifier: ^2.29.4
+        version: 2.30.1
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -2877,8 +2886,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /event-store-adapter-js@2.0.15-snapshot.2:
-    resolution: {integrity: sha512-ujn+PbVnd97l4Axki9UP3TmAPSib7TwqOqeWnqfY98pPh/byQ1Vi+TcKVsoNjljokqYP1Z5PWe3uCsjxnHeA4w==}
+  /event-store-adapter-js@2.0.16:
+    resolution: {integrity: sha512-jiDtWo9XxZBbYwBKy12/PX7egEVcebR6ojiMHq+n2apZmCE+dkuICvntVu+jwevo2H979HtQ5/3kBeiPl9dffQ==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.515.0
       aws-sdk: 2.1559.0

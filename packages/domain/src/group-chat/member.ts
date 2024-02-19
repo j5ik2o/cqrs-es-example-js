@@ -1,4 +1,4 @@
-import { UserAccountId } from "../user-account";
+import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
 
 const MemberSymbol = Symbol("Member");
 const AdministratorSymbol = Symbol("Administrator");
@@ -48,10 +48,17 @@ const Member = {
   },
 };
 
+function convertJSONToMember(jsonString: string): Member {
+  const obj = JSON.parse(jsonString);
+  const id = convertJSONToUserAccountId(JSON.stringify(obj.userAccountId));
+  return Member.of(id, obj.memberRole);
+}
+
 export {
   MemberRole,
   MemberSymbol,
   AdministratorSymbol,
   Member,
   MemberTypeSymbol,
+  convertJSONToMember,
 };

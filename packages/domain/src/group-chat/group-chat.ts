@@ -1,6 +1,6 @@
-import { GroupChatId } from "./group-chat-id";
-import { GroupChatName } from "./group-chat-name";
-import { Members } from "./members";
+import { convertJSONToGroupChatId, GroupChatId } from "./group-chat-id";
+import { convertJSONToGroupChatName, GroupChatName } from "./group-chat-name";
+import { convertJSONToMembers, Members } from "./members";
 import {
   GroupChatCreated,
   GroupChatDeleted,
@@ -29,13 +29,15 @@ import {
   GroupChatRenameError,
 } from "./group-chat-errors";
 import { Message } from "./message";
-import { Messages } from "./messages";
+import { convertJSONToMessages, Messages } from "./messages";
 import { MessageId } from "./message-id";
+import { Aggregate } from "event-store-adapter-js";
 
 const GroupChatTypeSymbol = Symbol("GroupChat");
 
-interface GroupChat {
+interface GroupChat extends Aggregate<GroupChat, GroupChatId> {
   symbol: typeof GroupChatTypeSymbol;
+  typeName: string;
   id: GroupChatId;
   deleted: boolean;
   name: GroupChatName;
@@ -93,6 +95,7 @@ interface GroupChatParams {
 function initialize(params: GroupChatParams): GroupChat {
   return {
     symbol: GroupChatTypeSymbol,
+    typeName: GroupChatTypeSymbol.toString(),
     id: params.id,
     deleted: params.deleted,
     name: params.name,
@@ -320,9 +323,6 @@ function initialize(params: GroupChatParams): GroupChat {
         this.version === other.version
       );
     },
-    toString(): string {
-      return JSON.stringify(this);
-    },
     applyEvent(event: GroupChatEvent): GroupChat {
       switch (event.symbol) {
         case GroupChatMemberAddedTypeSymbol: {
@@ -405,6 +405,24 @@ const GroupChat = {
       GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
     ];
   },
+  from(
+    id: GroupChatId,
+    name: GroupChatName,
+    members: Members,
+    messages: Messages,
+    sequenceNumber: number,
+    version: number,
+  ): GroupChat {
+    return initialize({
+      id,
+      deleted: false,
+      name,
+      members,
+      messages,
+      sequenceNumber,
+      version,
+    });
+  },
   replay(events: GroupChatEvent[], snapshot: GroupChat): GroupChat {
     return events.reduce(
       (groupChat, event) => groupChat.applyEvent(event),
@@ -413,4 +431,21 @@ const GroupChat = {
   },
 };
 
-export { GroupChat, GroupChatTypeSymbol };
+function convertJSONToGroupChat(jsonString: string): GroupChat {
+  const obj = JSON.parse(jsonString);
+  // console.log("convertJSONToGroupChat = ", obj);
+  const id = convertJSONToGroupChatId(JSON.stringify(obj.data.id));
+  const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
+  const members = convertJSONToMembers(JSON.stringify(obj.data.members));
+  const messages = convertJSONToMessages(JSON.stringify(obj.data.messages));
+  return GroupChat.from(
+    id,
+    name,
+    members,
+    messages,
+    obj.data.sequenceNumber,
+    obj.data.version,
+  );
+}
+
+export { GroupChat, GroupChatTypeSymbol, convertJSONToGroupChat };

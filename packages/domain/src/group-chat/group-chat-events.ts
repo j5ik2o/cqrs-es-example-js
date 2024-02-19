@@ -6,6 +6,7 @@ import { Members } from "./members";
 import { ulid } from "ulidx";
 import { Member } from "./member";
 import { Message } from "./message";
+import { MessageId } from "./message-id";
 
 type GroupChatEventTypeSymbol =
   | typeof GroupChatCreatedTypeSymbol
@@ -18,6 +19,7 @@ type GroupChatEventTypeSymbol =
 
 interface GroupChatEvent extends Event<GroupChatId> {
   symbol: GroupChatEventTypeSymbol;
+
   get executorId(): UserAccountId;
 }
 
@@ -45,6 +47,7 @@ const GroupChatCreated = {
   ): GroupChatCreated {
     return {
       symbol: GroupChatCreatedTypeSymbol,
+      typeName: GroupChatCreatedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       name,
@@ -79,6 +82,7 @@ const GroupChatRenamed = {
   ): GroupChatRenamed {
     return {
       symbol: GroupChatRenamedTypeSymbol,
+      typeName: GroupChatRenamedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       name,
@@ -112,6 +116,7 @@ const GroupChatMemberAdded = {
   ): GroupChatMemberAdded {
     return {
       symbol: GroupChatMemberAddedTypeSymbol,
+      typeName: GroupChatMemberAddedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       member,
@@ -145,6 +150,7 @@ const GroupChatMemberRemoved = {
   ): GroupChatMemberRemoved {
     return {
       symbol: GroupChatMemberRemovedTypeSymbol,
+      typeName: GroupChatMemberRemovedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       member,
@@ -176,6 +182,7 @@ const GroupChatDeleted = {
   ): GroupChatDeleted {
     return {
       symbol: GroupChatDeletedTypeSymbol,
+      typeName: GroupChatDeletedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       executorId,
@@ -208,6 +215,7 @@ const GroupChatMessagePosted = {
   ): GroupChatMessagePosted {
     return {
       symbol: GroupChatMessagePostedTypeSymbol,
+      typeName: GroupChatMessagePostedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       message,
@@ -241,6 +249,7 @@ const GroupChatMessageDeleted = {
   ): GroupChatMessageDeleted {
     return {
       symbol: GroupChatMessageDeletedTypeSymbol,
+      typeName: GroupChatMessageDeletedTypeSymbol.toString(),
       id: ulid(),
       aggregateId,
       message,
@@ -251,6 +260,80 @@ const GroupChatMessageDeleted = {
     };
   },
 };
+
+// eslint @typescript-eslint/no-explicit-any
+function convertJSONToGroupChatEvent(jsonString: string): GroupChatEvent {
+  const obj = JSON.parse(jsonString);
+  switch (obj.symbol) {
+    case GroupChatCreatedTypeSymbol:
+      return GroupChatCreated.of(
+        GroupChatId.of(obj.aggregateId.value),
+        GroupChatName.of(obj.name.value),
+        Members.fromArray(obj.members),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    case GroupChatRenamedTypeSymbol:
+      return GroupChatRenamed.of(
+        GroupChatId.of(obj.aggregateId.value),
+        GroupChatName.of(obj.name.value),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    case GroupChatMemberAddedTypeSymbol:
+      return GroupChatMemberAdded.of(
+        GroupChatId.of(obj.aggregateId.value),
+        Member.of(
+          UserAccountId.of(obj.member.userAccountId.value),
+          obj.member.isAdmin,
+        ),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    case GroupChatMemberRemovedTypeSymbol:
+      return GroupChatMemberRemoved.of(
+        GroupChatId.of(obj.aggregateId.value),
+        Member.of(
+          UserAccountId.of(obj.member.userAccountId.value),
+          obj.member.isAdmin,
+        ),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    case GroupChatMessagePostedTypeSymbol:
+      return GroupChatMessagePosted.of(
+        GroupChatId.of(obj.aggregateId.value),
+        Message.of(
+          MessageId.of(obj.message.id.value),
+          obj.message.context,
+          UserAccountId.of(obj.message.sender.value),
+          obj.message.sentAt,
+        ),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    case GroupChatMessageDeletedTypeSymbol:
+      return GroupChatMessageDeleted.of(
+        GroupChatId.of(obj.aggregateId.value),
+        Message.of(
+          MessageId.of(obj.message.id.value),
+          obj.message.context,
+          UserAccountId.of(obj.message.sender.value),
+          obj.message.sentAt,
+        ),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    case GroupChatDeletedTypeSymbol:
+      return GroupChatDeleted.of(
+        GroupChatId.of(obj.aggregateId.value),
+        UserAccountId.of(obj.executorId.value),
+        obj.sequenceNumber,
+      );
+    default:
+      throw new Error(`Unknown symbol: ${obj.symbol}`);
+  }
+}
 
 export {
   GroupChatEvent,
@@ -269,4 +352,5 @@ export {
   GroupChatMessageDeletedTypeSymbol,
   GroupChatDeleted,
   GroupChatDeletedTypeSymbol,
+  convertJSONToGroupChatEvent,
 };

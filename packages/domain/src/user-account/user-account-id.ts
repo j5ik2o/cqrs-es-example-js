@@ -51,4 +51,9 @@ const UserAccountId = {
   },
 };
 
-export { UserAccountId, UserAccountIdTypeSymbol };
+function convertJSONToUserAccountId(jsonString: string): UserAccountId {
+  const obj = JSON.parse(jsonString);
+  return UserAccountId.of(obj.value);
+}
+
+export { UserAccountId, UserAccountIdTypeSymbol, convertJSONToUserAccountId };
