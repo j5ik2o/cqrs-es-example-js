@@ -2,7 +2,10 @@ import { Message } from "./message";
 import { MessageId } from "./message-id";
 import * as O from "fp-ts/Option";
 
+const MessagesTypeSymbol = Symbol("Messages");
+
 interface Messages {
+  symbol: typeof MessagesTypeSymbol;
   addMessage: (message: Message) => Messages;
   removeMessageById: (messageId: MessageId) => O.Option<[Messages, Message]>;
   containsById: (messageId: MessageId) => boolean;
@@ -17,6 +20,7 @@ function initialize(values: Map<string, Message>): Messages {
   let _toArray: Message[] | undefined = undefined;
   let _toMap: Map<MessageId, Message> | undefined = undefined;
   return {
+    symbol: MessagesTypeSymbol,
     addMessage: (message: Message) =>
       initialize(new Map(values).set(message.id.asString, message)),
     removeMessageById: (
@@ -77,4 +81,4 @@ const Messages = {
   },
 };
 
-export { Messages };
+export { Messages, MessagesTypeSymbol };

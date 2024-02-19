@@ -1,7 +1,7 @@
-const GroupChatNameSymbol = Symbol("GroupChatName");
+const GroupChatNameTypeSymbol = Symbol("GroupChatName");
 
 interface GroupChatName {
-  symbol: typeof GroupChatNameSymbol;
+  symbol: typeof GroupChatNameTypeSymbol;
   value: string;
   asString: string;
   equals: (anotherName: GroupChatName) => boolean;
@@ -9,15 +9,15 @@ interface GroupChatName {
 
 function initialize(_value: string): GroupChatName {
   return {
-    symbol: GroupChatNameSymbol,
+    symbol: GroupChatNameTypeSymbol,
     get value() {
       return _value;
     },
     get asString() {
-      return _value;
+      return this.value;
     },
     equals(anotherName: GroupChatName): boolean {
-      return _value === anotherName.value;
+      return this.value === anotherName.value;
     },
   };
 }
@@ -28,4 +28,4 @@ const GroupChatName = {
   },
 };
 
-export { GroupChatName };
+export { GroupChatName, GroupChatNameTypeSymbol };

@@ -24,10 +24,10 @@ import { Message } from "./message";
 import { Messages } from "./messages";
 import { MessageId } from "./message-id";
 
-const GroupChatSymbol = Symbol("GroupChat");
+const GroupChatTypeSymbol = Symbol("GroupChat");
 
 interface GroupChat {
-  symbol: typeof GroupChatSymbol;
+  symbol: typeof GroupChatTypeSymbol;
   id: GroupChatId;
   deleted: boolean;
   name: GroupChatName;
@@ -79,7 +79,7 @@ interface GroupChatParams {
 
 function initialize(params: GroupChatParams): GroupChat {
   return {
-    symbol: GroupChatSymbol,
+    symbol: GroupChatTypeSymbol,
     id: params.id,
     deleted: params.deleted,
     name: params.name,

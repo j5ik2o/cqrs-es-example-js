@@ -1,42 +1,57 @@
 import { UserAccountId } from "../user-account";
 
-type MemberRole = "admin" | "member";
-
 const MemberSymbol = Symbol("Member");
+const AdministratorSymbol = Symbol("Administrator");
+
+type MemberRole = typeof AdministratorSymbol | typeof MemberSymbol;
+
+const MemberTypeSymbol = Symbol("Member");
 
 interface Member {
-  symbol: typeof MemberSymbol;
+  symbol: typeof MemberTypeSymbol;
   userAccountId: UserAccountId;
   memberRole: MemberRole;
   isAdministrator: () => boolean;
   isMember: () => boolean;
+  withRole: (role: MemberRole) => Member;
   equals: (other: Member) => boolean;
 }
 
-function initialize(
-  userAccountId: UserAccountId,
-  memberRole: MemberRole,
-): Member {
+interface MemberParams {
+  userAccountId: UserAccountId;
+  memberRole: MemberRole;
+}
+
+function initialize(params: MemberParams): Member {
   return {
-    symbol: MemberSymbol,
-    userAccountId,
-    memberRole,
+    symbol: MemberTypeSymbol,
+    userAccountId: params.userAccountId,
+    memberRole: params.memberRole,
     isAdministrator() {
-      return memberRole === "admin";
+      return this.memberRole === AdministratorSymbol;
     },
     isMember() {
-      return memberRole === "member";
+      return this.memberRole === MemberSymbol;
+    },
+    withRole(role: MemberRole) {
+      return initialize({ ...this, memberRole: role });
     },
     equals(other: Member) {
-      return userAccountId.value === other.userAccountId.value;
+      return this.userAccountId.value === other.userAccountId.value;
     },
   };
 }
 
 const Member = {
   of(userAccountId: UserAccountId, memberRole: MemberRole): Member {
-    return initialize(userAccountId, memberRole);
+    return initialize({ userAccountId, memberRole });
   },
 };
 
-export { MemberRole, Member };
+export {
+  MemberRole,
+  MemberSymbol,
+  AdministratorSymbol,
+  Member,
+  MemberTypeSymbol,
+};

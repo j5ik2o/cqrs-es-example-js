@@ -6,7 +6,7 @@ import { UserAccountId } from "../user-account";
 import * as E from "fp-ts/lib/Either";
 import {
   GroupChatDeleted,
-  GroupChatDeletedSymbol,
+  GroupChatDeletedTypeSymbol,
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
   GroupChatMessageDeleted,
@@ -21,6 +21,7 @@ import {
 } from "./group-chat-errors";
 import { Message } from "./message";
 import { MessageId } from "./message-id";
+import { MemberSymbol } from "./member";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -52,7 +53,11 @@ describe("GroupChat", () => {
     const memberId = UserAccountId.generate();
 
     // When
-    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
+    const addMemberEither = groupChat.addMember(
+      memberId,
+      MemberSymbol,
+      adminId,
+    );
 
     // Then
     expect(E.isRight(addMemberEither)).toEqual(true);
@@ -70,7 +75,11 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
+    const addMemberEither = groupChat.addMember(
+      memberId,
+      MemberSymbol,
+      adminId,
+    );
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
     expect(actualGroupChat1.id).toEqual(id);
     expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
@@ -94,7 +103,11 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
+    const addMemberEither = groupChat.addMember(
+      memberId,
+      MemberSymbol,
+      adminId,
+    );
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
     expect(actualGroupChat1.id).toEqual(id);
     expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
@@ -122,7 +135,11 @@ describe("GroupChat", () => {
     const adminId = UserAccountId.generate();
     const [groupChat] = GroupChat.create(id, name, adminId);
     const memberId = UserAccountId.generate();
-    const addMemberEither = groupChat.addMember(memberId, "member", adminId);
+    const addMemberEither = groupChat.addMember(
+      memberId,
+      MemberSymbol,
+      adminId,
+    );
     const [actualGroupChat1] = parseAddMemberResult(addMemberEither);
     expect(actualGroupChat1.id).toEqual(id);
     expect(actualGroupChat1.members.containsById(memberId)).toEqual(true);
@@ -165,7 +182,7 @@ describe("GroupChat", () => {
       parseDeleteGroupChatResult(deleteEither);
     expect(actualGroupChat.id).toEqual(id);
     expect(groupChatDeleted.aggregateId).toEqual(id);
-    expect(groupChatDeleted.symbol).toEqual(GroupChatDeletedSymbol);
+    expect(groupChatDeleted.symbol).toEqual(GroupChatDeletedTypeSymbol);
   });
 });
 

@@ -11,10 +11,10 @@ interface GroupChatEvent extends Event<GroupChatId> {
   get executorId(): UserAccountId;
 }
 
-const GroupChatCreatedSymbol = Symbol("GroupChatCreated");
+const GroupChatCreatedTypeSymbol = Symbol("GroupChatCreated");
 
 interface GroupChatCreated extends GroupChatEvent {
-  symbol: typeof GroupChatCreatedSymbol;
+  symbol: typeof GroupChatCreatedTypeSymbol;
   id: string;
   aggregateId: GroupChatId;
   name: GroupChatName;
@@ -34,7 +34,7 @@ const GroupChatCreated = {
     sequenceNumber: number,
   ): GroupChatCreated {
     return {
-      symbol: GroupChatCreatedSymbol,
+      symbol: GroupChatCreatedTypeSymbol,
       id: ulid(),
       aggregateId,
       name,
@@ -47,10 +47,10 @@ const GroupChatCreated = {
   },
 };
 
-const GroupChatMemberAddedSymbol = Symbol("GroupChatMemberAdded");
+const GroupChatMemberAddedTypeSymbol = Symbol("GroupChatMemberAdded");
 
 interface GroupChatMemberAdded extends GroupChatEvent {
-  symbol: typeof GroupChatMemberAddedSymbol;
+  symbol: typeof GroupChatMemberAddedTypeSymbol;
   id: string;
   aggregateId: GroupChatId;
   member: Member;
@@ -68,7 +68,7 @@ const GroupChatMemberAdded = {
     sequenceNumber: number,
   ): GroupChatMemberAdded {
     return {
-      symbol: GroupChatMemberAddedSymbol,
+      symbol: GroupChatMemberAddedTypeSymbol,
       id: ulid(),
       aggregateId,
       member,
@@ -80,10 +80,10 @@ const GroupChatMemberAdded = {
   },
 };
 
-const GroupChatMemberRemovedSymbol = Symbol("GroupChatMemberRemoved");
+const GroupChatMemberRemovedTypeSymbol = Symbol("GroupChatMemberRemoved");
 
 interface GroupChatMemberRemoved extends GroupChatEvent {
-  symbol: typeof GroupChatMemberRemovedSymbol;
+  symbol: typeof GroupChatMemberRemovedTypeSymbol;
   id: string;
   aggregateId: GroupChatId;
   member: Member;
@@ -101,7 +101,7 @@ const GroupChatMemberRemoved = {
     sequenceNumber: number,
   ): GroupChatMemberRemoved {
     return {
-      symbol: GroupChatMemberRemovedSymbol,
+      symbol: GroupChatMemberRemovedTypeSymbol,
       id: ulid(),
       aggregateId,
       member,
@@ -113,10 +113,10 @@ const GroupChatMemberRemoved = {
   },
 };
 
-const GroupChatDeletedSymbol = Symbol("GroupChatDeleted");
+const GroupChatDeletedTypeSymbol = Symbol("GroupChatDeleted");
 
 interface GroupChatDeleted extends GroupChatEvent {
-  symbol: typeof GroupChatDeletedSymbol;
+  symbol: typeof GroupChatDeletedTypeSymbol;
   id: string;
   aggregateId: GroupChatId;
   executorId: UserAccountId;
@@ -132,7 +132,7 @@ const GroupChatDeleted = {
     sequenceNumber: number,
   ): GroupChatDeleted {
     return {
-      symbol: GroupChatDeletedSymbol,
+      symbol: GroupChatDeletedTypeSymbol,
       id: ulid(),
       aggregateId,
       executorId,
@@ -143,10 +143,10 @@ const GroupChatDeleted = {
   },
 };
 
-const GroupChatMessagePostedSymbol = Symbol("GroupChatMessagePosted");
+const GroupChatMessagePostedTypeSymbol = Symbol("GroupChatMessagePosted");
 
 interface GroupChatMessagePosted extends GroupChatEvent {
-  symbol: typeof GroupChatMessagePostedSymbol;
+  symbol: typeof GroupChatMessagePostedTypeSymbol;
   id: string;
   aggregateId: GroupChatId;
   message: Message;
@@ -164,7 +164,7 @@ const GroupChatMessagePosted = {
     sequenceNumber: number,
   ): GroupChatMessagePosted {
     return {
-      symbol: GroupChatMessagePostedSymbol,
+      symbol: GroupChatMessagePostedTypeSymbol,
       id: ulid(),
       aggregateId,
       message,
@@ -176,10 +176,10 @@ const GroupChatMessagePosted = {
   },
 };
 
-const GroupChatMessageDeletedSymbol = Symbol("GroupChatMessageDeleted");
+const GroupChatMessageDeletedTypeSymbol = Symbol("GroupChatMessageDeleted");
 
 interface GroupChatMessageDeleted extends GroupChatEvent {
-  symbol: typeof GroupChatMessageDeletedSymbol;
+  symbol: typeof GroupChatMessageDeletedTypeSymbol;
   id: string;
   aggregateId: GroupChatId;
   message: Message;
@@ -197,7 +197,7 @@ const GroupChatMessageDeleted = {
     sequenceNumber: number,
   ): GroupChatMessageDeleted {
     return {
-      symbol: GroupChatMessageDeletedSymbol,
+      symbol: GroupChatMessageDeletedTypeSymbol,
       id: ulid(),
       aggregateId,
       message,
@@ -212,15 +212,15 @@ const GroupChatMessageDeleted = {
 export {
   GroupChatEvent,
   GroupChatCreated,
-  GroupChatCreatedSymbol,
+  GroupChatCreatedTypeSymbol,
   GroupChatMemberAdded,
-  GroupChatMemberAddedSymbol,
+  GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
-  GroupChatMemberRemovedSymbol,
+  GroupChatMemberRemovedTypeSymbol,
   GroupChatMessagePosted,
-  GroupChatMessagePostedSymbol,
+  GroupChatMessagePostedTypeSymbol,
   GroupChatMessageDeleted,
-  GroupChatMessageDeletedSymbol,
+  GroupChatMessageDeletedTypeSymbol,
   GroupChatDeleted,
-  GroupChatDeletedSymbol,
+  GroupChatDeletedTypeSymbol,
 };

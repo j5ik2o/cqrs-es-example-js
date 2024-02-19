@@ -1,11 +1,11 @@
-import { Member } from "./member";
+import { AdministratorSymbol, Member } from "./member";
 import { UserAccountId } from "../user-account";
 import * as O from "fp-ts/lib/Option";
 
-const MembersSymbol = Symbol("Members");
+const MembersTypeSymbol = Symbol("Members");
 
 interface Members {
-  symbol: typeof MembersSymbol;
+  symbol: typeof MembersTypeSymbol;
   addMember: (member: Member) => Members;
   removeMemberById: (
     userAccountId: UserAccountId,
@@ -21,7 +21,7 @@ interface Members {
 
 function initialize(_values: Map<string, Member>): Members {
   return {
-    symbol: MembersSymbol,
+    symbol: MembersTypeSymbol,
     addMember(member: Member): Members {
       return initialize(
         new Map(_values).set(member.userAccountId.value, member),
@@ -79,7 +79,9 @@ function initialize(_values: Map<string, Member>): Members {
 const Members = {
   ofSingle(userAccountId: UserAccountId): Members {
     return initialize(
-      new Map([[userAccountId.value, Member.of(userAccountId, "admin")]]),
+      new Map([
+        [userAccountId.value, Member.of(userAccountId, AdministratorSymbol)],
+      ]),
     );
   },
   fromMap(values: Map<UserAccountId, Member>): Members {
@@ -97,4 +99,4 @@ const Members = {
   },
 };
 
-export { Members };
+export { Members, MembersTypeSymbol };

@@ -1,10 +1,10 @@
 import { ulid } from "ulidx";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
-const UserAccountIdSymbol = Symbol("UserAccountId");
+const UserAccountIdTypeSymbol = Symbol("UserAccountId");
 
 interface UserAccountId {
-  symbol: typeof UserAccountIdSymbol;
+  symbol: typeof UserAccountIdTypeSymbol;
   value: string;
   typeName: string;
   asString: string;
@@ -28,7 +28,7 @@ function initialize(value?: string): UserAccountId {
     _value === anotherId.value;
 
   return {
-    symbol: UserAccountIdSymbol,
+    symbol: UserAccountIdTypeSymbol,
     get value() {
       return _value;
     },
@@ -51,4 +51,4 @@ const UserAccountId = {
   },
 };
 
-export { UserAccountId };
+export { UserAccountId, UserAccountIdTypeSymbol };

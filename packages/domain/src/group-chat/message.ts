@@ -1,10 +1,10 @@
 import { UserAccountId } from "../user-account";
 import { MessageId } from "./message-id";
 
-const MessageSymbol = Symbol("Message");
+const MessageTypeSymbol = Symbol("Message");
 
 interface Message {
-  symbol: typeof MessageSymbol;
+  symbol: typeof MessageTypeSymbol;
   id: MessageId;
   content: string;
   senderId: UserAccountId;
@@ -19,7 +19,7 @@ function initialize(
   sentAt: Date,
 ): Message {
   return {
-    symbol: MessageSymbol,
+    symbol: MessageTypeSymbol,
     id,
     content,
     senderId,
@@ -46,4 +46,4 @@ const Message = {
   },
 };
 
-export { Message };
+export { Message, MessageTypeSymbol };

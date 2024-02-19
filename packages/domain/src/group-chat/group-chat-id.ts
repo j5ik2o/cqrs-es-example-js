@@ -1,10 +1,10 @@
 import { ulid } from "ulidx";
 
 const GROUP_CHAT_PREFIX: string = "GroupChat";
-const GroupChatIdSymbol = Symbol("GroupChatId");
+const GroupChatIdTypeSymbol = Symbol("GroupChatId");
 
 interface GroupChatId {
-  symbol: typeof GroupChatIdSymbol;
+  symbol: typeof GroupChatIdTypeSymbol;
   value: string;
   typeName: string;
   asString: string;
@@ -25,7 +25,7 @@ function initialize(value?: string): GroupChatId {
   }
 
   return {
-    symbol: GroupChatIdSymbol,
+    symbol: GroupChatIdTypeSymbol,
     get value() {
       return _value;
     },
@@ -50,4 +50,4 @@ const GroupChatId = {
   },
 };
 
-export { GroupChatId, GroupChatIdSymbol };
+export { GroupChatId, GroupChatIdTypeSymbol };

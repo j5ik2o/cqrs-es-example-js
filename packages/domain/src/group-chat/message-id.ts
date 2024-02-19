@@ -1,9 +1,9 @@
 import { ulid } from "ulidx";
 
-const MessageIdSymbol = Symbol("MessageId");
+const MessageIdTypeSymbol = Symbol("MessageId");
 
 interface MessageId {
-  symbol: typeof MessageIdSymbol;
+  symbol: typeof MessageIdTypeSymbol;
   value: string;
   asString: string;
   equals: (anotherId: MessageId) => boolean;
@@ -11,7 +11,7 @@ interface MessageId {
 
 function initialize(value: string): MessageId {
   return {
-    symbol: MessageIdSymbol,
+    symbol: MessageIdTypeSymbol,
     value,
     get asString() {
       return value;
@@ -31,4 +31,4 @@ const MessageId = {
   },
 };
 
-export { MessageId };
+export { MessageId, MessageIdTypeSymbol };
