@@ -413,4 +413,4 @@ const GroupChat = {
   },
 };
 
-export { GroupChat };
+export { GroupChat, GroupChatTypeSymbol };

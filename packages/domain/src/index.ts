@@ -1,2 +1,2 @@
-import { UserAccountId } from "./user-account";
-export { UserAccountId };
+export * from "./group-chat";
+export * from "./user-account";

@@ -1,7 +1,9 @@
-import { GroupChatEvent } from "domain/dist/group-chat/group-chat-events";
-import { GroupChat } from "domain/dist/group-chat/group-chat";
-import { GroupChatId } from "domain/dist/group-chat";
 import { EventStore } from "event-store-adapter-js";
+import {
+  GroupChat,
+  GroupChatEvent,
+  GroupChatId,
+} from "cqrs-es-example-js-domain";
 
 interface GroupChatRepository {
   storeEvent(event: GroupChatEvent, version: number): Promise<void>;

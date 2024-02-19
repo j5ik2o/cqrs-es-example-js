@@ -1,3 +1,1 @@
-import { UserAccountId } from "./user-account-id";
-
-export { UserAccountId };
+export * from "./user-account-id";

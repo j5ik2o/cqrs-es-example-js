@@ -1,11 +1,13 @@
 import { describe } from "node:test";
 import { EventStoreFactory } from "event-store-adapter-js";
-import { GroupChatId } from "domain/dist/group-chat";
-import { GroupChat } from "domain/dist/group-chat/group-chat";
-import { GroupChatEvent } from "domain/dist/group-chat/group-chat-events";
 import { GroupChatRepository } from "./group-chat-repository";
-import { GroupChatName } from "domain/dist/group-chat/group-chat-name";
-import { UserAccountId } from "domain/dist";
+import {
+  GroupChatId,
+  GroupChat,
+  GroupChatName,
+  UserAccountId,
+  GroupChatEvent,
+} from "cqrs-es-example-js-domain";
 
 afterEach(() => {
   jest.useRealTimers();

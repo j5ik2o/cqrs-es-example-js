@@ -62,7 +62,7 @@ importers:
 
   packages/interface-adaptor:
     dependencies:
-      domain:
+      cqrs-es-example-js-domain:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
