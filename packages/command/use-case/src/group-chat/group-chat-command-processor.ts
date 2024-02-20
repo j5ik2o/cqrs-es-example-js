@@ -25,23 +25,23 @@ interface GroupChatCommandProcessor {
     name: GroupChatName,
     executorId: UserAccountId,
   ) => Promise<GroupChatEvent>;
-  addMember: (
+  addMemberToGroupChat: (
     id: GroupChatId,
     memberId: UserAccountId,
     memberRole: MemberRole,
     executorId: UserAccountId,
   ) => Promise<GroupChatEvent>;
-  removeMember: (
+  removeMemberFromGroupChat: (
     id: GroupChatId,
     memberId: UserAccountId,
     executorId: UserAccountId,
   ) => Promise<GroupChatEvent>;
-  postMessage: (
+  postMessageToGroupChat: (
     id: GroupChatId,
     message: Message,
     executorId: UserAccountId,
   ) => Promise<GroupChatEvent>;
-  deleteMessage: (
+  deleteMessageFromGroupChat: (
     id: GroupChatId,
     messageId: MessageId,
     executorId: UserAccountId,
@@ -95,7 +95,7 @@ function initialize(
       await groupChatRepository.storeEvent(groupChatRenamed, groupChat.version);
       return groupChatRenamed;
     },
-    addMember: async (
+    addMemberToGroupChat: async (
       id: GroupChatId,
       memberId: UserAccountId,
       memberRole: MemberRole,
@@ -120,7 +120,7 @@ function initialize(
       );
       return groupChatMemberAdded;
     },
-    removeMember: async (
+    removeMemberFromGroupChat: async (
       id: GroupChatId,
       memberId: UserAccountId,
       executorId: UserAccountId,
@@ -143,7 +143,7 @@ function initialize(
       );
       return groupChatMemberRemoved;
     },
-    postMessage: async (
+    postMessageToGroupChat: async (
       id: GroupChatId,
       message: Message,
       executorId: UserAccountId,
@@ -163,7 +163,7 @@ function initialize(
       );
       return groupChatMessagePosted;
     },
-    deleteMessage: async (
+    deleteMessageFromGroupChat: async (
       id: GroupChatId,
       messageId: MessageId,
       executorId: UserAccountId,
