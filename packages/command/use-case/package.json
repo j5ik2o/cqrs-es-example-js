@@ -36,6 +36,7 @@
   "dependencies": {
     "event-store-adapter-js": "2.0.18-snapshot.2",
     "cqrs-es-example-js-command-domain": "workspace:*",
+    "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "fp-ts": "^2.16.2",
     "ulidx": "^2.3.0"
   }

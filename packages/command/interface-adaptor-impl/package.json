@@ -1,5 +1,5 @@
 {
-  "name": "cqrs-es-example-js-command-interface-adaptor",
+  "name": "cqrs-es-example-js-command-interface-adaptor-impl",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
@@ -36,6 +36,7 @@
   "dependencies": {
     "event-store-adapter-js": "2.0.18-snapshot.2",
     "cqrs-es-example-js-command-domain": "workspace:*",
+    "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "aws-sdk": "^2.1459.0",
     "moment": "^2.29.4",

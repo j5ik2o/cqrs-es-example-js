@@ -4,28 +4,22 @@ import {
   GroupChatEvent,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-
-interface GroupChatRepository {
-  storeEvent(event: GroupChatEvent, version: number): Promise<void>;
-  storeEventAndSnapshot(
-    event: GroupChatEvent,
-    snapshot: GroupChat,
-  ): Promise<void>;
-  findById(id: GroupChatId): Promise<GroupChat | undefined>;
-}
+import {
+  GroupChatRepository
+} from "cqrs-es-example-js-command-interface-adaptor-if";
 
 const GroupChatRepository = {
   of(
     eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent>,
   ): GroupChatRepository {
     return {
-      storeEvent: async (event, version) => {
+      storeEvent: async (event: GroupChatEvent, version: number) => {
         await eventStore.persistEvent(event, version);
       },
-      storeEventAndSnapshot: async (event, snapshot) => {
+      storeEventAndSnapshot: async (event: GroupChatEvent, snapshot: GroupChat) => {
         await eventStore.persistEventAndSnapshot(event, snapshot);
       },
-      findById: async (id) => {
+      findById: async (id: GroupChatId) => {
         const snapshot = await eventStore.getLatestSnapshotById(id);
         if (snapshot === undefined) {
           return undefined;
