@@ -9,7 +9,7 @@ import {
   GroupChatEvent,
   convertJSONToGroupChat,
   convertJSONToGroupChatEvent,
-} from "cqrs-es-example-js-domain";
+} from "cqrs-es-example-js-command-domain";
 import {
   GenericContainer,
   StartedTestContainer,

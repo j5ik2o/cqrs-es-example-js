@@ -184,6 +184,9 @@ importers:
 
   packages/command/use-case:
     dependencies:
+      cqrs-es-example-js-command-domain:
+        specifier: workspace:*
+        version: link:../domain
       event-store-adapter-js:
         specifier: 2.0.18-snapshot.2
         version: 2.0.18-snapshot.2

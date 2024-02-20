@@ -3,7 +3,7 @@ import {
   GroupChat,
   GroupChatEvent,
   GroupChatId,
-} from "cqrs-es-example-js-domain";
+} from "cqrs-es-example-js-command-domain";
 
 interface GroupChatRepository {
   storeEvent(event: GroupChatEvent, version: number): Promise<void>;
