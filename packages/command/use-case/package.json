@@ -1,5 +1,5 @@
 {
-  "name": "cqrs-es-example-js-domain",
+  "name": "cqrs-es-example-js-command-use-case",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
