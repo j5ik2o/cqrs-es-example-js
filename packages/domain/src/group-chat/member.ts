@@ -45,10 +45,10 @@ const Member = {
   },
 };
 
-function convertJSONToMember(jsonString: string): Member {
-  const obj = JSON.parse(jsonString);
-  const id = convertJSONToUserAccountId(JSON.stringify(obj.userAccountId));
-  return Member.of(id, obj.memberRole);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMember(json: any): Member {
+  const id = convertJSONToUserAccountId(json.userAccountId);
+  return Member.of(id, json.memberRole);
 }
 
 export { MemberRole, Member, MemberTypeSymbol, convertJSONToMember };

@@ -46,12 +46,12 @@ const Message = {
   },
 };
 
-function convertJSONToMessage(jsonString: string): Message {
-  const obj = JSON.parse(jsonString);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMessage(json: any): Message {
   // console.log("convertJSONToMessage = ", obj);
-  const id = convertJSONToMessageId(JSON.stringify(obj.id));
-  const senderId = convertJSONToUserAccountId(JSON.stringify(obj.senderId));
-  return initialize(id, obj.content, senderId, new Date(obj.sentAt));
+  const id = convertJSONToMessageId(json.id);
+  const senderId = convertJSONToUserAccountId(json.senderId);
+  return initialize(id, json.content, senderId, new Date(json.sentAt));
 }
 
 export { Message, MessageTypeSymbol, convertJSONToMessage };

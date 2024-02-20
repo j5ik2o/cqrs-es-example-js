@@ -422,21 +422,21 @@ const GroupChat = {
   },
 };
 
-function convertJSONToGroupChat(jsonString: string): GroupChat {
-  const obj = JSON.parse(jsonString);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToGroupChat(json: any): GroupChat {
   // console.log("convertJSONToGroupChat = ", obj);
-  const id = convertJSONToGroupChatId(JSON.stringify(obj.data.id));
-  const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
-  const members = convertJSONToMembers(JSON.stringify(obj.data.members));
-  const messages = convertJSONToMessages(JSON.stringify(obj.data.messages));
+  const id = convertJSONToGroupChatId(json.data.id);
+  const name = convertJSONToGroupChatName(json.data.name);
+  const members = convertJSONToMembers(json.data.members);
+  const messages = convertJSONToMessages(json.data.messages);
   return initialize({
     id,
     deleted: false,
     name,
     members,
     messages,
-    sequenceNumber: obj.data.sequenceNumber,
-    version: obj.data.version,
+    sequenceNumber: json.data.sequenceNumber,
+    version: json.data.version,
   });
 }
 

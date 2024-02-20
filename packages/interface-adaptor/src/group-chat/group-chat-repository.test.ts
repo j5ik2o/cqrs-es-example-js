@@ -113,7 +113,7 @@ describe("GroupChatRepository", () => {
     const name2 = GroupChatName.of("name2");
     const renameEither = groupChat1.rename(name2, adminId);
     if (E.isLeft(renameEither)) {
-      throw new Error("renameEither is left");
+      throw new Error(`renameEither is left: ${renameEither.left.message}`);
     }
     const [, groupChatRenamed] = renameEither.right;
     await repository.storeEvent(groupChatRenamed, groupChat1.version);
@@ -134,9 +134,11 @@ class CustomJsonEventSerializer<AID extends AggregateId, E extends Event<AID>>
   private encoder = new TextEncoder();
   private decoder = new TextDecoder();
 
-  deserialize(bytes: Uint8Array, converter: (json: string) => E): E {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  deserialize(bytes: Uint8Array, converter: (json: any) => E): E {
     const jsonString = this.decoder.decode(bytes);
-    return converter(jsonString);
+    const json = JSON.parse(jsonString);
+    return converter(json);
   }
 
   serialize(event: E): Uint8Array {
@@ -155,9 +157,12 @@ class CustomJsonSnapshotSerializer<
 {
   private encoder = new TextEncoder();
   private decoder = new TextDecoder();
-  deserialize(bytes: Uint8Array, converter: (json: string) => A): A {
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  deserialize(bytes: Uint8Array, converter: (json: any) => A): A {
     const jsonString = this.decoder.decode(bytes);
-    return converter(jsonString);
+    const json = JSON.parse(jsonString);
+    return converter(json);
   }
 
   serialize(aggregate: A): Uint8Array {

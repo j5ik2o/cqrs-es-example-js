@@ -103,12 +103,12 @@ const Members = {
   },
 };
 
-function convertJSONToMembers(jsonString: string): Members {
-  const obj = JSON.parse(jsonString);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMembers(json: any): Members {
   // console.log("convertJSONToMembers = ", obj);
   return Members.fromArray(
     // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-    obj.values.map((v: any) => convertJSONToMember(JSON.stringify(v))),
+    json.values.map((v: any) => convertJSONToMember(v)),
   );
 }
 

@@ -31,10 +31,9 @@ const MessageId = {
   },
 };
 
-function convertJSONToMessageId(jsonString: string): MessageId {
-  const obj = JSON.parse(jsonString);
-  // console.log("convertJSONToMessageId = ", obj);
-  return initialize(obj.value);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMessageId(json: any): MessageId {
+  return initialize(json.value);
 }
 
 export { MessageId, MessageIdTypeSymbol, convertJSONToMessageId };

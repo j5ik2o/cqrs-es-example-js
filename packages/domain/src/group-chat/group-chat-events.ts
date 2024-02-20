@@ -260,70 +260,72 @@ const GroupChatMessageDeleted = {
   },
 };
 
-// eslint @typescript-eslint/no-explicit-any
-function convertJSONToGroupChatEvent(jsonString: string): GroupChatEvent {
-  const obj = JSON.parse(jsonString);
-  const id = convertJSONToGroupChatId(JSON.stringify(obj.data.aggregateId));
-  const executorId = convertJSONToUserAccountId(
-    JSON.stringify(obj.data.executorId),
-  );
-  switch (obj.type) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToGroupChatEvent(json: any): GroupChatEvent {
+  const id = convertJSONToGroupChatId(json.data.aggregateId);
+  const executorId = convertJSONToUserAccountId(json.data.executorId);
+  switch (json.type) {
     case "GroupChatCreated": {
-      const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
-      const members = convertJSONToMembers(JSON.stringify(obj.data.members));
+      const name = convertJSONToGroupChatName(json.data.name);
+      const members = convertJSONToMembers(json.data.members);
       return GroupChatCreated.of(
         id,
         name,
         members,
         executorId,
-        obj.data.sequenceNumber,
+        json.data.sequenceNumber,
       );
     }
     case "GroupChatRenamed": {
-      const name = convertJSONToGroupChatName(JSON.stringify(obj.data.name));
-      return GroupChatRenamed.of(id, name, executorId, obj.data.sequenceNumber);
+      const name = convertJSONToGroupChatName(json.data.name);
+      return GroupChatRenamed.of(
+        id,
+        name,
+        executorId,
+        json.data.sequenceNumber,
+      );
     }
     case "GroupChatMemberAdded": {
-      const member = convertJSONToMember(JSON.stringify(obj.data.member));
+      const member = convertJSONToMember(json.data.member);
       return GroupChatMemberAdded.of(
         id,
         member,
         executorId,
-        obj.sequenceNumber,
+        json.sequenceNumber,
       );
     }
     case "GroupChatMemberRemoved": {
-      const member = convertJSONToMember(JSON.stringify(obj.data.member));
+      const member = convertJSONToMember(json.data.member);
       return GroupChatMemberRemoved.of(
         id,
         member,
         executorId,
-        obj.sequenceNumber,
+        json.sequenceNumber,
       );
     }
     case "GroupChatMessagePosted": {
-      const message = convertJSONToMessage(JSON.stringify(obj.data.message));
+      const message = convertJSONToMessage(json.data.message);
       return GroupChatMessagePosted.of(
         id,
         message,
         executorId,
-        obj.sequenceNumber,
+        json.sequenceNumber,
       );
     }
     case "GroupChatMessageDeleted": {
-      const message = convertJSONToMessage(JSON.stringify(obj.data.message));
+      const message = convertJSONToMessage(json.data.message);
       return GroupChatMessageDeleted.of(
         id,
         message,
         executorId,
-        obj.sequenceNumber,
+        json.sequenceNumber,
       );
     }
     case "GroupChatDeleted": {
-      return GroupChatDeleted.of(id, executorId, obj.sequenceNumber);
+      return GroupChatDeleted.of(id, executorId, json.sequenceNumber);
     }
     default:
-      throw new Error(`Unknown type: ${obj.type}`);
+      throw new Error(`Unknown type: ${json.type}`);
   }
 }
 

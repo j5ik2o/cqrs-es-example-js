@@ -28,9 +28,9 @@ const GroupChatName = {
   },
 };
 
-function convertJSONToGroupChatName(jsonString: string): GroupChatName {
-  const obj = JSON.parse(jsonString);
-  return GroupChatName.of(obj.value);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToGroupChatName(json: any): GroupChatName {
+  return GroupChatName.of(json.value);
 }
 
 export { GroupChatName, GroupChatNameTypeSymbol, convertJSONToGroupChatName };

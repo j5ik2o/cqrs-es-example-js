@@ -7,8 +7,7 @@ import { StartedTestContainer } from "testcontainers";
 
 function createDynamoDBClient(startedContainer: StartedTestContainer) {
   const port = startedContainer.getMappedPort(4566);
-
-  const dynamodbClient: DynamoDBClient = new DynamoDBClient({
+  return new DynamoDBClient({
     region: "us-west-1",
     endpoint: `http://localhost:${port}`,
     credentials: {
@@ -16,7 +15,6 @@ function createDynamoDBClient(startedContainer: StartedTestContainer) {
       secretAccessKey: "x",
     },
   });
-  return dynamodbClient;
 }
 
 async function createJournalTable(

@@ -50,9 +50,9 @@ const GroupChatId = {
   },
 };
 
-function convertJSONToGroupChatId(jsonString: string): GroupChatId {
-  const obj = JSON.parse(jsonString);
-  return GroupChatId.of(obj.value);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToGroupChatId(json: any): GroupChatId {
+  return GroupChatId.of(json.value);
 }
 
 export { GroupChatId, GroupChatIdTypeSymbol, convertJSONToGroupChatId };
