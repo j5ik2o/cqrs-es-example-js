@@ -19,7 +19,7 @@ type GroupChatEventTypeSymbol =
 interface GroupChatEvent extends Event<GroupChatId> {
   symbol: GroupChatEventTypeSymbol;
 
-  get executorId(): UserAccountId;
+  executorId: UserAccountId;
 }
 
 const GroupChatCreatedTypeSymbol = Symbol("GroupChatCreated");

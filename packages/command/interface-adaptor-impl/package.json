@@ -34,12 +34,14 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "event-store-adapter-js": "2.0.18-snapshot.2",
-    "cqrs-es-example-js-command-domain": "workspace:*",
-    "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
+    "hono": "^4.0.4",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "aws-sdk": "^2.1459.0",
-    "moment": "^2.29.4",
-    "fp-ts": "^2.16.2"
+    "cqrs-es-example-js-command-domain": "workspace:*",
+    "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
+    "cqrs-es-example-js-command-use-case": "workspace:*",
+    "event-store-adapter-js": "2.0.18-snapshot.2",
+    "fp-ts": "^2.16.2",
+    "moment": "^2.29.4"
   }
 }
