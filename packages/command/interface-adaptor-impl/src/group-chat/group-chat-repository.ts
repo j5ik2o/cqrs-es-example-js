@@ -4,9 +4,7 @@ import {
   GroupChatEvent,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-import {
-  GroupChatRepository
-} from "cqrs-es-example-js-command-interface-adaptor-if";
+import { GroupChatRepository } from "cqrs-es-example-js-command-interface-adaptor-if";
 
 const GroupChatRepository = {
   of(
@@ -16,7 +14,10 @@ const GroupChatRepository = {
       storeEvent: async (event: GroupChatEvent, version: number) => {
         await eventStore.persistEvent(event, version);
       },
-      storeEventAndSnapshot: async (event: GroupChatEvent, snapshot: GroupChat) => {
+      storeEventAndSnapshot: async (
+        event: GroupChatEvent,
+        snapshot: GroupChat,
+      ) => {
         await eventStore.persistEventAndSnapshot(event, snapshot);
       },
       findById: async (id: GroupChatId) => {
