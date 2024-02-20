@@ -22,12 +22,18 @@ importers:
       cqrs-es-example-js-command-interface-adaptor-impl:
         specifier: workspace:*
         version: link:../command/interface-adaptor-impl
+      cqrs-es-example-js-command-use-case:
+        specifier: workspace:*
+        version: link:../command/use-case
       event-store-adapter-js:
         specifier: 2.0.18-snapshot.2
         version: 2.0.18-snapshot.2
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
+      hono:
+        specifier: ^4.0.4
+        version: 4.0.4
       moment:
         specifier: ^2.29.4
         version: 2.30.1

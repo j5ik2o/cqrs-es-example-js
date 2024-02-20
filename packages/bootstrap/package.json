@@ -33,8 +33,10 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "hono": "^4.0.4",
     "event-store-adapter-js": "2.0.18-snapshot.2",
     "cqrs-es-example-js-command-interface-adaptor-impl": "workspace:*",
+    "cqrs-es-example-js-command-use-case": "workspace:*",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "aws-sdk": "^2.1459.0",

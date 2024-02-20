@@ -22,7 +22,7 @@ import {
   createDynamoDBClient,
   createJournalTable,
   createSnapshotTable,
-} from "../test/dynamodb-utils";
+} from "../../test/dynamodb-utils";
 
 afterEach(() => {
   jest.useRealTimers();
