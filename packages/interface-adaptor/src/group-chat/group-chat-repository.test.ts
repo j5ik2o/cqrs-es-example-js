@@ -23,14 +23,6 @@ import {
   createJournalTable,
   createSnapshotTable,
 } from "../test/dynamodb-utils";
-import {
-  Event,
-  Aggregate,
-  AggregateId,
-  EventSerializer,
-  KeyResolver,
-  SnapshotSerializer,
-} from "event-store-adapter-js";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -61,11 +53,6 @@ describe("GroupChatRepository", () => {
       32,
       convertJSONToGroupChatEvent,
       convertJSONToGroupChat,
-      undefined,
-      undefined,
-      new CustomKeyResolver(),
-      new CustomJsonEventSerializer<GroupChatId, GroupChatEvent>(),
-      new CustomJsonSnapshotSerializer<GroupChatId, GroupChat>(),
     );
   }
 
@@ -127,76 +114,3 @@ describe("GroupChatRepository", () => {
     expect(groupChat3.name.equals(name2)).toEqual(true);
   });
 });
-
-class CustomJsonEventSerializer<AID extends AggregateId, E extends Event<AID>>
-  implements EventSerializer<AID, E>
-{
-  private encoder = new TextEncoder();
-  private decoder = new TextDecoder();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  deserialize(bytes: Uint8Array, converter: (json: any) => E): E {
-    const jsonString = this.decoder.decode(bytes);
-    const json = JSON.parse(jsonString);
-    return converter(json);
-  }
-
-  serialize(event: E): Uint8Array {
-    const jsonString = JSON.stringify({
-      type: event.typeName,
-      data: event,
-    });
-    return this.encoder.encode(jsonString);
-  }
-}
-
-class CustomJsonSnapshotSerializer<
-  AID extends AggregateId,
-  A extends Aggregate<A, AID>,
-> implements SnapshotSerializer<AID, A>
-{
-  private encoder = new TextEncoder();
-  private decoder = new TextDecoder();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  deserialize(bytes: Uint8Array, converter: (json: any) => A): A {
-    const jsonString = this.decoder.decode(bytes);
-    const json = JSON.parse(jsonString);
-    return converter(json);
-  }
-
-  serialize(aggregate: A): Uint8Array {
-    const jsonString = JSON.stringify({
-      type: aggregate.typeName,
-      data: aggregate,
-    });
-    return this.encoder.encode(jsonString);
-  }
-}
-class CustomKeyResolver<AID extends AggregateId> implements KeyResolver<AID> {
-  private hashString(str: string): number {
-    if (str === undefined || str === null) {
-      throw new Error(`str is undefined or null: ${str}`);
-    }
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash >>> 0; // Convert to unsigned 32bit integer
-  }
-
-  resolvePartitionKey(aggregateId: AID, shardCount: number): string {
-    if (aggregateId === undefined || aggregateId === null) {
-      throw new Error(`aggregateId is undefined or null: ${aggregateId}`);
-    }
-    const hash = this.hashString(aggregateId.asString);
-    const remainder = hash % shardCount;
-    return `${aggregateId.typeName}-${remainder}`;
-  }
-
-  resolveSortKey(aggregateId: AID, sequenceNumber: number): string {
-    return `${aggregateId.typeName}-${aggregateId.value}-${sequenceNumber}`;
-  }
-}
