@@ -1,4 +1,4 @@
-import { serve } from '@hono/node-server'
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import {
   configureGroupChatController,
@@ -15,8 +15,12 @@ import {
 } from "cqrs-es-example-js-command-domain";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
-
 function writeApiMain() {
+  const apiHost =
+    process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
+  const apiPort =
+    process.env.API_PORT !== undefined ? parseInt(process.env.API_PORT) : 3000;
+
   const journalTableName =
     process.env.PERSISTENCE_JOURNAL_TABLE_NAME !== undefined
       ? process.env.PERSISTENCE_JOURNAL_TABLE_NAME
@@ -33,7 +37,10 @@ function writeApiMain() {
     process.env.PERSISTENCE_SNAPSHOT_AID_INDEX_NAME !== undefined
       ? process.env.PERSISTENCE_SNAPSHOT_AID_INDEX_NAME
       : "snapshots-aid-index";
-  const shardCount = process.env.PERSISTENCE_SHARD_COUNT !== undefined ? parseInt(process.env.PERSISTENCE_SHARD_COUNT) : 32;
+  const shardCount =
+    process.env.PERSISTENCE_SHARD_COUNT !== undefined
+      ? parseInt(process.env.PERSISTENCE_SHARD_COUNT)
+      : 32;
 
   const awsRegion = process.env.AWS_REGION;
   const awsDynamodbEndpoint = process.env.AWS_DYNAMODB_ENDPOINT_URL;
@@ -78,16 +85,21 @@ function writeApiMain() {
     GroupChatCommandProcessor.of(groupChatRepository);
 
   const writeApiServer = new Hono();
+
   writeApiServer.get("/hello", async (c) => {
     return c.text("Hello, world!");
   });
 
   configureGroupChatController(writeApiServer, groupChatCommandProcessor);
 
-  serve(writeApiServer, (addressInfo) =>{
-    console.log(`Server started on ${addressInfo.address}:${addressInfo.port}`);
-  });
+  serve(
+    { fetch: writeApiServer.fetch, hostname: apiHost, port: apiPort },
+    (addressInfo) => {
+      console.log(
+        `Server started on ${addressInfo.address}:${addressInfo.port}`,
+      );
+    },
+  );
 }
-
 
 export { writeApiMain };
