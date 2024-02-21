@@ -42,7 +42,7 @@
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-impl": "workspace:*",
     "cqrs-es-example-js-command-use-case": "workspace:*",
-    "event-store-adapter-js": "2.0.18-snapshot.2",
+    "event-store-adapter-js": "2.0.19",
     "fp-ts": "^2.16.2",
     "hono": "^4.0.4",
     "moment": "^2.29.4",
