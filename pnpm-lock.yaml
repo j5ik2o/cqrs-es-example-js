@@ -72,8 +72,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       rimraf:
         specifier: ^5.0.1
         version: 5.0.5
@@ -121,8 +121,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       rimraf:
         specifier: ^5.0.1
         version: 5.0.5
@@ -182,8 +182,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       rimraf:
         specifier: ^5.0.1
         version: 5.0.5
@@ -252,8 +252,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       rimraf:
         specifier: ^5.0.1
         version: 5.0.5
@@ -310,8 +310,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       rimraf:
         specifier: ^5.0.1
         version: 5.0.5
@@ -377,8 +377,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       rimraf:
         specifier: ^5.0.1
         version: 5.0.5
@@ -447,8 +447,8 @@ importers:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.19)(ts-node@10.9.2)
       prettier:
-        specifier: 3.2.2
-        version: 3.2.2
+        specifier: 3.2.5
+        version: 3.2.5
       prisma:
         specifier: ^5.10.1
         version: 5.10.1
@@ -4873,8 +4873,8 @@ packages:
     engines: {node: '>= 0.8.0'}
     dev: true
 
-  /prettier@3.2.2:
-    resolution: {integrity: sha512-HTByuKZzw7utPiDO523Tt2pLtEyK7OibUD9suEJQrPUCYQqrHr74GGX6VidMrovbf/I50mPqr8j/II6oBAuc5A==}
+  /prettier@3.2.5:
+    resolution: {integrity: sha512-3/GWa9aOC0YeD7LUfvOG2NiDyhOWRvt1k+rcKhOuYnMY24iiCphgneUfJDyFXd6rZCAnuLBv6UeAULtrhT/F4A==}
     engines: {node: '>=14'}
     hasBin: true
     dev: true
