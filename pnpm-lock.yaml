@@ -29,8 +29,8 @@ importers:
         specifier: workspace:*
         version: link:../command/use-case
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -90,8 +90,8 @@ importers:
   packages/command/domain:
     dependencies:
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -151,8 +151,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -218,8 +218,8 @@ importers:
         specifier: workspace:*
         version: link:../use-case
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -279,8 +279,8 @@ importers:
         specifier: workspace:*
         version: link:../interface-adaptor-if
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -340,8 +340,8 @@ importers:
         specifier: ^2.1459.0
         version: 2.1559.0
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -413,8 +413,8 @@ importers:
         specifier: workspace:*
         version: link:../command/domain
       event-store-adapter-js:
-        specifier: 2.0.18-snapshot.2
-        version: 2.0.18-snapshot.2
+        specifier: 2.0.19
+        version: 2.0.19
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -3449,8 +3449,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /event-store-adapter-js@2.0.18-snapshot.2:
-    resolution: {integrity: sha512-6E6G3pWZJArCbSm0IcdjrTk7NRLyW3TPEpo3LHH7/KR2hwnIQZTj0DrJovhwb4NR5Kn2PwvaazONM8ewgL9ZSA==}
+  /event-store-adapter-js@2.0.19:
+    resolution: {integrity: sha512-1cjETmKDPi6BIGtuzNOr4OGth0ORkuAscHyAIOlD4h/18OhntX8GH7/XiOxzrhEY82q2P1Ec3G/ETIi8aIrcUg==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.515.0
       aws-sdk: 2.1559.0
