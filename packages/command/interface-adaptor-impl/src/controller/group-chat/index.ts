@@ -1,1 +1,1 @@
-export { groupChatController } from "./group-chat-controller";
+export { configureGroupChatController } from "./group-chat-controller";

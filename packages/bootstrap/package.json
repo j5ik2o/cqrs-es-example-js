@@ -6,6 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "start": "ts-node src/index.ts",
+    "start-write-api": "node dist/index.js writeApi",
     "build": "tsc && rm -f dist/internal/*.test.d.ts && rm -f dist/internal/*.test.js && rm -fr dist/internal/test",
     "test": "jest --no-cache",
     "fix": "npm run fix:prettier && npm run fix:eslint",
@@ -36,6 +37,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.413.0",
+    "@hono/node-server": "^1.8.1",
     "aws-sdk": "^2.1459.0",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-impl": "workspace:*",

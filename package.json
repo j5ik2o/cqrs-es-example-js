@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "docker-build": "docker build -t cqrs-es-example-js .",
     "build": "turbo build",
     "test": "turbo test",
     "fix": "turbo fix",

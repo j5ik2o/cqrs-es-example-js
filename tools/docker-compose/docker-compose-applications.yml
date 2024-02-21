@@ -1,0 +1,75 @@
+version: '3.6'
+services:
+  write-api-server-1:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    command: ["writeApi"]
+    # image: write-api-server:latest-${ARCH}
+    container_name: write-api-server-1
+    ports:
+      - 28080:3000
+    environment:
+      AWS_REGION: ${AWS_REGION}
+      API_HOST: "0.0.0.0"
+      API_PORT: 3000
+      API_ALLOW_ORIGINS: "http://localhost:28080,http://localhost:28082,http://localhost:8888"
+      PERSISTENCE_JOURNAL_TABLE_NAME: journal
+      PERSISTENCE_JOURNAL_AID_INDEX_NAME: journal-aid-index
+      PERSISTENCE_SNAPSHOT_TABLE_NAME: snapshot
+      PERSISTENCE_SNAPSHOT_AID_INDEX_NAME: snapshot-aid-index
+      PERSISTENCE_SHARD_COUNT: 64
+      PERSISTENCE_SNAPSHOT_INTERVAL: 10
+      AWS_REGION_NAME: ${AWS_REGION}
+      AWS_DYNAMODB_ENDPOINT_URL: http://localstack:4566
+      AWS_DYNAMODB_ACCESS_KEY_ID: x
+      AWS_DYNAMODB_SECRET_ACCESS_KEY: x
+    depends_on:
+      - localstack
+      - dynamodb-admin
+      - dynamodb-setup
+#  read-model-updater-1:
+#    build:
+#      context: ../../
+#      dockerfile: Dockerfile
+#    command: [ "localRmu" ]
+#    image: read-model-updater-local:latest-${ARCH}
+#    container_name: read-model-updater-1
+#    ports:
+#      - 28081:8080
+#    environment:
+#      AWS_REGION: ${AWS_REGION}
+#      API_HOST: "0.0.0.0"
+#      API_PORT: 8080
+#      AWS_REGION_NAME: ${AWS_REGION}
+#      AWS_DYNAMODB_ENDPOINT_URL: http://localstack:4566
+#      AWS_DYNAMODB_ACCESS_KEY_ID: x
+#      AWS_DYNAMODB_SECRET_ACCESS_KEY: x
+#      STREAM_JOURNAL_TABLE_NAME: journal
+#      STREAM_MAX_ITEM_COUNT: 32
+#      DATABASE_URL: ceer:ceer@tcp(mysql-local:3306)/ceer
+#    depends_on:
+#      - localstack
+#      - dynamodb-admin
+#      - dynamodb-setup
+#    restart: on-failure
+#  read-api-server-1:
+#    build:
+#      context: ../../
+#      dockerfile: Dockerfile
+#    command: [ "readApi" ]
+#    image: read-api-server:latest-${ARCH}
+#    container_name: read-api-server-1
+#    ports:
+#      - 28082:8080
+#    environment:
+#      AWS_REGION: ${AWS_REGION}
+#      API_HOST: "0.0.0.0"
+#      API_PORT: 8080
+#      API_ALLOW_ORIGINS: "http://localhost:28080,http://localhost:18082,http://localhost:8888"
+#      DATABASE_URL: ceer:ceer@tcp(mysql-local:3306)/ceer
+#    depends_on:
+#      - mysql
+#      - migration
+#      - write-api-server-1
+#      - read-model-updater-1

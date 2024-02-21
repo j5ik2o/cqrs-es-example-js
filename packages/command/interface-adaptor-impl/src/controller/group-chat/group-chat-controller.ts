@@ -10,7 +10,7 @@ import {
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 
-function groupChatController(
+function configureGroupChatController(
   app: Hono,
   groupChatCommandProcessor: GroupChatCommandProcessor,
 ): Hono {
@@ -204,4 +204,4 @@ function groupChatController(
   return app;
 }
 
-export { groupChatController };
+export { configureGroupChatController };
