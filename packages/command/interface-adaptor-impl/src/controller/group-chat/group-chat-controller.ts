@@ -10,6 +10,12 @@ import {
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 
+class ValidationException extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
 function configureGroupChatController(
   app: Hono,
   groupChatCommandProcessor: GroupChatCommandProcessor,
@@ -19,13 +25,13 @@ function configureGroupChatController(
 
     const nameEither = GroupChatName.validate(name as string);
     if (E.isLeft(nameEither)) {
-      throw new Error(nameEither.left);
+      throw new ValidationException(nameEither.left);
     }
     const _name = nameEither.right;
 
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -41,7 +47,7 @@ function configureGroupChatController(
     const _id = GroupChatId.of(id as string);
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -56,7 +62,7 @@ function configureGroupChatController(
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
-      throw new Error(idEither.left);
+      throw new ValidationException(idEither.left);
     }
     const _id = idEither.right;
 
@@ -64,7 +70,7 @@ function configureGroupChatController(
 
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -80,13 +86,13 @@ function configureGroupChatController(
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
-      throw new Error(idEither.left);
+      throw new ValidationException(idEither.left);
     }
     const _id = idEither.right;
 
     const memberIdEither = UserAccountId.validate(memberId as string);
     if (E.isLeft(memberIdEither)) {
-      throw new Error(memberIdEither.left);
+      throw new ValidationException(memberIdEither.left);
     }
     const _memberId = memberIdEither.right;
 
@@ -94,7 +100,7 @@ function configureGroupChatController(
 
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -111,19 +117,19 @@ function configureGroupChatController(
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
-      throw new Error(idEither.left);
+      throw new ValidationException(idEither.left);
     }
     const _id = idEither.right;
 
     const memberIdEither = UserAccountId.validate(memberId as string);
     if (E.isLeft(memberIdEither)) {
-      throw new Error(memberIdEither.left);
+      throw new ValidationException(memberIdEither.left);
     }
     const _memberId = memberIdEither.right;
 
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -140,13 +146,13 @@ function configureGroupChatController(
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
-      throw new Error(idEither.left);
+      throw new ValidationException(idEither.left);
     }
     const _id = idEither.right;
 
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -157,7 +163,7 @@ function configureGroupChatController(
       new Date(),
     );
     if (E.isLeft(messageEither)) {
-      throw new Error(messageEither.left);
+      throw new ValidationException(messageEither.left);
     }
     const _message = messageEither.right;
 
@@ -174,19 +180,19 @@ function configureGroupChatController(
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
-      throw new Error(idEither.left);
+      throw new ValidationException(idEither.left);
     }
     const _id = idEither.right;
 
     const messageIdEither = MessageId.validate(messageId as string);
     if (E.isLeft(messageIdEither)) {
-      throw new Error(messageIdEither.left);
+      throw new ValidationException(messageIdEither.left);
     }
     const _messageId = messageIdEither.right;
 
     const executorIdEither = UserAccountId.validate(executorId as string);
     if (E.isLeft(executorIdEither)) {
-      throw new Error(executorIdEither.left);
+      throw new ValidationException(executorIdEither.left);
     }
     const _executorId = executorIdEither.right;
 
@@ -199,6 +205,9 @@ function configureGroupChatController(
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
   app.onError((e, c) => {
+    if (e instanceof ValidationException) {
+      return c.json({ error: e.message }, 400);
+    }
     return c.json({ error: e.message }, 500);
   });
   return app;
