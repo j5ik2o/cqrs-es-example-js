@@ -17,7 +17,8 @@
     "lint": "turbo lint",
     "lint:eslint": "turbo lint:eslint",
     "lint:prettier": "turbo lint:prettier",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "prisma:generate": "pnpm --filter \"cqrs-es-example-js-rmu\" prisma:generate"
   },
   "keywords": [],
   "author": "Junichi Kato <j5ik2o@gmail.com> (https://j5ik2o.me/)",
