@@ -394,6 +394,9 @@ importers:
       aws-sdk:
         specifier: ^2.1459.0
         version: 2.1559.0
+      cqrs-es-example-js-command-domain:
+        specifier: workspace:*
+        version: link:../command/domain
       event-store-adapter-js:
         specifier: 2.0.18-snapshot.2
         version: 2.0.18-snapshot.2
