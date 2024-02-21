@@ -1,6 +1,6 @@
 import * as yargs from "yargs";
 import { writeApiMain } from "./write-api-main";
-import {localRmuMain} from "./local-rmu-main";
+import { localRmuMain } from "./local-rmu-main";
 
 const argv = yargs
   .command("writeApi", "write api server")
