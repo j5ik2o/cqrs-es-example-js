@@ -1,11 +1,11 @@
-import {describe} from "node:test";
+import { describe } from "node:test";
 
 afterEach(() => {
-    jest.useRealTimers();
+  jest.useRealTimers();
 });
 
 describe("GroupChat", () => {
   test("test", () => {
-      console.log("dummy");
-  })
+    console.log("dummy");
+  });
 });
