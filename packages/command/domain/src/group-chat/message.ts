@@ -1,5 +1,6 @@
 import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
 import { convertJSONToMessageId, MessageId } from "./message-id";
+import * as E from "fp-ts/lib/Either";
 
 const MessageTypeSymbol = Symbol("Message");
 
@@ -18,6 +19,12 @@ function initialize(
   senderId: UserAccountId,
   sentAt: Date,
 ): Message {
+  if (content.length === 0) {
+    throw new Error("Message content cannot be empty");
+  }
+  if (content.length > 1000) {
+    throw new Error("Message content cannot be longer than 1000 characters");
+  }
   return {
     symbol: MessageTypeSymbol,
     id,
@@ -36,6 +43,22 @@ function initialize(
 }
 
 const Message = {
+  validate(
+    id: MessageId,
+    content: string,
+    senderId: UserAccountId,
+    sentAt: Date,
+  ): E.Either<string, Message> {
+    try {
+      return E.right(initialize(id, content, senderId, sentAt));
+    } catch (e) {
+      if (e instanceof Error) {
+        return E.left(e.message);
+      } else {
+        throw e;
+      }
+    }
+  },
   of(
     id: MessageId,
     content: string,

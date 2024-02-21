@@ -1,5 +1,5 @@
-import { ulid } from "ulidx";
-
+import * as U from "ulidx";
+import * as E from "fp-ts/lib/Either";
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdTypeSymbol = Symbol("GroupChatId");
 
@@ -16,11 +16,16 @@ function initialize(value?: string): GroupChatId {
 
   function initializeValue(value?: string): string {
     if (value === undefined) {
-      return ulid();
+      return U.ulid();
     } else {
-      return value.startsWith(GROUP_CHAT_PREFIX + "-")
+      const ulid = value.startsWith(GROUP_CHAT_PREFIX + "-")
         ? value.substring(GROUP_CHAT_PREFIX.length + 1)
         : value;
+      if (U.isValid(ulid)) {
+        return ulid;
+      } else {
+        throw new Error("Invalid group chat id");
+      }
     }
   }
 
@@ -42,6 +47,17 @@ function initialize(value?: string): GroupChatId {
 }
 
 const GroupChatId = {
+  validate(value: string): E.Either<string, GroupChatId> {
+    try {
+      return E.right(initialize(value));
+    } catch (error) {
+      if (error instanceof Error) {
+        return E.left(error.message);
+      } else {
+        throw error;
+      }
+    }
+  },
   of(value: string): GroupChatId {
     return initialize(value);
   },

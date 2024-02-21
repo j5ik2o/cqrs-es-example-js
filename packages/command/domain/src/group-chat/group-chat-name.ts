@@ -1,3 +1,4 @@
+import * as E from "fp-ts/lib/Either";
 const GroupChatNameTypeSymbol = Symbol("GroupChatName");
 
 interface GroupChatName {
@@ -8,6 +9,12 @@ interface GroupChatName {
 }
 
 function initialize(_value: string): GroupChatName {
+  if (_value.length === 0) {
+    throw new Error("Group chat name cannot be empty");
+  }
+  if (_value.length > 100) {
+    throw new Error("Group chat name cannot be longer than 100 characters");
+  }
   return {
     symbol: GroupChatNameTypeSymbol,
     get value() {
@@ -23,6 +30,17 @@ function initialize(_value: string): GroupChatName {
 }
 
 const GroupChatName = {
+  validate(value: string): E.Either<string, GroupChatName> {
+    try {
+      return E.right(initialize(value));
+    } catch (error) {
+      if (error instanceof Error) {
+        return E.left(error.message);
+      } else {
+        throw error;
+      }
+    }
+  },
   of(value: string): GroupChatName {
     return initialize(value);
   },

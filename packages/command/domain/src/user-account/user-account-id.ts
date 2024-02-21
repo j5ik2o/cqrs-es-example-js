@@ -1,4 +1,5 @@
-import { ulid } from "ulidx";
+import * as U from "ulidx";
+import * as E from "fp-ts/Either";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdTypeSymbol = Symbol("UserAccountId");
@@ -16,11 +17,16 @@ function initialize(value?: string): UserAccountId {
 
   function initializeValue(value?: string): string {
     if (value === undefined) {
-      return ulid();
+      return U.ulid();
     } else {
-      return value.startsWith(USER_ACCOUNT_PREFIX + "-")
+      const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
         ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
         : value;
+      if (U.isValid(ulid)) {
+        return ulid;
+      } else {
+        throw new Error("Invalid user account id");
+      }
     }
   }
 
@@ -43,6 +49,17 @@ function initialize(value?: string): UserAccountId {
 }
 
 const UserAccountId = {
+  validate(value: string): E.Either<string, UserAccountId> {
+    try {
+      return E.right(initialize(value));
+    } catch (error) {
+      if (error instanceof Error) {
+        return E.left(error.message);
+      } else {
+        throw error;
+      }
+    }
+  },
   of(value: string): UserAccountId {
     return initialize(value);
   },

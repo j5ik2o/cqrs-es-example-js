@@ -1,5 +1,5 @@
-import { ulid } from "ulidx";
-
+import * as U from "ulidx";
+import * as E from "fp-ts/lib/Either";
 const MessageIdTypeSymbol = Symbol("MessageId");
 
 interface MessageId {
@@ -10,6 +10,9 @@ interface MessageId {
 }
 
 function initialize(value: string): MessageId {
+  if (!U.isValid(value)) {
+    throw new Error("Invalid message id");
+  }
   return {
     symbol: MessageIdTypeSymbol,
     value,
@@ -23,11 +26,22 @@ function initialize(value: string): MessageId {
 }
 
 const MessageId = {
+  validate(value: string): E.Either<string, MessageId> {
+    try {
+      return E.right(initialize(value));
+    } catch (error) {
+      if (error instanceof Error) {
+        return E.left(error.message);
+      } else {
+        throw error;
+      }
+    }
+  },
   of(value: string): MessageId {
     return initialize(value);
   },
   generate(): MessageId {
-    return initialize(ulid());
+    return initialize(U.ulid());
   },
 };
 
