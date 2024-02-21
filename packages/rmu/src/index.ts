@@ -1,1 +1,1 @@
-// keep
+export * from "./update-read-model";

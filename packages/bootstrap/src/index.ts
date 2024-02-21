@@ -1,5 +1,6 @@
 import * as yargs from "yargs";
 import { writeApiMain } from "./write-api-main";
+import {localRmuMain} from "./local-rmu-main";
 
 const argv = yargs
   .command("writeApi", "write api server")
@@ -17,6 +18,6 @@ switch (argv._[0]) {
     console.log("readApi");
     break;
   case "localRmu":
-    console.log("localRmu");
+    localRmuMain();
     break;
 }
