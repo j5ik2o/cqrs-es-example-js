@@ -33,6 +33,7 @@ import { Message } from "./message";
 import { convertJSONToMessages, Messages } from "./messages";
 import { MessageId } from "./message-id";
 import { Aggregate } from "event-store-adapter-js";
+import { MemberId } from "./member-id";
 
 const GroupChatTypeSymbol = Symbol("GroupChat");
 
@@ -156,7 +157,11 @@ function initialize(params: GroupChatParams): GroupChat {
           ),
         );
       }
-      const newMember = Member.of(userAccountId, memberRole);
+      const newMember = Member.of(
+        MemberId.generate(),
+        userAccountId,
+        memberRole,
+      );
       const newMembers = this.members.addMember(newMember);
       const newSequenceNumber = this.sequenceNumber + 1;
       const newGroupChat: GroupChat = initialize({

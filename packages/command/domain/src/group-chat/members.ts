@@ -1,6 +1,7 @@
 import { convertJSONToMember, Member } from "./member";
 import { UserAccountId } from "../user-account";
 import * as O from "fp-ts/lib/Option";
+import { MemberId } from "./member-id";
 
 const MembersTypeSymbol = Symbol("Members");
 
@@ -84,7 +85,10 @@ const Members = {
   ofSingle(userAccountId: UserAccountId): Members {
     return initialize(
       new Map([
-        [userAccountId.value, Member.of(userAccountId, "administrator")],
+        [
+          userAccountId.value,
+          Member.of(MemberId.generate(), userAccountId, "administrator"),
+        ],
       ]),
     );
   },

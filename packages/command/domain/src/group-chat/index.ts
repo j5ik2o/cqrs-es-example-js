@@ -1,5 +1,6 @@
 export * from "./group-chat-id";
 export * from "./group-chat-name";
+export * from "./member-id";
 export * from "./member";
 export * from "./members";
 export * from "./message-id";

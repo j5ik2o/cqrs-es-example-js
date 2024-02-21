@@ -1,4 +1,5 @@
 import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
+import { convertJSONToMemberId, MemberId } from "./member-id";
 
 type MemberRole = "administrator" | "member";
 
@@ -6,6 +7,7 @@ const MemberTypeSymbol = Symbol("Member");
 
 interface Member {
   symbol: typeof MemberTypeSymbol;
+  id: MemberId;
   userAccountId: UserAccountId;
   memberRole: MemberRole;
   isAdministrator: () => boolean;
@@ -15,6 +17,7 @@ interface Member {
 }
 
 interface MemberParams {
+  id: MemberId;
   userAccountId: UserAccountId;
   memberRole: MemberRole;
 }
@@ -22,6 +25,7 @@ interface MemberParams {
 function initialize(params: MemberParams): Member {
   return {
     symbol: MemberTypeSymbol,
+    id: params.id,
     userAccountId: params.userAccountId,
     memberRole: params.memberRole,
     isAdministrator() {
@@ -40,15 +44,20 @@ function initialize(params: MemberParams): Member {
 }
 
 const Member = {
-  of(userAccountId: UserAccountId, memberRole: MemberRole): Member {
-    return initialize({ userAccountId, memberRole });
+  of(
+    id: MemberId,
+    userAccountId: UserAccountId,
+    memberRole: MemberRole,
+  ): Member {
+    return initialize({ id, userAccountId, memberRole });
   },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertJSONToMember(json: any): Member {
-  const id = convertJSONToUserAccountId(json.userAccountId);
-  return Member.of(id, json.memberRole);
+  const id = convertJSONToMemberId(json.id);
+  const userAccountId = convertJSONToUserAccountId(json.userAccountId);
+  return Member.of(id, userAccountId, json.memberRole);
 }
 
 export { MemberRole, Member, MemberTypeSymbol, convertJSONToMember };
