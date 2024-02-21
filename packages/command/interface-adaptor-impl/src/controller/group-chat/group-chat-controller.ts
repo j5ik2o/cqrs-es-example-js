@@ -18,10 +18,11 @@ class ValidationException extends Error {
 
 function configureGroupChatController(
   app: Hono,
+  baseUri: string,
   groupChatCommandProcessor: GroupChatCommandProcessor,
 ): Hono {
-  app.post("/group-chat/create", async (c) => {
-    const { name, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/create`, async (c) => {
+    const { name, executor_id } = await c.req.json();
 
     const nameEither = GroupChatName.validate(name as string);
     if (E.isLeft(nameEither)) {
@@ -29,7 +30,7 @@ function configureGroupChatController(
     }
     const _name = nameEither.right;
 
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }
@@ -41,11 +42,11 @@ function configureGroupChatController(
     );
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
-  app.post("/group-chat/delete", async (c) => {
-    const { id, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/delete`, async (c) => {
+    const { id, executor_id } = await c.req.json();
 
     const _id = GroupChatId.of(id as string);
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }
@@ -57,8 +58,8 @@ function configureGroupChatController(
     );
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
-  app.post("/group-chat/rename", async (c) => {
-    const { id, name, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/rename`, async (c) => {
+    const { id, name, executor_id } = await c.req.json();
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
@@ -68,7 +69,7 @@ function configureGroupChatController(
 
     const _name = GroupChatName.of(name as string);
 
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }
@@ -81,8 +82,8 @@ function configureGroupChatController(
     );
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
-  app.post("/group-chat/add-member", async (c) => {
-    const { id, memberId, memberRole, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/add-member`, async (c) => {
+    const { id, member_id, role, executor_id } = await c.req.json();
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
@@ -90,15 +91,15 @@ function configureGroupChatController(
     }
     const _id = idEither.right;
 
-    const memberIdEither = UserAccountId.validate(memberId as string);
+    const memberIdEither = UserAccountId.validate(member_id as string);
     if (E.isLeft(memberIdEither)) {
       throw new ValidationException(memberIdEither.left);
     }
     const _memberId = memberIdEither.right;
 
-    const _memberRole = memberRole as MemberRole;
+    const _memberRole = role as MemberRole;
 
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }
@@ -112,8 +113,8 @@ function configureGroupChatController(
     );
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
-  app.post("/group-chat/remove-member", async (c) => {
-    const { id, memberId, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/remove-member`, async (c) => {
+    const { id, member_id, executor_id } = await c.req.json();
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
@@ -121,13 +122,13 @@ function configureGroupChatController(
     }
     const _id = idEither.right;
 
-    const memberIdEither = UserAccountId.validate(memberId as string);
+    const memberIdEither = UserAccountId.validate(member_id as string);
     if (E.isLeft(memberIdEither)) {
       throw new ValidationException(memberIdEither.left);
     }
     const _memberId = memberIdEither.right;
 
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }
@@ -141,8 +142,8 @@ function configureGroupChatController(
       );
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
-  app.post("/group-chat/post-message", async (c) => {
-    const { id, message, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/post-message`, async (c) => {
+    const { id, message, executor_id } = await c.req.json();
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
@@ -150,7 +151,7 @@ function configureGroupChatController(
     }
     const _id = idEither.right;
 
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }
@@ -175,8 +176,8 @@ function configureGroupChatController(
       );
     return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
   });
-  app.post("/group-chat/delete-message", async (c) => {
-    const { id, messageId, executorId } = await c.req.parseBody();
+  app.post(`${baseUri}/group-chats/delete-message`, async (c) => {
+    const { id, message_id, executor_id } = await c.req.json();
 
     const idEither = GroupChatId.validate(id as string);
     if (E.isLeft(idEither)) {
@@ -184,13 +185,13 @@ function configureGroupChatController(
     }
     const _id = idEither.right;
 
-    const messageIdEither = MessageId.validate(messageId as string);
+    const messageIdEither = MessageId.validate(message_id as string);
     if (E.isLeft(messageIdEither)) {
       throw new ValidationException(messageIdEither.left);
     }
     const _messageId = messageIdEither.right;
 
-    const executorIdEither = UserAccountId.validate(executorId as string);
+    const executorIdEither = UserAccountId.validate(executor_id as string);
     if (E.isLeft(executorIdEither)) {
       throw new ValidationException(executorIdEither.left);
     }

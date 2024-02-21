@@ -4,6 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "docker-compose-build": "./tools/scripts/docker-compose-build.sh",
+    "docker-compose-up": "./tools/scripts/docker-compose-up.sh",
+    "docker-compose-down": "./tools/scripts/docker-compose-down.sh",
+    "create-group-chat": "./tools/scripts/curl-create-group-chat.sh",
     "docker-build": "docker build -t cqrs-es-example-js .",
     "build": "turbo build",
     "test": "turbo test",

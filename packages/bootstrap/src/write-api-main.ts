@@ -1,3 +1,4 @@
+import { Logger, ILogObj } from "tslog";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import {
@@ -16,6 +17,7 @@ import {
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 function writeApiMain() {
+  const logger: Logger<ILogObj> = new Logger();
   const apiHost =
     process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
   const apiPort =
@@ -46,6 +48,19 @@ function writeApiMain() {
   const awsDynamodbEndpoint = process.env.AWS_DYNAMODB_ENDPOINT_URL;
   const awsDynamodbAccessKeyId = process.env.AWS_DYNAMODB_ACCESS_KEY_ID;
   const awsDynamodbSecretAccessKey = process.env.AWS_DYNAMODB_SECRET_ACCESS_KEY;
+
+  logger.info("Starting write API server");
+  logger.info(`API_HOST: ${apiHost}`);
+  logger.info(`API_PORT: ${apiPort}`);
+  logger.info(`PERSISTENCE_JOURNAL_TABLE_NAME: ${journalTableName}`);
+  logger.info(`PERSISTENCE_SNAPSHOT_TABLE_NAME: ${snapshotTableName}`);
+  logger.info(`PERSISTENCE_JOURNAL_AID_INDEX_NAME: ${journalAidIndexName}`);
+  logger.info(`PERSISTENCE_SNAPSHOT_AID_INDEX_NAME: ${snapshotAidIndexName}`);
+  logger.info(`PERSISTENCE_SHARD_COUNT: ${shardCount}`);
+  logger.info(`AWS_REGION: ${awsRegion}`);
+  logger.info(`AWS_DYNAMODB_ENDPOINT_URL: ${awsDynamodbEndpoint}`);
+  logger.info(`AWS_DYNAMODB_ACCESS_KEY_ID: ${awsDynamodbAccessKeyId}`);
+  logger.info(`AWS_DYNAMODB_SECRET_ACCESS_KEY: ${awsDynamodbSecretAccessKey}`);
 
   let dynamodbClient: DynamoDBClient;
   if (
@@ -90,12 +105,12 @@ function writeApiMain() {
     return c.text("Hello, world!");
   });
 
-  configureGroupChatController(writeApiServer, groupChatCommandProcessor);
+  configureGroupChatController(writeApiServer, "v1", groupChatCommandProcessor);
 
   serve(
     { fetch: writeApiServer.fetch, hostname: apiHost, port: apiPort },
     (addressInfo) => {
-      console.log(
+      logger.info(
         `Server started on ${addressInfo.address}:${addressInfo.port}`,
       );
     },

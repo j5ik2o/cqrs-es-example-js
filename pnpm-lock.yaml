@@ -40,6 +40,9 @@ importers:
       moment:
         specifier: ^2.29.4
         version: 2.30.1
+      tslog:
+        specifier: ^4.9.2
+        version: 4.9.2
       yargs:
         specifier: ^17.7.2
         version: 17.7.2
@@ -5188,6 +5191,11 @@ packages:
 
   /tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
+    dev: false
+
+  /tslog@4.9.2:
+    resolution: {integrity: sha512-wBM+LRJoNl34Bdu8mYEFxpvmOUedpNUwMNQB/NcuPIZKwdDde6xLHUev3bBjXQU7gdurX++X/YE7gLH8eXYsiQ==}
+    engines: {node: '>=16'}
     dev: false
 
   /tweetnacl@0.14.5:
