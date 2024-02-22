@@ -52,10 +52,10 @@ const GroupChatDao = {
       ) => {
         await prismaClient.group_chats.create({
           data: {
-            id: aggregateId.asString,
+            id: aggregateId.asString(),
             disabled: false,
             name: name.toString(),
-            owner_id: administratorId.asString,
+            owner_id: administratorId.asString(),
             created_at: createdAt,
             updated_at: createdAt,
           },
@@ -63,7 +63,7 @@ const GroupChatDao = {
       },
       deleteGroupChat: async (aggregateId: GroupChatId, createdAt: Date) => {
         await prismaClient.group_chats.update({
-          where: { id: aggregateId.asString },
+          where: { id: aggregateId.asString() },
           data: { disabled: true, updated_at: createdAt },
         });
       },
@@ -73,7 +73,7 @@ const GroupChatDao = {
         updatedAt: Date,
       ) => {
         await prismaClient.group_chats.update({
-          where: { id: aggregateId.asString },
+          where: { id: aggregateId.asString() },
           data: { name: name.toString(), updated_at: updatedAt },
         });
       },
@@ -87,8 +87,8 @@ const GroupChatDao = {
         await prismaClient.members.create({
           data: {
             id: id.toString(),
-            group_chat_id: aggregateId.asString,
-            user_account_id: userAccountId.asString,
+            group_chat_id: aggregateId.asString(),
+            user_account_id: userAccountId.asString(),
             role: role.toString(),
             created_at: createdAt,
             updated_at: createdAt,
@@ -102,8 +102,8 @@ const GroupChatDao = {
         await prismaClient.members.delete({
           where: {
             group_chat_id_user_account_id: {
-              group_chat_id: aggregateId.asString,
-              user_account_id: userAccountId.asString,
+              group_chat_id: aggregateId.asString(),
+              user_account_id: userAccountId.asString(),
             },
           },
         });
@@ -118,9 +118,9 @@ const GroupChatDao = {
           data: {
             id: id.toString(),
             disabled: false,
-            group_chat_id: aggregateId.asString,
+            group_chat_id: aggregateId.asString(),
             text: message.content,
-            user_account_id: message.senderId.asString,
+            user_account_id: message.senderId.asString(),
             created_at: createdAt,
             updated_at: createdAt,
           },

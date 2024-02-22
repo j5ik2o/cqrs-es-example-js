@@ -1,13 +1,13 @@
 import * as U from "ulidx";
 import * as E from "fp-ts/lib/Either";
+import { AggregateId } from "event-store-adapter-js";
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdTypeSymbol = Symbol("GroupChatId");
 
-interface GroupChatId {
+interface GroupChatId extends AggregateId {
   symbol: typeof GroupChatIdTypeSymbol;
   value: string;
   typeName: string;
-  asString: string;
   equals: (anotherId: GroupChatId) => boolean;
 }
 
@@ -37,7 +37,7 @@ function initialize(value?: string): GroupChatId {
     get typeName() {
       return GROUP_CHAT_PREFIX;
     },
-    get asString() {
+    asString() {
       return `${GROUP_CHAT_PREFIX}-${_value}`;
     },
     equals(anotherId: GroupChatId): boolean {

@@ -5,7 +5,7 @@ const MemberIdTypeSymbol = Symbol("MemberId");
 interface MemberId {
   symbol: typeof MemberIdTypeSymbol;
   value: string;
-  asString: string;
+  asString: () => string;
   equals: (anotherId: MemberId) => boolean;
 }
 
@@ -13,7 +13,7 @@ function initialize(value: string): MemberId {
   return {
     symbol: MemberIdTypeSymbol,
     value,
-    get asString() {
+    asString() {
       return value;
     },
     equals(anotherId: MemberId): boolean {

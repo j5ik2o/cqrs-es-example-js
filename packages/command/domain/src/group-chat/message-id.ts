@@ -5,7 +5,7 @@ const MessageIdTypeSymbol = Symbol("MessageId");
 interface MessageId {
   symbol: typeof MessageIdTypeSymbol;
   value: string;
-  asString: string;
+  asString: () => string;
   equals: (anotherId: MessageId) => boolean;
 }
 
@@ -16,7 +16,7 @@ function initialize(value: string): MessageId {
   return {
     symbol: MessageIdTypeSymbol,
     value,
-    get asString() {
+    asString() {
       return value;
     },
     equals(anotherId: MessageId): boolean {

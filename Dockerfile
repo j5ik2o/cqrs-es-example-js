@@ -11,10 +11,14 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pnpm install -g turbo && pnpm install && pnpm build
+RUN pnpm install -g turbo && pnpm install && pnpm prisma:generate && pnpm build
 
 FROM base AS runner
 WORKDIR /app/packages/bootstrap
+
+RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache openssl3
+RUN apk update
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 hono
@@ -41,6 +45,10 @@ COPY --from=builder --chown=hono:nodejs /app/packages/command/interface-adaptor-
 COPY --from=builder --chown=hono:nodejs /app/packages/command/use-case/node_modules /app/packages/command/use-case/node_modules
 COPY --from=builder --chown=hono:nodejs /app/packages/command/use-case/dist /app/packages/command/use-case/dist
 COPY --from=builder --chown=hono:nodejs /app/packages/command/use-case/package.json /app/packages/command/use-case/package.json
+
+COPY --from=builder --chown=hono:nodejs /app/packages/rmu/node_modules /app/packages/rmu/node_modules
+COPY --from=builder --chown=hono:nodejs /app/packages/rmu/dist /app/packages/rmu/dist
+COPY --from=builder --chown=hono:nodejs /app/packages/rmu/package.json /app/packages/rmu/package.json
 
 USER hono
 EXPOSE 3000

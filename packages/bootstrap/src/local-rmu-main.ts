@@ -18,7 +18,7 @@ import {
 
 const logger: Logger<ILogObj> = new Logger();
 
-function localRmuMain() {
+async function localRmuMain() {
   logger.info("Starting local read model updater");
 
   const apiHost =
@@ -87,19 +87,21 @@ function localRmuMain() {
   const dao = GroupChatDao.of(prisma);
   const readModelUpdater = ReadModelUpdater.of(dao);
 
-  streamDriver(
-    dynamodbClient,
-    dynamodbStreamsClient,
-    streamJournalTableName,
-    streamMaxItemCount,
-    readModelUpdater,
-  )
-    .catch((error) => {
-      logger.error(error);
-    })
-    .finally(() => {
-      prisma.$disconnect();
+  for (;;) {
+    await streamDriver(
+      dynamodbClient,
+      dynamodbStreamsClient,
+      streamJournalTableName,
+      streamMaxItemCount,
+      readModelUpdater,
+    ).catch((error) => {
+      logger.error(
+        "An error has occurred, but stream processing is restarted. " +
+          "If this error persists, the read model condition may be incorrect.",
+        error,
+      );
     });
+  }
 }
 
 async function streamDriver(

@@ -40,7 +40,10 @@ function configureGroupChatController(
       _name,
       _executorId,
     );
-    return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
+    return c.json(
+      { group_chat_id: groupChatEvent.aggregateId.asString() },
+      200,
+    );
   });
   app.post(`${baseUri}/group-chats/delete`, async (c) => {
     const { group_chat_id, executor_id } = await c.req.json();
@@ -61,7 +64,10 @@ function configureGroupChatController(
       _groupChatId,
       _executorId,
     );
-    return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
+    return c.json(
+      { group_chat_id: groupChatEvent.aggregateId.asString() },
+      200,
+    );
   });
   app.post(`${baseUri}/group-chats/rename`, async (c) => {
     const { group_chat_id, name, executor_id } = await c.req.json();
@@ -119,7 +125,10 @@ function configureGroupChatController(
       _role,
       _executorId,
     );
-    return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
+    return c.json(
+      { group_chat_id: groupChatEvent.aggregateId.asString() },
+      200,
+    );
   });
   app.post(`${baseUri}/group-chats/remove-member`, async (c) => {
     const { group_chat_id, user_account_id, executor_id } = await c.req.json();
@@ -150,7 +159,10 @@ function configureGroupChatController(
         _userAccountId,
         _executorId,
       );
-    return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
+    return c.json(
+      { group_chat_id: groupChatEvent.aggregateId.asString() },
+      200,
+    );
   });
   app.post(`${baseUri}/group-chats/post-message`, async (c) => {
     const { group_chat_id, message, executor_id } = await c.req.json();
@@ -184,7 +196,10 @@ function configureGroupChatController(
         _message,
         _executorId,
       );
-    return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
+    return c.json(
+      { group_chat_id: groupChatEvent.aggregateId.asString() },
+      200,
+    );
   });
   app.post(`${baseUri}/group-chats/delete-message`, async (c) => {
     const { group_chat_id, message_id, executor_id } = await c.req.json();
@@ -213,7 +228,10 @@ function configureGroupChatController(
         _messageId,
         _executorId,
       );
-    return c.json({ group_chat_id: groupChatEvent.aggregateId.asString }, 200);
+    return c.json(
+      { group_chat_id: groupChatEvent.aggregateId.asString() },
+      200,
+    );
   });
   app.onError((e, c) => {
     if (e instanceof ValidationException) {

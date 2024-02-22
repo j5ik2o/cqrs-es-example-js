@@ -1,14 +1,14 @@
 import * as U from "ulidx";
 import * as E from "fp-ts/Either";
+import { AggregateId } from "event-store-adapter-js";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdTypeSymbol = Symbol("UserAccountId");
 
-interface UserAccountId {
+interface UserAccountId extends AggregateId {
   symbol: typeof UserAccountIdTypeSymbol;
   value: string;
   typeName: string;
-  asString: string;
   equals: (anotherId: UserAccountId) => boolean;
 }
 
@@ -41,7 +41,7 @@ function initialize(value?: string): UserAccountId {
     get typeName() {
       return USER_ACCOUNT_PREFIX;
     },
-    get asString() {
+    asString() {
       return `${USER_ACCOUNT_PREFIX}-${_value}`;
     },
     equals,

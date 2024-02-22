@@ -26,7 +26,7 @@ function initialize(values: Map<string, Message>): Messages {
       return this.toArray();
     },
     addMessage: (message: Message) =>
-      initialize(new Map(values).set(message.id.asString, message)),
+      initialize(new Map(values).set(message.id.asString(), message)),
     removeMessageById: (
       messageId: MessageId,
     ): O.Option<[Messages, Message]> => {
@@ -71,16 +71,18 @@ const Messages = {
     return initialize(new Map());
   },
   ofSingle(message: Message): Messages {
-    return initialize(new Map([[message.id.asString, message]]));
+    return initialize(new Map([[message.id.asString(), message]]));
   },
   fromArray(messages: Message[]): Messages {
     return initialize(
-      new Map(messages.map((message) => [message.id.asString, message])),
+      new Map(messages.map((message) => [message.id.asString(), message])),
     );
   },
   fromMap(messages: Map<MessageId, Message>): Messages {
     return initialize(
-      new Map(Array.from(messages.entries()).map(([k, v]) => [k.asString, v])),
+      new Map(
+        Array.from(messages.entries()).map(([k, v]) => [k.asString(), v]),
+      ),
     );
   },
 };
