@@ -1,3 +1,4 @@
+import path from "node:path";
 import {
   FindFirstGroupChatsOrThrowResolver,
   FindFirstGroupChatsResolver,
@@ -49,6 +50,7 @@ async function createSchema(): Promise<GraphQLSchema> {
       MembersRelationsResolver,
       MessagesRelationsResolver,
     ],
+    emitSchemaFile: path.resolve(__dirname, "schema.graphql"),
     validate: false,
   });
 }

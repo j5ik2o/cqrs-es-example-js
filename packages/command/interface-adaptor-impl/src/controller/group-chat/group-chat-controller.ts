@@ -10,7 +10,7 @@ import {
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 
-class ValidationException extends Error {
+export class ValidationException extends Error {
   constructor(message: string) {
     super(message);
   }

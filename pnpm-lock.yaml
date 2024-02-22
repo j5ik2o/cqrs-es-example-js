@@ -253,12 +253,27 @@ importers:
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
+      graphql:
+        specifier: ^16.8.1
+        version: 16.8.1
+      graphql-fields:
+        specifier: ^2.0.3
+        version: 2.0.3
+      graphql-scalars:
+        specifier: ^1.22.4
+        version: 1.22.4(graphql@16.8.1)
       hono:
         specifier: ^4.0.4
         version: 4.0.4
       moment:
         specifier: ^2.29.4
         version: 2.30.1
+      tslib:
+        specifier: ^2.6.2
+        version: 2.6.2
+      type-graphql:
+        specifier: 2.0.0-beta.1
+        version: 2.0.0-beta.1(class-validator@0.14.1)(graphql@16.8.1)
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
