@@ -3,16 +3,24 @@ import { GroupChatDao } from "./group-chat-dao";
 import {
   convertJSONToGroupChatEvent,
   GroupChatCreated,
+  GroupChatCreatedTypeSymbol,
+  GroupChatDeleted,
+  GroupChatDeletedTypeSymbol,
+  GroupChatMemberAdded,
+  GroupChatMemberAddedTypeSymbol,
+  GroupChatMemberRemoved,
+  GroupChatMemberRemovedTypeSymbol,
+  GroupChatMessageDeleted,
+  GroupChatMessageDeletedTypeSymbol,
+  GroupChatMessagePosted,
+  GroupChatMessagePostedTypeSymbol,
+  GroupChatRenamed,
+  GroupChatRenamedTypeSymbol,
 } from "cqrs-es-example-js-command-domain";
+// import {Callback} from "aws-lambda/handler";
 
-// function convertAttributeValueToString(attributeValue: AttributeValue): string {
-//   if (attributeValue.S !== undefined) {
-//     return attributeValue.S.toString();
-//   }
-//   if (attributeValue.B !== undefined) {
-//     return attributeValue.B.toString();
-//   }
-//   throw new Error("Unexpected attribute value");
+// const lambdaHandler: Handler<DynamoDBStreamEvent, void> = async (event: DynamoDBStreamEvent, context: Context, callback: Callback<void>) => {
+//
 // }
 
 interface ReadModelUpdater {
@@ -30,30 +38,25 @@ const ReadModelUpdater = {
             console.log("No DynamoDB record");
             return;
           }
-          console.log("record: %j", record.dynamodb);
           const attributeValues = record.dynamodb.NewImage;
           if (!attributeValues) {
             console.log("No NewImage");
             return;
           }
-          console.log("attributeValues: %j", attributeValues);
           const base64EncodedPayload = attributeValues.payload.B;
           if (!base64EncodedPayload) {
             console.log("No payload");
             return;
           }
-          const byteArray = base64EncodedPayload.split(",").map(Number);
-          const uint8Array = new Uint8Array(byteArray);
-          const payload = decoder.decode(uint8Array);
-          console.log("payload: %s", payload);
+          const payload = decoder.decode(
+            new Uint8Array(base64EncodedPayload.split(",").map(Number)),
+          );
           const payloadJson = JSON.parse(payload);
-          console.log("payloadJson: %j", payloadJson);
           const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
-          const typeName = groupChatEvent.typeName;
-          switch (typeName) {
-            case "GroupChatCreated": {
+          switch (groupChatEvent.symbol) {
+            case GroupChatCreatedTypeSymbol: {
               const typedEvent = groupChatEvent as GroupChatCreated;
-              console.log(`GroupChatCreated: ${typedEvent.toString()}`);
+              console.log(`event = ${typedEvent.toString()}`);
               groupChatDao.insertGroupChat(
                 typedEvent.aggregateId,
                 typedEvent.name,
@@ -63,9 +66,62 @@ const ReadModelUpdater = {
               console.log("inserted group chat");
               break;
             }
-            case "GroupChatDeleted": {
-              const groupChatId = payloadJson.data.aggregateId.value;
-              console.log(`GroupChatDeleted: groupChatId = ${groupChatId}`);
+            case GroupChatDeletedTypeSymbol: {
+              const typedEvent = groupChatEvent as GroupChatDeleted;
+              console.log(`event = ${typedEvent.toString()}`);
+              groupChatDao.deleteGroupChat(typedEvent.aggregateId, new Date());
+              console.log("deleted group chat");
+              break;
+            }
+            case GroupChatRenamedTypeSymbol: {
+              const typedEvent = groupChatEvent as GroupChatRenamed;
+              console.log(`event = ${typedEvent.toString()}`);
+              groupChatDao.updateGroupChatName(
+                typedEvent.aggregateId,
+                typedEvent.name,
+                new Date(),
+              );
+              console.log("updated group chat name");
+              break;
+            }
+            case GroupChatMemberAddedTypeSymbol: {
+              const typedEvent = groupChatEvent as GroupChatMemberAdded;
+              console.log(`event = ${typedEvent.toString()}`);
+              groupChatDao.insertGroupChatMember(
+                typedEvent.member.id,
+                typedEvent.aggregateId,
+                typedEvent.member.userAccountId,
+                typedEvent.member.memberRole,
+                new Date(),
+              );
+              console.log("inserted group chat member");
+              break;
+            }
+            case GroupChatMemberRemovedTypeSymbol: {
+              const typedEvent = groupChatEvent as GroupChatMemberRemoved;
+              console.log(`event = ${typedEvent.toString()}`);
+              groupChatDao.deleteMember(
+                typedEvent.aggregateId,
+                typedEvent.member.userAccountId,
+              );
+              console.log("deleted group chat member");
+              break;
+            }
+            case GroupChatMessagePostedTypeSymbol: {
+              const typedEvent = groupChatEvent as GroupChatMessagePosted;
+              console.log(`event = ${typedEvent.toString()}`);
+              groupChatDao.insertMessage(
+                typedEvent.aggregateId,
+                typedEvent.message,
+                new Date(),
+              );
+              break;
+            }
+            case GroupChatMessageDeletedTypeSymbol: {
+              const typedEvent = groupChatEvent as GroupChatMessageDeleted;
+              console.log(`event = ${typedEvent.toString()}`);
+              groupChatDao.deleteMessage(typedEvent.message.id, new Date());
+              console.log("deleted message");
               break;
             }
           }

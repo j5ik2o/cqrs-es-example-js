@@ -33,7 +33,6 @@ interface GroupChatDao {
     userAccountId: UserAccountId,
   ) => void;
   insertMessage: (
-    id: MessageId,
     aggregateId: GroupChatId,
     message: Message,
     createdAt: Date,
@@ -109,14 +108,13 @@ const GroupChatDao = {
         });
       },
       insertMessage: async (
-        id: MessageId,
         aggregateId: GroupChatId,
         message: Message,
         createdAt: Date,
       ) => {
         await prismaClient.messages.create({
           data: {
-            id: id.asString(),
+            id: message.id.asString(),
             disabled: false,
             group_chat_id: aggregateId.asString(),
             text: message.content,
