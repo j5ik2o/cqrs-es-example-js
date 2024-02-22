@@ -6,6 +6,7 @@ interface MemberId {
   symbol: typeof MemberIdTypeSymbol;
   value: string;
   asString: () => string;
+  toString: () => string;
   equals: (anotherId: MemberId) => boolean;
 }
 
@@ -15,6 +16,9 @@ function initialize(value: string): MemberId {
     value,
     asString() {
       return value;
+    },
+    toString() {
+      return `MemberId(${value})`;
     },
     equals(anotherId: MemberId): boolean {
       return value === anotherId.value;

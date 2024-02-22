@@ -5,6 +5,7 @@ interface GroupChatName {
   symbol: typeof GroupChatNameTypeSymbol;
   value: string;
   asString: () => string;
+  toString: () => string;
   equals: (anotherName: GroupChatName) => boolean;
 }
 
@@ -22,6 +23,9 @@ function initialize(_value: string): GroupChatName {
     },
     asString() {
       return this.value;
+    },
+    toString() {
+      return `GroupChatName(${this.value})`;
     },
     equals(anotherName: GroupChatName): boolean {
       return this.value === anotherName.value;

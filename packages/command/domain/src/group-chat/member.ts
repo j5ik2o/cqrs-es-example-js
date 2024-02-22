@@ -13,6 +13,7 @@ interface Member {
   isAdministrator: () => boolean;
   isMember: () => boolean;
   withRole: (role: MemberRole) => Member;
+  toString: () => string;
   equals: (other: Member) => boolean;
 }
 
@@ -36,6 +37,9 @@ function initialize(params: MemberParams): Member {
     },
     withRole(role: MemberRole) {
       return initialize({ ...this, memberRole: role });
+    },
+    toString() {
+      return `Member(${this.id.toString()}, ${this.userAccountId.toString()}, ${this.memberRole.toString()})`;
     },
     equals(other: Member) {
       return this.userAccountId.value === other.userAccountId.value;

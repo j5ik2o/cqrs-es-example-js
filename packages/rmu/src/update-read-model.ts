@@ -1,5 +1,9 @@
 import { DynamoDBStreamEvent } from "aws-lambda";
 import { GroupChatDao } from "./group-chat-dao";
+import {
+  convertJSONToGroupChatEvent,
+  GroupChatCreated,
+} from "cqrs-es-example-js-command-domain";
 
 // function convertAttributeValueToString(attributeValue: AttributeValue): string {
 //   if (attributeValue.S !== undefined) {
@@ -16,7 +20,7 @@ interface ReadModelUpdater {
 }
 
 const ReadModelUpdater = {
-  of(_: GroupChatDao): ReadModelUpdater {
+  of(groupChatDao: GroupChatDao): ReadModelUpdater {
     const decoder = new TextDecoder("utf-8");
     return {
       updateReadModel: async (event: DynamoDBStreamEvent) => {
@@ -44,14 +48,19 @@ const ReadModelUpdater = {
           console.log("payload: %s", payload);
           const payloadJson = JSON.parse(payload);
           console.log("payloadJson: %j", payloadJson);
-          const typeName = payloadJson.type;
+          const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
+          const typeName = groupChatEvent.typeName;
           switch (typeName) {
             case "GroupChatCreated": {
-              const groupChatId = payloadJson.data.aggregateId.value;
-              const name = payloadJson.data.name.value;
-              console.log(
-                `GroupChatCreated: groupChatId = ${groupChatId}, name = ${name}`,
+              const typedEvent = groupChatEvent as GroupChatCreated;
+              console.log(`GroupChatCreated: ${typedEvent.toString()}`);
+              groupChatDao.insertGroupChat(
+                typedEvent.aggregateId,
+                typedEvent.name,
+                typedEvent.members.values[0].userAccountId,
+                new Date(),
               );
+              console.log("inserted group chat");
               break;
             }
             case "GroupChatDeleted": {

@@ -18,6 +18,7 @@ interface Members {
   findById: (userAccountId: UserAccountId) => Member | undefined;
   toArray: () => Member[];
   toMap: () => Map<UserAccountId, Member>;
+  toString: () => string;
   equals: (other: Members) => boolean;
 }
 
@@ -64,6 +65,9 @@ function initialize(_values: Map<string, Member>): Members {
       return new Map(
         Array.from(_values, ([key, value]) => [UserAccountId.of(key), value]),
       );
+    },
+    toString() {
+      return `Members(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
     },
     equals(other: Members): boolean {
       const values = this.toMap();

@@ -319,6 +319,9 @@ function initialize(params: GroupChatParams): GroupChat {
     updateVersion(versionF: (value: number) => number): GroupChat {
       return initialize({ ...this, version: versionF(this.version) });
     },
+    toString() {
+      return `GroupChat(${this.id.toString()}, ${this.deleted}, ${this.name.toString()}, ${this.members.toString()}, ${this.messages.toString()}, ${this.sequenceNumber}, ${this.version})`;
+    },
     equals(other: GroupChat) {
       return (
         this.id.equals(other.id) &&

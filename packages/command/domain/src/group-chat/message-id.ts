@@ -6,6 +6,7 @@ interface MessageId {
   symbol: typeof MessageIdTypeSymbol;
   value: string;
   asString: () => string;
+  toString: () => string;
   equals: (anotherId: MessageId) => boolean;
 }
 
@@ -18,6 +19,9 @@ function initialize(value: string): MessageId {
     value,
     asString() {
       return value;
+    },
+    toString() {
+      return `MessageId(${value})`;
     },
     equals(anotherId: MessageId): boolean {
       return value === anotherId.value;

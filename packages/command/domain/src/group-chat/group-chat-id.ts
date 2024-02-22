@@ -9,6 +9,7 @@ interface GroupChatId extends AggregateId {
   value: string;
   typeName: string;
   equals: (anotherId: GroupChatId) => boolean;
+  toString: () => string;
 }
 
 function initialize(value?: string): GroupChatId {
@@ -39,6 +40,9 @@ function initialize(value?: string): GroupChatId {
     },
     asString() {
       return `${GROUP_CHAT_PREFIX}-${_value}`;
+    },
+    toString() {
+      return `GroupChatId(${_value})`;
     },
     equals(anotherId: GroupChatId): boolean {
       return _value === anotherId.value;

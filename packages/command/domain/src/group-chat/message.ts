@@ -10,6 +10,7 @@ interface Message {
   content: string;
   senderId: UserAccountId;
   sentAt: Date;
+  toString: () => string;
   equals: (anotherMessage: Message) => boolean;
 }
 
@@ -31,6 +32,9 @@ function initialize(
     content,
     senderId,
     sentAt,
+    toString() {
+      return `Message(${this.id.toString()}, ${this.content}, ${this.senderId.toString()}, ${this.sentAt.toISOString()})`;
+    },
     equals(anotherMessage: Message): boolean {
       return (
         id.equals(anotherMessage.id) &&

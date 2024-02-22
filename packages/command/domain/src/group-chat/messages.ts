@@ -14,6 +14,7 @@ interface Messages {
   toArray: () => Message[];
   toMap: () => Map<MessageId, Message>;
   size: () => number;
+  toString: () => string;
   equals: (anotherMessages: Messages) => boolean;
 }
 
@@ -55,6 +56,9 @@ function initialize(values: Map<string, Message>): Messages {
       return _toMap;
     },
     size: () => values.size,
+    toString() {
+      return `Messages(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
+    },
     equals(anotherMessages: Messages) {
       return (
         this.size() === anotherMessages.size() &&

@@ -18,8 +18,8 @@ type GroupChatEventTypeSymbol =
 
 interface GroupChatEvent extends Event<GroupChatId> {
   symbol: GroupChatEventTypeSymbol;
-
   executorId: UserAccountId;
+  toString: () => string;
 }
 
 const GroupChatCreatedTypeSymbol = Symbol("GroupChatCreated");
@@ -55,6 +55,9 @@ const GroupChatCreated = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: true,
+      toString() {
+        return `GroupChatCreated(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.members.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };
@@ -89,6 +92,9 @@ const GroupChatRenamed = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: false,
+      toString() {
+        return `GroupChatRenamed(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };
@@ -123,6 +129,9 @@ const GroupChatMemberAdded = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: false,
+      toString() {
+        return `GroupChatMemberAdded(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };
@@ -157,6 +166,9 @@ const GroupChatMemberRemoved = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: false,
+      toString() {
+        return `GroupChatMemberRemoved(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };
@@ -188,6 +200,9 @@ const GroupChatDeleted = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: false,
+      toString() {
+        return `GroupChatDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };
@@ -222,6 +237,9 @@ const GroupChatMessagePosted = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: false,
+      toString() {
+        return `GroupChatMessagePosted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };
@@ -256,6 +274,9 @@ const GroupChatMessageDeleted = {
       sequenceNumber,
       occurredAt: new Date(),
       isCreated: false,
+      toString() {
+        return `GroupChatMessageDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
+      },
     };
   },
 };

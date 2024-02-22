@@ -9,6 +9,7 @@ interface UserAccountId extends AggregateId {
   symbol: typeof UserAccountIdTypeSymbol;
   value: string;
   typeName: string;
+  toString: () => string;
   equals: (anotherId: UserAccountId) => boolean;
 }
 
@@ -43,6 +44,9 @@ function initialize(value?: string): UserAccountId {
     },
     asString() {
       return `${USER_ACCOUNT_PREFIX}-${_value}`;
+    },
+    toString() {
+      return `UserAccountId(${_value})`;
     },
     equals,
   };
