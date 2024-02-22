@@ -14,7 +14,7 @@ import {
   AttributeValue as LambdaAttributeValue,
   DynamoDBStreamEvent,
 } from "aws-lambda";
-import {logger} from "./index";
+import { logger } from "./index";
 
 async function localRmuMain() {
   logger.info("Starting local read model updater");

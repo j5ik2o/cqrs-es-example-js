@@ -14,7 +14,7 @@ import {
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {logger} from "./index";
+import { logger } from "./index";
 
 function writeApiMain() {
   const apiHost =
