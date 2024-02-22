@@ -54,6 +54,6 @@
     "moment": "^2.29.4",
     "tslog": "^4.9.2",
     "yargs": "^17.7.2",
-    "apollo-server": "^3.13.0"
+    "@apollo/server": "^4.0.0"
   }
 }
