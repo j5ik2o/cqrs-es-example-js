@@ -45,7 +45,7 @@ function writeApiMain() {
       : 32;
 
   const awsRegion = process.env.AWS_REGION;
-  const awsDynamodbEndpoint = process.env.AWS_DYNAMODB_ENDPOINT_URL;
+  const awsDynamodbEndpointUrl = process.env.AWS_DYNAMODB_ENDPOINT_URL;
   const awsDynamodbAccessKeyId = process.env.AWS_DYNAMODB_ACCESS_KEY_ID;
   const awsDynamodbSecretAccessKey = process.env.AWS_DYNAMODB_SECRET_ACCESS_KEY;
 
@@ -58,20 +58,20 @@ function writeApiMain() {
   logger.info(`PERSISTENCE_SNAPSHOT_AID_INDEX_NAME: ${snapshotAidIndexName}`);
   logger.info(`PERSISTENCE_SHARD_COUNT: ${shardCount}`);
   logger.info(`AWS_REGION: ${awsRegion}`);
-  logger.info(`AWS_DYNAMODB_ENDPOINT_URL: ${awsDynamodbEndpoint}`);
+  logger.info(`AWS_DYNAMODB_ENDPOINT_URL: ${awsDynamodbEndpointUrl}`);
   logger.info(`AWS_DYNAMODB_ACCESS_KEY_ID: ${awsDynamodbAccessKeyId}`);
   logger.info(`AWS_DYNAMODB_SECRET_ACCESS_KEY: ${awsDynamodbSecretAccessKey}`);
 
   let dynamodbClient: DynamoDBClient;
   if (
     awsRegion &&
-    awsDynamodbEndpoint &&
+    awsDynamodbEndpointUrl &&
     awsDynamodbAccessKeyId &&
     awsDynamodbSecretAccessKey
   ) {
     dynamodbClient = new DynamoDBClient({
       region: awsRegion,
-      endpoint: awsDynamodbEndpoint,
+      endpoint: awsDynamodbEndpointUrl,
       credentials: {
         accessKeyId: awsDynamodbAccessKeyId,
         secretAccessKey: awsDynamodbSecretAccessKey,
