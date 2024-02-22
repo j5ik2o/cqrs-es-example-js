@@ -1,9 +1,8 @@
 import { createSchema } from "cqrs-es-example-js-query-interface-adaptor";
 import { PrismaClient } from "@prisma/client";
 // import { ApolloServer } from "apollo-server";
-import { serve } from "@hono/node-server";
 import { logger } from "./index";
-import { Hono } from "hono";
+import express from 'express';
 import { createYoga } from "graphql-yoga";
 
 async function readApiMain() {
@@ -24,23 +23,34 @@ async function readApiMain() {
   const prisma = new PrismaClient();
   const schema = await createSchema();
 
-  const readApiServer = new Hono();
+  const readApiServer = express();
 
   const yoga = createYoga({
+    graphqlEndpoint: '/',
+    fetchAPI: {
+      fetch,
+      Request,
+      ReadableStream,
+      Response,
+    },
     schema,
     context: () => ({ prisma }),
   });
 
-  readApiServer.mount("/graphql", yoga);
+  readApiServer.use(yoga.graphqlEndpoint, yoga);
 
-  serve(
-    { fetch: readApiServer.fetch, hostname: apiHost, port: apiPort },
-    (addressInfo) => {
-      logger.info(
-        `Server started on ${addressInfo.address}:${addressInfo.port}`,
-      );
-    },
-  );
+  readApiServer.listen(apiPort, () => {
+    logger.info(`Server started on ${apiHost}:${apiPort}`);
+  });
+
+  // serve(
+  //   { fetch: readApiServer.fetch, hostname: apiHost, port: apiPort },
+  //   (addressInfo) => {
+  //     logger.info(
+  //       `Server started on ${addressInfo.address}:${addressInfo.port}`,
+  //     );
+  //   },
+  // );
 }
 
 export { readApiMain };

@@ -11,34 +11,38 @@ model GroupChats {
   id         String     @id @db.VarChar(64)
   disabled   Boolean
   name       String     @db.VarChar(64)
-  ownerId    String     @db.VarChar(64)
-  createdAt  DateTime   @db.DateTime(0)
-  updatedAt  DateTime   @db.DateTime(0)
+  ownerId    String     @db.VarChar(64) @map("owner_id")
+  createdAt  DateTime   @db.DateTime(0) @map("created_at")
+  updatedAt  DateTime   @db.DateTime(0) @map("updated_at")
   members    Members[]
   messages   Messages[]
+
+  @@map("group_chats")
 }
 
 model Members {
   id            String      @id @db.VarChar(64)
-  groupChatId   String      @db.VarChar(64)
-  userAccountId String      @db.VarChar(64)
+  groupChatId   String      @db.VarChar(64) @map("group_chat_id")
+  userAccountId String      @db.VarChar(64) @map("user_account_id")
   role          String      @db.VarChar(64)
-  createdAt     DateTime    @db.DateTime(0)
-  updatedAt     DateTime    @db.DateTime(0)
+  createdAt     DateTime    @db.DateTime(0) @map("created_at")
+  updatedAt     DateTime    @db.DateTime(0) @map("updated_at")
   groupChats    GroupChats  @relation(fields: [groupChatId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "members_ibfk_1")
 
   @@unique([groupChatId, userAccountId], map: "group_chat_id_user_account_id")
+  @@map("members")
 }
 
 model Messages {
   id            String      @id @db.VarChar(64)
   disabled      Boolean
-  groupChatId   String      @db.VarChar(64)
-  userAccountId String      @db.VarChar(64)
+  groupChatId   String      @db.VarChar(64) @map("group_chat_id")
+  userAccountId String      @db.VarChar(64) @map("user_account_id")
   text          String      @db.Text
-  createdAt     DateTime    @db.DateTime(0)
-  updatedAt     DateTime    @db.DateTime(0)
+  createdAt     DateTime    @db.DateTime(0) @map("created_at")
+  updatedAt     DateTime    @db.DateTime(0) @map("updated_at")
   groupChats    GroupChats @relation(fields: [groupChatId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "messages_ibfk_1")
 
   @@index([groupChatId], map: "group_chat_id")
+  @@map("messages")
 }

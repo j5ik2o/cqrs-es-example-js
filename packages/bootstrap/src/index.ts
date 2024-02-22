@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import * as yargs from "yargs";
 import { writeApiMain } from "./write-api-main";
 import { localRmuMain } from "./local-rmu-main";

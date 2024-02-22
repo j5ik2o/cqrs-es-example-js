@@ -50,6 +50,10 @@ COPY --from=builder --chown=hono:nodejs /app/packages/rmu/node_modules /app/pack
 COPY --from=builder --chown=hono:nodejs /app/packages/rmu/dist /app/packages/rmu/dist
 COPY --from=builder --chown=hono:nodejs /app/packages/rmu/package.json /app/packages/rmu/package.json
 
+COPY --from=builder --chown=hono:nodejs /app/packages/query/interface-adaptor/node_modules /app/packages/query/interface-adaptor/node_modules
+COPY --from=builder --chown=hono:nodejs /app/packages/query/interface-adaptor/dist /app/packages/query/interface-adaptor/dist
+COPY --from=builder --chown=hono:nodejs /app/packages/query/interface-adaptor/package.json /app/packages/query/interface-adaptor/package.json
+
 USER hono
 EXPOSE 3000
 
