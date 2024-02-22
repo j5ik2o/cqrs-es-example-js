@@ -2,7 +2,7 @@ import { createSchema } from "cqrs-es-example-js-query-interface-adaptor";
 import { PrismaClient } from "@prisma/client";
 // import { ApolloServer } from "apollo-server";
 import { logger } from "./index";
-import express from 'express';
+import express from "express";
 import { createYoga } from "graphql-yoga";
 
 async function readApiMain() {
@@ -26,7 +26,7 @@ async function readApiMain() {
   const readApiServer = express();
 
   const yoga = createYoga({
-    graphqlEndpoint: '/',
+    graphqlEndpoint: "/",
     fetchAPI: {
       fetch,
       Request,

@@ -1,7 +1,7 @@
-import {Field, ObjectType} from "type-graphql";
+import { Field, ObjectType } from "type-graphql";
 
 @ObjectType()
 export class Response {
-    @Field()
-    groupChatId!: string
+  @Field()
+  groupChatId!: string;
 }
