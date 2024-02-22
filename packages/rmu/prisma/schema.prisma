@@ -7,43 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model group_chats {
+model GroupChats {
   id         String     @id @db.VarChar(64)
   disabled   Boolean
   name       String     @db.VarChar(64)
-  owner_id   String     @db.VarChar(64)
-  created_at DateTime   @db.DateTime(0)
-  updated_at DateTime   @db.DateTime(0)
-  members    members[]
-  messages   messages[]
+  ownerId    String     @db.VarChar(64)
+  createdAt  DateTime   @db.DateTime(0)
+  updatedAt  DateTime   @db.DateTime(0)
+  members    Members[]
+  messages   Messages[]
 }
 
-model members {
-  id              String      @id @db.VarChar(64)
-  group_chat_id   String      @db.VarChar(64)
-  user_account_id String      @db.VarChar(64)
-  role            String      @db.VarChar(64)
-  created_at      DateTime    @db.DateTime(0)
-  updated_at      DateTime    @db.DateTime(0)
-  group_chats     group_chats @relation(fields: [group_chat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "members_ibfk_1")
+model Members {
+  id            String      @id @db.VarChar(64)
+  groupChatId   String      @db.VarChar(64)
+  userAccountId String      @db.VarChar(64)
+  role          String      @db.VarChar(64)
+  createdAt     DateTime    @db.DateTime(0)
+  updatedAt     DateTime    @db.DateTime(0)
+  groupChats    GroupChats  @relation(fields: [groupChatId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "members_ibfk_1")
 
-  @@unique([group_chat_id, user_account_id], map: "group_chat_id_user_account_id")
+  @@unique([groupChatId, userAccountId], map: "group_chat_id_user_account_id")
 }
 
-model messages {
-  id              String      @id @db.VarChar(64)
-  disabled        Boolean
-  group_chat_id   String      @db.VarChar(64)
-  user_account_id String      @db.VarChar(64)
-  text            String      @db.Text
-  created_at      DateTime    @db.DateTime(0)
-  updated_at      DateTime    @db.DateTime(0)
-  group_chats     group_chats @relation(fields: [group_chat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "messages_ibfk_1")
+model Messages {
+  id            String      @id @db.VarChar(64)
+  disabled      Boolean
+  groupChatId   String      @db.VarChar(64)
+  userAccountId String      @db.VarChar(64)
+  text          String      @db.Text
+  createdAt     DateTime    @db.DateTime(0)
+  updatedAt     DateTime    @db.DateTime(0)
+  groupChats    GroupChats @relation(fields: [groupChatId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "messages_ibfk_1")
 
-  @@index([group_chat_id], map: "group_chat_id")
-}
-
-model schema_migrations {
-  version BigInt  @id
-  dirty   Boolean
+  @@index([groupChatId], map: "group_chat_id")
 }

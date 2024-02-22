@@ -49,21 +49,21 @@ const GroupChatDao = {
         administratorId: UserAccountId,
         createdAt: Date,
       ) => {
-        await prismaClient.group_chats.create({
+        await prismaClient.groupChats.create({
           data: {
             id: aggregateId.asString(),
             disabled: false,
             name: name.asString(),
-            owner_id: administratorId.asString(),
-            created_at: createdAt,
-            updated_at: createdAt,
+            ownerId: administratorId.asString(),
+            createdAt: createdAt,
+            updatedAt: createdAt,
           },
         });
       },
       deleteGroupChat: async (aggregateId: GroupChatId, createdAt: Date) => {
-        await prismaClient.group_chats.update({
+        await prismaClient.groupChats.update({
           where: { id: aggregateId.asString() },
-          data: { disabled: true, updated_at: createdAt },
+          data: { disabled: true, updatedAt: createdAt },
         });
       },
       updateGroupChatName: async (
@@ -71,9 +71,9 @@ const GroupChatDao = {
         name: GroupChatName,
         updatedAt: Date,
       ) => {
-        await prismaClient.group_chats.update({
+        await prismaClient.groupChats.update({
           where: { id: aggregateId.asString() },
-          data: { name: name.asString(), updated_at: updatedAt },
+          data: { name: name.asString(), updatedAt: updatedAt },
         });
       },
       insertGroupChatMember: async (
@@ -86,11 +86,11 @@ const GroupChatDao = {
         await prismaClient.members.create({
           data: {
             id: id.asString(),
-            group_chat_id: aggregateId.asString(),
-            user_account_id: userAccountId.asString(),
+            groupChatId: aggregateId.asString(),
+            userAccountId: userAccountId.asString(),
             role: role.toString(),
-            created_at: createdAt,
-            updated_at: createdAt,
+            createdAt: createdAt,
+            updatedAt: createdAt,
           },
         });
       },
@@ -100,9 +100,9 @@ const GroupChatDao = {
       ) => {
         await prismaClient.members.delete({
           where: {
-            group_chat_id_user_account_id: {
-              group_chat_id: aggregateId.asString(),
-              user_account_id: userAccountId.asString(),
+            groupChatId_userAccountId: {
+              groupChatId: aggregateId.asString(),
+              userAccountId: userAccountId.asString(),
             },
           },
         });
@@ -116,18 +116,18 @@ const GroupChatDao = {
           data: {
             id: message.id.asString(),
             disabled: false,
-            group_chat_id: aggregateId.asString(),
+            groupChatId: aggregateId.asString(),
             text: message.content,
-            user_account_id: message.senderId.asString(),
-            created_at: createdAt,
-            updated_at: createdAt,
+            userAccountId: message.senderId.asString(),
+            createdAt: createdAt,
+            updatedAt: createdAt,
           },
         });
       },
       deleteMessage: async (id: MessageId, updatedAt: Date) => {
         await prismaClient.messages.update({
           where: { id: id.asString() },
-          data: { disabled: true, updated_at: updatedAt },
+          data: { disabled: true, updatedAt: updatedAt },
         });
       },
     };

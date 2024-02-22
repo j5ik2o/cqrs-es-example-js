@@ -37,23 +37,23 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "aws-lambda": "^1.0.7",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "@aws-sdk/client-dynamodb-streams": "^3.413.0",
     "@hono/node-server": "^1.8.1",
     "@prisma/client": "^5.10.1",
+    "aws-lambda": "^1.0.7",
     "aws-sdk": "^2.1459.0",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-impl": "workspace:*",
     "cqrs-es-example-js-command-use-case": "workspace:*",
-    "cqrs-es-example-js-rmu": "workspace:*",
     "cqrs-es-example-js-query-interface-adaptor": "workspace:*",
+    "cqrs-es-example-js-rmu": "workspace:*",
     "event-store-adapter-js": "2.0.21",
     "fp-ts": "^2.16.2",
+    "graphql-yoga": "^5.1.1",
     "hono": "^4.0.4",
     "moment": "^2.29.4",
     "tslog": "^4.9.2",
-    "yargs": "^17.7.2",
-    "apollo-server": "^3.13.0"
+    "yargs": "^17.7.2"
   }
 }

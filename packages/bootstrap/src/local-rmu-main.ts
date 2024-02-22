@@ -51,6 +51,7 @@ async function localRmuMain() {
   logger.info(`AWS_DYNAMODB_SECRET_ACCESS_KEY: ${awsDynamodbSecretAccessKey}`);
   logger.info(`STREAM_JOURNAL_TABLE_NAME: ${streamJournalTableName}`);
   logger.info(`STREAM_MAX_ITEM_COUNT: ${streamMaxItemCount}`);
+  logger.info(`DATABASE_URL: ${DATABASE_URL}`);
 
   let dynamodbClient: DynamoDBClient;
   let dynamodbStreamsClient: DynamoDBStreamsClient;
