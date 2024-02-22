@@ -47,11 +47,13 @@
     "cqrs-es-example-js-command-interface-adaptor-impl": "workspace:*",
     "cqrs-es-example-js-command-use-case": "workspace:*",
     "cqrs-es-example-js-rmu": "workspace:*",
+    "cqrs-es-example-js-query-interface-adaptor": "workspace:*",
     "event-store-adapter-js": "2.0.21",
     "fp-ts": "^2.16.2",
     "hono": "^4.0.4",
     "moment": "^2.29.4",
     "tslog": "^4.9.2",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "apollo-server": "^3.13.0"
   }
 }

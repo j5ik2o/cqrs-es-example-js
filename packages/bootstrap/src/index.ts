@@ -1,7 +1,9 @@
 import * as yargs from "yargs";
 import { writeApiMain } from "./write-api-main";
 import { localRmuMain } from "./local-rmu-main";
-
+import {ILogObj, Logger} from "tslog";
+import {readApiMain} from "./read-api-main";
+export const logger: Logger<ILogObj> = new Logger();
 async function main() {
   const argv = yargs
     .command("writeApi", "write api server")
@@ -16,7 +18,7 @@ async function main() {
       writeApiMain();
       break;
     case "readApi":
-      console.log("readApi");
+      await readApiMain();
       break;
     case "localRmu":
       await localRmuMain();

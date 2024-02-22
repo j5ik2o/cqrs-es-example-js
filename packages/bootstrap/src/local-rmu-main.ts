@@ -1,4 +1,3 @@
-import { ILogObj, Logger } from "tslog";
 import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
 import { DescribeTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
@@ -15,8 +14,7 @@ import {
   AttributeValue as LambdaAttributeValue,
   DynamoDBStreamEvent,
 } from "aws-lambda";
-
-const logger: Logger<ILogObj> = new Logger();
+import {logger} from "./index";
 
 async function localRmuMain() {
   logger.info("Starting local read model updater");

@@ -1,4 +1,3 @@
-import { Logger, ILogObj } from "tslog";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import {
@@ -15,9 +14,9 @@ import {
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {logger} from "./index";
 
 function writeApiMain() {
-  const logger: Logger<ILogObj> = new Logger();
   const apiHost =
     process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
   const apiPort =
