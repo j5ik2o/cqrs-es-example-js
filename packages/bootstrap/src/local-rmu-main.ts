@@ -1,16 +1,20 @@
-import {ILogObj, Logger} from "tslog";
-import {GroupChatDao, ReadModelUpdater} from "cqrs-es-example-js-rmu";
-import {DescribeTableCommand, DynamoDBClient,} from "@aws-sdk/client-dynamodb";
+import { ILogObj, Logger } from "tslog";
+import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
+import { DescribeTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   _Record,
   AttributeValue as SDKStreamsAttributeValue,
   DescribeStreamCommand,
   DynamoDBStreamsClient,
-  GetRecordsCommand, GetRecordsCommandOutput,
+  GetRecordsCommand,
+  GetRecordsCommandOutput,
   GetShardIteratorCommand,
 } from "@aws-sdk/client-dynamodb-streams";
-import {PrismaClient} from "@prisma/client";
-import {AttributeValue as LambdaAttributeValue, DynamoDBStreamEvent,} from "aws-lambda";
+import { PrismaClient } from "@prisma/client";
+import {
+  AttributeValue as LambdaAttributeValue,
+  DynamoDBStreamEvent,
+} from "aws-lambda";
 
 const logger: Logger<ILogObj> = new Logger();
 
@@ -112,15 +116,15 @@ async function streamDriver(
   if (!streamArn) {
     throw new Error("StreamArn is not set");
   }
-  let lastEvaluatedShardId: string | undefined = undefined
+  let lastEvaluatedShardId: string | undefined = undefined;
 
   for (;;) {
     logger.info(`streamArn = ${streamArn}`);
     logger.info(`maxItemCount = ${streamMaxItemCount}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let req: any = { StreamArn: streamArn }
+    let req: any = { StreamArn: streamArn };
     if (lastEvaluatedShardId) {
-      req = { ...req, ExclusiveStartShardId: lastEvaluatedShardId }
+      req = { ...req, ExclusiveStartShardId: lastEvaluatedShardId };
     }
     const describeStream = await dynamodbStreamsClient.send(
       new DescribeStreamCommand(req),
@@ -143,9 +147,10 @@ async function streamDriver(
       }
       let processedRecordCount = 0;
       while (processedRecordCount < streamMaxItemCount) {
-        const getRecords: GetRecordsCommandOutput = await dynamodbStreamsClient.send(
-          new GetRecordsCommand({ ShardIterator: shardIterator }),
-        );
+        const getRecords: GetRecordsCommandOutput =
+          await dynamodbStreamsClient.send(
+            new GetRecordsCommand({ ShardIterator: shardIterator }),
+          );
         const records = getRecords.Records;
         if (!records) {
           throw new Error("Records is not set");
@@ -153,9 +158,11 @@ async function streamDriver(
         for (const record of records) {
           const keys = getKeys(record);
           const item = getItem(record);
-            logger.info(`keys = ${JSON.stringify(keys)}`);
-            logger.info(`item = ${JSON.stringify(item)}`);
-          await readModelUpdater.updateReadModel(convertToEvent(record, keys, item, streamArn));
+          logger.info(`keys = ${JSON.stringify(keys)}`);
+          logger.info(`item = ${JSON.stringify(item)}`);
+          await readModelUpdater.updateReadModel(
+            convertToEvent(record, keys, item, streamArn),
+          );
         }
         processedRecordCount += records.length;
         shardIterator = getRecords.NextShardIterator;
@@ -164,17 +171,24 @@ async function streamDriver(
     if (describeStream.StreamDescription?.LastEvaluatedShardId === undefined) {
       break;
     }
-    lastEvaluatedShardId = describeStream.StreamDescription?.LastEvaluatedShardId;
+    lastEvaluatedShardId =
+      describeStream.StreamDescription?.LastEvaluatedShardId;
   }
 }
 
-function convertToEvent(record: _Record, keys: Record<string, LambdaAttributeValue>, item: Record<string, LambdaAttributeValue>, streamArn: string): DynamoDBStreamEvent {
+function convertToEvent(
+  record: _Record,
+  keys: Record<string, LambdaAttributeValue>,
+  item: Record<string, LambdaAttributeValue>,
+  streamArn: string,
+): DynamoDBStreamEvent {
   return {
     Records: [
       {
         awsRegion: record.awsRegion,
         dynamodb: {
-          ApproximateCreationDateTime: record.dynamodb?.ApproximateCreationDateTime?.getTime(),
+          ApproximateCreationDateTime:
+            record.dynamodb?.ApproximateCreationDateTime?.getTime(),
           Keys: keys,
           NewImage: item,
           SequenceNumber: record.dynamodb?.SequenceNumber,
@@ -187,8 +201,8 @@ function convertToEvent(record: _Record, keys: Record<string, LambdaAttributeVal
         eventSourceARN: streamArn,
         eventVersion: record.eventVersion,
         userIdentity: {
-          "type": "Service",
-          "principalId": "dynamodb.amazonaws.com",
+          type: "Service",
+          principalId: "dynamodb.amazonaws.com",
         },
       },
     ],

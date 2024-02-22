@@ -1,5 +1,5 @@
-import {AttributeValue, DynamoDBStreamEvent} from "aws-lambda";
-import {GroupChatDao} from "./group-chat-dao";
+import { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
+import { GroupChatDao } from "./group-chat-dao";
 
 function convertAttributeValueToString(attributeValue: AttributeValue): string {
   if (attributeValue.S !== undefined) {
