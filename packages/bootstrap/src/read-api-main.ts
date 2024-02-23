@@ -24,22 +24,14 @@ async function readApiMain() {
   logger.info(`DATABASE_URL: ${DATABASE_URL}`);
 
   const prisma = new PrismaClient();
-  const schema = await createQuerySchema();
 
+  const schema = await createQuerySchema();
   const server = new ApolloServer<MyContext>({ schema });
   const { url } = await startStandaloneServer(server, {
     context: async (): Promise<MyContext> => ({ prisma }),
     listen: { host: apiHost, port: apiPort },
   });
   console.log(`🚀 Server ready at ${url}`);
-
-  // const readApiServer = new ApolloServer({
-  //   schema,
-  //   context: (): Context => ({ prisma }),
-  // });
-  //
-  // const { port } = await readApiServer.listen(apiPort);
-  // console.log(`GraphQL is listening on ${port}!`);
 }
 
 export { readApiMain };

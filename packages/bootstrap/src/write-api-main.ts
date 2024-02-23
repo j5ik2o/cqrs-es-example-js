@@ -100,7 +100,6 @@ async function writeApiMain() {
     GroupChatCommandProcessor.of(groupChatRepository);
 
   const schema = await createCommandSchema();
-
   const server = new ApolloServer<CommandContext>({ schema });
   const { url } = await startStandaloneServer(server, {
     context: async (): Promise<CommandContext> => ({
@@ -109,23 +108,6 @@ async function writeApiMain() {
     listen: { host: apiHost, port: apiPort },
   });
   console.log(`🚀 Server ready at ${url}`);
-
-  // const writeApiServer = new Hono();
-  //
-  // writeApiServer.get("/hello", async (c) => {
-  //   return c.text("Hello, world!");
-  // });
-  //
-  // configureGroupChatController(writeApiServer, "v1", groupChatCommandProcessor);
-  //
-  // serve(
-  //   { fetch: writeApiServer.fetch, hostname: apiHost, port: apiPort },
-  //   (addressInfo) => {
-  //     logger.info(
-  //       `Server started on ${addressInfo.address}:${addressInfo.port}`,
-  //     );
-  //   },
-  // );
 }
 
 export { writeApiMain };
