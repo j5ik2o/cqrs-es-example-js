@@ -40,7 +40,7 @@
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "cqrs-es-example-js-command-use-case": "workspace:*",
-    "event-store-adapter-js": "2.0.21",
+    "event-store-adapter-js": "2.0.22",
     "fp-ts": "^2.16.2",
     "moment": "^2.29.4",
     "graphql": "^16.8.1",
