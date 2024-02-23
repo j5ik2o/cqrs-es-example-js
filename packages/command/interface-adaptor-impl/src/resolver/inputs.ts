@@ -8,3 +8,12 @@ export class CreateGroupChatInput {
   @Field()
   executorId!: string;
 }
+
+@InputType()
+export class DeleteGroupChatInput {
+  @Field()
+  groupChatId!: string;
+
+  @Field()
+  executorId!: string;
+}

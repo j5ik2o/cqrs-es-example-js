@@ -1,11 +1,10 @@
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
 import {
-  configureGroupChatController,
+  CommandContext,
+  createCommandSchema,
   GroupChatRepository,
 } from "cqrs-es-example-js-command-interface-adaptor-impl";
-import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-use-case";
-import { EventStoreFactory } from "event-store-adapter-js";
+import {GroupChatCommandProcessor} from "cqrs-es-example-js-command-use-case";
+import {EventStoreFactory} from "event-store-adapter-js";
 import {
   convertJSONToGroupChat,
   convertJSONToGroupChatEvent,
@@ -13,10 +12,12 @@ import {
   GroupChatEvent,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { logger } from "./index";
+import {DynamoDBClient} from "@aws-sdk/client-dynamodb";
+import {logger} from "./index";
+import {ApolloServer} from "@apollo/server";
+import {startStandaloneServer} from "@apollo/server/standalone";
 
-function writeApiMain() {
+async function writeApiMain() {
   const apiHost =
     process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
   const apiPort =
@@ -98,22 +99,31 @@ function writeApiMain() {
   const groupChatCommandProcessor =
     GroupChatCommandProcessor.of(groupChatRepository);
 
-  const writeApiServer = new Hono();
+  const schema = await createCommandSchema();
 
-  writeApiServer.get("/hello", async (c) => {
-    return c.text("Hello, world!");
+  const server = new ApolloServer<CommandContext>({ schema });
+  const { url } = await startStandaloneServer(server, {
+    context: async (): Promise<CommandContext> => ({ groupChatCommandProcessor }),
+    listen: { host: apiHost, port: apiPort },
   });
+  console.log(`🚀 Server ready at ${url}`);
 
-  configureGroupChatController(writeApiServer, "v1", groupChatCommandProcessor);
-
-  serve(
-    { fetch: writeApiServer.fetch, hostname: apiHost, port: apiPort },
-    (addressInfo) => {
-      logger.info(
-        `Server started on ${addressInfo.address}:${addressInfo.port}`,
-      );
-    },
-  );
+  // const writeApiServer = new Hono();
+  //
+  // writeApiServer.get("/hello", async (c) => {
+  //   return c.text("Hello, world!");
+  // });
+  //
+  // configureGroupChatController(writeApiServer, "v1", groupChatCommandProcessor);
+  //
+  // serve(
+  //   { fetch: writeApiServer.fetch, hostname: apiHost, port: apiPort },
+  //   (addressInfo) => {
+  //     logger.info(
+  //       `Server started on ${addressInfo.address}:${addressInfo.port}`,
+  //     );
+  //   },
+  // );
 }
 
 export { writeApiMain };
