@@ -7,9 +7,9 @@
 
 ## Overview
 
-This is an example of CQRS/Event Sourcing implemented in Go.
+This is an example of CQRS/Event Sourcing implemented in TypeScript.
 
-This project uses [j5ik2o/event-store-adapter-go](https://github.com/j5ik2o/event-store-adapter-go) for Event Sourcing.
+This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) for Event Sourcing.
 
 [日本語](./README.ja.md)
 
