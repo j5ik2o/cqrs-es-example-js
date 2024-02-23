@@ -1,4 +1,4 @@
-import {Arg, Ctx, Mutation, Query, Resolver} from "type-graphql";
+import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
 import { CreateGroupChatInput, DeleteGroupChatInput } from "./inputs";
 import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-use-case";
 import {
@@ -8,17 +8,17 @@ import {
 } from "cqrs-es-example-js-command-domain";
 import * as E from "fp-ts/Either";
 import { ValidationException } from "../controller/group-chat/group-chat-controller";
-import {GroupChatResult, HealthCheckResult} from "./object";
+import { GroupChatResult, HealthCheckResult } from "./object";
 
 interface CommandContext {
-  groupChatCommandProcessor: GroupChatCommandProcessor
+  groupChatCommandProcessor: GroupChatCommandProcessor;
 }
 
 @Resolver(() => GroupChatResult)
 class GroupChatResolver {
   @Query(() => HealthCheckResult)
   async healthCheck(): Promise<HealthCheckResult> {
-    return { value: "OK" }
+    return { value: "OK" };
   }
 
   @Mutation(() => GroupChatResult)
@@ -78,4 +78,4 @@ class GroupChatResolver {
   }
 }
 
-export { CommandContext, GroupChatResolver }
+export { CommandContext, GroupChatResolver };

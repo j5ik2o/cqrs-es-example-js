@@ -3,8 +3,8 @@ import {
   createCommandSchema,
   GroupChatRepository,
 } from "cqrs-es-example-js-command-interface-adaptor-impl";
-import {GroupChatCommandProcessor} from "cqrs-es-example-js-command-use-case";
-import {EventStoreFactory} from "event-store-adapter-js";
+import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-use-case";
+import { EventStoreFactory } from "event-store-adapter-js";
 import {
   convertJSONToGroupChat,
   convertJSONToGroupChatEvent,
@@ -12,10 +12,10 @@ import {
   GroupChatEvent,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-import {DynamoDBClient} from "@aws-sdk/client-dynamodb";
-import {logger} from "./index";
-import {ApolloServer} from "@apollo/server";
-import {startStandaloneServer} from "@apollo/server/standalone";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { logger } from "./index";
+import { ApolloServer } from "@apollo/server";
+import { startStandaloneServer } from "@apollo/server/standalone";
 
 async function writeApiMain() {
   const apiHost =
@@ -103,7 +103,9 @@ async function writeApiMain() {
 
   const server = new ApolloServer<CommandContext>({ schema });
   const { url } = await startStandaloneServer(server, {
-    context: async (): Promise<CommandContext> => ({ groupChatCommandProcessor }),
+    context: async (): Promise<CommandContext> => ({
+      groupChatCommandProcessor,
+    }),
     listen: { host: apiHost, port: apiPort },
   });
   console.log(`🚀 Server ready at ${url}`);
