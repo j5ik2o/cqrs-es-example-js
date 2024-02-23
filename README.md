@@ -15,7 +15,7 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 
 ## Feature
 
-- [x] Write API Server(REST)
+- [x] Write API Server(GraphQL)
 - [x] Read API Server(GraphQL)
 - [x] Read Model Updater on Local
 - [x] Docker Compose Support
@@ -27,7 +27,7 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 ### Component Composition
 
 - Write API Server
-  - Write-only Web API
+  - implemented by GraphQL (Mutation)
 - Read Model Updater
   - Lambda to build read models based on journals
 - Read API Server
