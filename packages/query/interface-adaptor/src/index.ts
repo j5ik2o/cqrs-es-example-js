@@ -1,4 +1,3 @@
-import path from "node:path";
 import {
   FindFirstGroupChatsOrThrowResolver,
   FindFirstGroupChatsResolver,
@@ -25,7 +24,7 @@ import {
 import { buildSchema } from "type-graphql";
 import { GraphQLSchema } from "graphql/type";
 
-async function createSchema(): Promise<GraphQLSchema> {
+async function createQuerySchema(): Promise<GraphQLSchema> {
   return await buildSchema({
     resolvers: [
       FindFirstGroupChatsOrThrowResolver,
@@ -50,9 +49,9 @@ async function createSchema(): Promise<GraphQLSchema> {
       MembersRelationsResolver,
       MessagesRelationsResolver,
     ],
-    emitSchemaFile: path.resolve(__dirname, "schema.graphql"),
+    // emitSchemaFile: path.resolve(__dirname, "query.schema.graphql"),
     validate: false,
   });
 }
 
-export { createSchema };
+export { createQuerySchema };

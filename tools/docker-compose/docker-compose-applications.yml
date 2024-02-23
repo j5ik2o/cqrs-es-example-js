@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     command: ["writeApi"]
     # image: write-api-server:latest-${ARCH}
-    container_name: write-api-server-1
+    container_name: write-api-server-js-1
     ports:
       - 38080:3000
     environment:
@@ -34,7 +34,7 @@ services:
       dockerfile: Dockerfile
     command: [ "localRmu" ]
     # image: read-model-updater-local:latest-${ARCH}
-    container_name: read-model-updater-1
+    container_name: read-model-updater-js-1
     ports:
       - 38081:8080
     environment:
@@ -52,14 +52,14 @@ services:
       - localstack
       - dynamodb-admin
       - dynamodb-setup
-    restart: on-failure
+    # restart: on-failure
   read-api-server-1:
     build:
       context: ../../
       dockerfile: Dockerfile
     command: [ "readApi" ]
     image: read-api-server:latest-${ARCH}
-    container_name: read-api-server-1
+    container_name: read-api-server-js-1
     ports:
       - 38082:8080
     environment:

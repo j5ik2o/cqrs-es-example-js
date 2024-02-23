@@ -1,9 +1,12 @@
-import { createSchema } from "cqrs-es-example-js-query-interface-adaptor";
+import { createQuerySchema } from "cqrs-es-example-js-query-interface-adaptor";
 import { PrismaClient } from "@prisma/client";
-// import { ApolloServer } from "apollo-server";
 import { logger } from "./index";
-import express from "express";
-import { createYoga } from "graphql-yoga";
+import { ApolloServer } from "@apollo/server";
+import { startStandaloneServer } from "@apollo/server/standalone";
+
+interface MyContext {
+  prisma: PrismaClient;
+}
 
 async function readApiMain() {
   const apiHost =
@@ -21,36 +24,14 @@ async function readApiMain() {
   logger.info(`DATABASE_URL: ${DATABASE_URL}`);
 
   const prisma = new PrismaClient();
-  const schema = await createSchema();
 
-  const readApiServer = express();
-
-  const yoga = createYoga({
-    graphqlEndpoint: "/",
-    fetchAPI: {
-      fetch,
-      Request,
-      ReadableStream,
-      Response,
-    },
-    schema,
-    context: () => ({ prisma }),
+  const schema = await createQuerySchema();
+  const server = new ApolloServer<MyContext>({ schema });
+  const { url } = await startStandaloneServer(server, {
+    context: async (): Promise<MyContext> => ({ prisma }),
+    listen: { host: apiHost, port: apiPort },
   });
-
-  readApiServer.use(yoga.graphqlEndpoint, yoga);
-
-  readApiServer.listen(apiPort, () => {
-    logger.info(`Server started on ${apiHost}:${apiPort}`);
-  });
-
-  // serve(
-  //   { fetch: readApiServer.fetch, hostname: apiHost, port: apiPort },
-  //   (addressInfo) => {
-  //     logger.info(
-  //       `Server started on ${addressInfo.address}:${addressInfo.port}`,
-  //     );
-  //   },
-  // );
+  console.log(`🚀 Server ready at ${url}`);
 }
 
 export { readApiMain };

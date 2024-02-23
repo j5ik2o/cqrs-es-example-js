@@ -38,6 +38,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@apollo/server": "^4.10.0",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "@aws-sdk/client-dynamodb-streams": "^3.413.0",
     "@hono/node-server": "^1.8.1",

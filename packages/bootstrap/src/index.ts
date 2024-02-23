@@ -16,7 +16,7 @@ async function main() {
 
   switch (argv._[0]) {
     case "writeApi":
-      writeApiMain();
+      await writeApiMain();
       break;
     case "readApi":
       await readApiMain();
