@@ -7,7 +7,7 @@
 
 ## Overview
 
-This is an example of CQRS/Event Sourcing implemented in TypeScript.
+This is an example of CQRS/Event Sourcing and GraphQL implemented in TypeScript.
 
 This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) for Event Sourcing.
 
@@ -32,7 +32,7 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 - Read Model Updater
   - Lambda to build read models based on journals
 - Read API Server
-  - implemented by GraphQL (Query, Subscription)
+  - API is implemented by GraphQL (Query)
 
 ### System Architecture Diagram
 
