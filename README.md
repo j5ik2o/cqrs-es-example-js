@@ -34,7 +34,6 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
   - Lambda to build read models based on journals
 - Read API Server
   - API is implemented by GraphQL (Query)
-  - Resolvers is implemented by [MichalLytek/typegraphql-prisma](https://github.com/MichalLytek/typegraphql-prisma)
   - GraphQL Server is [apollographql/apollo-server](https://github.com/apollographql/apollo-server), GraphQL Schema tool is [MichalLytek/type-graphql](https://github.com/MichalLytek/type-graphql), ORM is [prisma](https://github.com/prisma/prisma)
 
 ### System Architecture Diagram
