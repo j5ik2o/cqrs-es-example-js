@@ -274,6 +274,9 @@ importers:
       tslib:
         specifier: ^2.6.2
         version: 2.6.2
+      tslog:
+        specifier: ^4.9.2
+        version: 4.9.2
       type-graphql:
         specifier: 2.0.0-beta.6
         version: 2.0.0-beta.6(graphql-scalars@1.22.4)(graphql@16.8.1)
@@ -332,6 +335,9 @@ importers:
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
+      tslog:
+        specifier: ^4.9.2
+        version: 4.9.2
       ulidx:
         specifier: ^2.3.0
         version: 2.3.0
@@ -411,6 +417,9 @@ importers:
       tslib:
         specifier: ^2.6.2
         version: 2.6.2
+      tslog:
+        specifier: ^4.9.2
+        version: 4.9.2
       type-graphql:
         specifier: 2.0.0-beta.6
         version: 2.0.0-beta.6(graphql-scalars@1.22.4)(graphql@16.8.1)
@@ -487,6 +496,9 @@ importers:
       moment:
         specifier: ^2.29.4
         version: 2.30.1
+      tslog:
+        specifier: ^4.9.2
+        version: 4.9.2
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.134

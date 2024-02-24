@@ -38,6 +38,7 @@
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "fp-ts": "^2.16.2",
-    "ulidx": "^2.3.0"
+    "ulidx": "^2.3.0",
+    "tslog": "^4.9.2"
   }
 }

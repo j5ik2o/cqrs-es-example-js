@@ -107,7 +107,7 @@ async function writeApiMain() {
     }),
     listen: { host: apiHost, port: apiPort },
   });
-  console.log(`🚀 Server ready at ${url}`);
+  logger.info(`🚀 Server ready at ${url}`);
 }
 
 export { writeApiMain };

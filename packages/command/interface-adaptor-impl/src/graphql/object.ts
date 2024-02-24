@@ -1,13 +1,13 @@
 import { Field, ObjectType } from "type-graphql";
 
 @ObjectType()
-export class GroupChatResult {
+class GroupChatResult {
   @Field()
   groupChatId!: string;
 }
 
 @ObjectType()
-export class MessageResult {
+class MessageResult {
   @Field()
   groupChatId!: string;
   @Field()
@@ -15,7 +15,9 @@ export class MessageResult {
 }
 
 @ObjectType()
-export class HealthCheckResult {
+class HealthCheckResult {
   @Field()
   value!: string;
 }
+
+export { GroupChatResult, MessageResult, HealthCheckResult };

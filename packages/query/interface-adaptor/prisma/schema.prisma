@@ -2,10 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator typegraphql {
-  provider = "typegraphql-prisma"
-}
-
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")

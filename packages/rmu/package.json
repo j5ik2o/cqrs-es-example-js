@@ -44,6 +44,7 @@
     "cqrs-es-example-js-command-domain": "workspace:*",
     "event-store-adapter-js": "2.0.23",
     "fp-ts": "^2.16.2",
-    "moment": "^2.29.4"
+    "moment": "^2.29.4",
+    "tslog": "^4.9.2"
   }
 }

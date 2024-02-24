@@ -43,21 +43,33 @@ interface GroupChatDao {
 const GroupChatDao = {
   of(prismaClient: PrismaClient): GroupChatDao {
     return {
-      insertGroupChat: async (
+      async insertGroupChat(
         aggregateId: GroupChatId,
         name: GroupChatName,
         administratorId: UserAccountId,
         createdAt: Date,
-      ) => {
-        await prismaClient.groupChats.create({
-          data: {
-            id: aggregateId.asString(),
-            disabled: false,
-            name: name.asString(),
-            ownerId: administratorId.asString(),
-            createdAt: createdAt,
-            updatedAt: createdAt,
-          },
+      ) {
+        return await prismaClient.$transaction(async (_prismaClient) => {
+          await _prismaClient.groupChats.create({
+            data: {
+              id: aggregateId.asString(),
+              disabled: false,
+              name: name.asString(),
+              ownerId: administratorId.asString(),
+              createdAt: createdAt,
+              updatedAt: createdAt,
+            },
+          });
+          await _prismaClient.members.create({
+            data: {
+              id: MemberId.generate().asString(),
+              groupChatId: aggregateId.asString(),
+              userAccountId: administratorId.asString(),
+              role: "administrator",
+              createdAt: createdAt,
+              updatedAt: createdAt,
+            },
+          });
         });
       },
       deleteGroupChat: async (aggregateId: GroupChatId, createdAt: Date) => {

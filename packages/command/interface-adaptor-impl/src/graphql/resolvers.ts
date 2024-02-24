@@ -31,7 +31,7 @@ interface CommandContext {
 }
 
 @Resolver(() => GroupChatResult)
-class GroupChatResolver {
+class GroupChatCommandResolver {
   @Query(() => HealthCheckResult)
   async healthCheck(): Promise<HealthCheckResult> {
     return { value: "OK" };
@@ -262,4 +262,4 @@ class GroupChatResolver {
   }
 }
 
-export { CommandContext, GroupChatResolver };
+export { CommandContext, GroupChatCommandResolver };

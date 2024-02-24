@@ -1,2 +1,2 @@
 export * from "./repository";
-export * from "./resolver";
+export * from "./graphql";
