@@ -15,7 +15,7 @@ import {
   GroupChatMessagePosted,
   GroupChatMessagePostedTypeSymbol,
   GroupChatRenamed,
-  GroupChatRenamedTypeSymbol,
+  GroupChatRenamedTypeSymbol, MemberId,
 } from "cqrs-es-example-js-command-domain";
 // import {Callback} from "aws-lambda/handler";
 
@@ -64,6 +64,9 @@ const ReadModelUpdater = {
                 new Date(),
               );
               console.log("inserted group chat");
+              const memberId = MemberId.generate();
+              groupChatDao.insertGroupChatMember(memberId,typedEvent.aggregateId, typedEvent.members.values[0].userAccountId, "administrator", new Date());
+              console.log("inserted member");
               break;
             }
             case GroupChatDeletedTypeSymbol: {
