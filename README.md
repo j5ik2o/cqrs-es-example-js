@@ -48,7 +48,7 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 #### Build the image
 
 ```shell
-$ pnpm docker-compose-build
+$ pnpm docker-build
 ```
 
 #### Starting Services

@@ -11,6 +11,3 @@ async function createCommandSchema(): Promise<GraphQLSchema> {
 }
 
 export { createCommandSchema };
-export * from "./inputs";
-export * from "./object";
-export * from "./resolvers";
