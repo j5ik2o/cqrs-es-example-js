@@ -27,7 +27,8 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 ### Component Composition
 
 - Write API Server
-  - implemented by GraphQL (Mutation)
+  - API is implemented by GraphQL (Mutation)
+  - Event Sourced Aggregate is implemented by [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js)
 - Read Model Updater
   - Lambda to build read models based on journals
 - Read API Server
