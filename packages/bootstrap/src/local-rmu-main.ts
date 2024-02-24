@@ -82,7 +82,14 @@ async function localRmuMain() {
     dynamodbStreamsClient = new DynamoDBStreamsClient();
   }
 
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    log: [{ level: "query", emit: "event" }],
+  });
+  prisma.$on("query", async (e) => {
+    logger.info("Query: " + e.query);
+    logger.info("Params: " + e.params);
+    logger.info("Duration: " + e.duration + "ms");
+  });
   const dao = GroupChatDao.of(prisma);
   const readModelUpdater = ReadModelUpdater.of(dao);
 

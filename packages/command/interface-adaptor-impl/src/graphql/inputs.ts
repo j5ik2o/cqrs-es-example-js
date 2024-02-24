@@ -1,7 +1,7 @@
 import { Field, InputType } from "type-graphql";
 
 @InputType()
-export class CreateGroupChatInput {
+class CreateGroupChatInput {
   @Field()
   name!: string;
 
@@ -10,7 +10,7 @@ export class CreateGroupChatInput {
 }
 
 @InputType()
-export class DeleteGroupChatInput {
+class DeleteGroupChatInput {
   @Field()
   groupChatId!: string;
 
@@ -19,7 +19,7 @@ export class DeleteGroupChatInput {
 }
 
 @InputType()
-export class RenameGroupChatInput {
+class RenameGroupChatInput {
   @Field()
   groupChatId!: string;
 
@@ -46,7 +46,7 @@ export class AddMemberInput {
 }
 
 @InputType()
-export class RemoveMemberInput {
+class RemoveMemberInput {
   @Field()
   groupChatId!: string;
 
@@ -58,7 +58,7 @@ export class RemoveMemberInput {
 }
 
 @InputType()
-export class PostMessageInput {
+class PostMessageInput {
   @Field()
   groupChatId!: string;
 
@@ -70,7 +70,7 @@ export class PostMessageInput {
 }
 
 @InputType()
-export class DeleteMessageInput {
+class DeleteMessageInput {
   @Field()
   groupChatId!: string;
 
@@ -80,3 +80,12 @@ export class DeleteMessageInput {
   @Field()
   executorId!: string;
 }
+
+export {
+  CreateGroupChatInput,
+  DeleteGroupChatInput,
+  RenameGroupChatInput,
+  RemoveMemberInput,
+  PostMessageInput,
+  DeleteMessageInput,
+};

@@ -27,4 +27,4 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch(logger.error);

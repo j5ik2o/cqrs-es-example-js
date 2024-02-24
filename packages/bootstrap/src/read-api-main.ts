@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { logger } from "./index";
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
+import { QueryContext } from "cqrs-es-example-js-query-interface-adaptor";
 
 interface MyContext {
   prisma: PrismaClient;
@@ -23,15 +24,22 @@ async function readApiMain() {
   logger.info(`API_PORT: ${apiPort}`);
   logger.info(`DATABASE_URL: ${DATABASE_URL}`);
 
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    log: [{ level: "query", emit: "event" }],
+  });
+  prisma.$on("query", async (e) => {
+    logger.info("Query: " + e.query);
+    logger.info("Params: " + e.params);
+    logger.info("Duration: " + e.duration + "ms");
+  });
 
   const schema = await createQuerySchema();
-  const server = new ApolloServer<MyContext>({ schema });
+  const server = new ApolloServer<QueryContext>({ schema });
   const { url } = await startStandaloneServer(server, {
     context: async (): Promise<MyContext> => ({ prisma }),
     listen: { host: apiHost, port: apiPort },
   });
-  console.log(`🚀 Server ready at ${url}`);
+  logger.info(`🚀 Server ready at ${url}`);
 }
 
 export { readApiMain };
