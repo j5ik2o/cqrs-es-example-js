@@ -50,7 +50,7 @@
     "cqrs-es-example-js-command-use-case": "workspace:*",
     "cqrs-es-example-js-query-interface-adaptor": "workspace:*",
     "cqrs-es-example-js-rmu": "workspace:*",
-    "event-store-adapter-js": "2.0.22",
+    "event-store-adapter-js": "2.0.23",
     "express": "^4.18.2",
     "fp-ts": "^2.16.2",
     "graphql-yoga": "^5.1.1",
