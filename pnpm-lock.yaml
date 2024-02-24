@@ -23,8 +23,8 @@ importers:
         specifier: ^1.8.1
         version: 1.8.1
       '@prisma/client':
-        specifier: ^5.10.1
-        version: 5.10.1
+        specifier: ^5.10.2
+        version: 5.10.2(prisma@5.10.2)
       aws-lambda:
         specifier: ^1.0.7
         version: 1.0.7
@@ -2150,17 +2150,6 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
-
-  /@prisma/client@5.10.1:
-    resolution: {integrity: sha512-4R8Vp6sSwVJSnOxw8WU1WSLqE/G3WJy1xA05XvW87cINoB1hEY7endw5Ppy6TrIBCCtHQim2lqfHkbPvv+i7bQ==}
-    engines: {node: '>=16.13'}
-    requiresBuild: true
-    peerDependencies:
-      prisma: '*'
-    peerDependenciesMeta:
-      prisma:
-        optional: true
-    dev: false
 
   /@prisma/client@5.10.2(prisma@5.10.2):
     resolution: {integrity: sha512-ef49hzB2yJZCvM5gFHMxSFL9KYrIP9udpT5rYo0CsHD4P9IKj473MbhU1gjKKftiwWBTIyrt9jukprzZXazyag==}
