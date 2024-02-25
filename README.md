@@ -55,7 +55,7 @@ $ pnpm docker-build
 #### Starting Services
 
 ```shell
-$ ｐnpm docker-compose-up
+$ pnpm docker-compose-up
 ./tools/scripts/docker-compose-up.sh
 ARCH=arm64
  Container read-api-server-1  Stopping
