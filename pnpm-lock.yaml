@@ -47,8 +47,8 @@ importers:
         specifier: workspace:*
         version: link:../rmu
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       express:
         specifier: ^4.18.2
         version: 4.18.2
@@ -123,8 +123,8 @@ importers:
   packages/command/domain:
     dependencies:
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -184,8 +184,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -251,8 +251,8 @@ importers:
         specifier: workspace:*
         version: link:../use-case
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -330,8 +330,8 @@ importers:
         specifier: workspace:*
         version: link:../interface-adaptor-if
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -397,8 +397,8 @@ importers:
         specifier: ^2.1459.0
         version: 2.1559.0
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -488,8 +488,8 @@ importers:
         specifier: workspace:*
         version: link:../command/domain
       event-store-adapter-js:
-        specifier: 2.0.23
-        version: 2.0.23
+        specifier: 2.0.24
+        version: 2.0.24
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -4064,8 +4064,8 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /event-store-adapter-js@2.0.23:
-    resolution: {integrity: sha512-Ppa7lnFPJQpxEpkQkkAHfMZ/LL92uZ1/ZVV+DMDS4CiiZr2GkILsKCCVapAeDYnyRYmyfUrewWA+cUlW55KR4A==}
+  /event-store-adapter-js@2.0.24:
+    resolution: {integrity: sha512-qjuu5pKWf9QQZyG7ZrL2IqwCyQfao9HC1xw55CTdCYguBjgS51xvlV+uWldsmdhtgqw6K/NXJf8y18f31nG0yw==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.515.0
       aws-sdk: 2.1559.0
