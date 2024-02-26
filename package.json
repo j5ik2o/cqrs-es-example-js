@@ -10,7 +10,7 @@
     "docker-compose-up": "./tools/scripts/docker-compose-up.sh",
     "docker-compose-down": "./tools/scripts/docker-compose-down.sh",
     "create-group-chat": "./tools/scripts/curl-create-group-chat.sh",
-    "verify-group-chat": "./tools/scripts/verify-group-chat.sh",
+    "verify-group-chat": "./tools/e2e-test/verify-group-chat.sh",
     "build": "turbo build",
     "test": "turbo test",
     "fix": "turbo fix",
