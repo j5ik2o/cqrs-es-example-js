@@ -16,7 +16,7 @@ import {
   TestContainer,
   Wait,
 } from "testcontainers";
-import { EventStoreForDynamoDB } from "event-store-adapter-js/dist/internal/event-store-for-dynamodb";
+import { EventStore, EventStoreFactory } from "event-store-adapter-js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   createDynamoDBClient,
@@ -34,7 +34,7 @@ describe("GroupChatRepository", () => {
 
   let container: TestContainer;
   let startedContainer: StartedTestContainer;
-  let eventStore: EventStoreForDynamoDB<GroupChatId, GroupChat, GroupChatEvent>;
+  let eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent>;
 
   const JOURNAL_TABLE_NAME = "journal";
   const SNAPSHOT_TABLE_NAME = "snapshot";
@@ -43,8 +43,8 @@ describe("GroupChatRepository", () => {
 
   function createEventStore(
     dynamodbClient: DynamoDBClient,
-  ): EventStoreForDynamoDB<GroupChatId, GroupChat, GroupChatEvent> {
-    return new EventStoreForDynamoDB<GroupChatId, GroupChat, GroupChatEvent>(
+  ): EventStore<GroupChatId, GroupChat, GroupChatEvent> {
+    return EventStoreFactory.ofDynamoDB<GroupChatId, GroupChat, GroupChatEvent>(
       dynamodbClient,
       JOURNAL_TABLE_NAME,
       SNAPSHOT_TABLE_NAME,
