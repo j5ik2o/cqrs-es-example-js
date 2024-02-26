@@ -19,10 +19,35 @@ import {
 } from "cqrs-es-example-js-command-domain";
 import * as E from "fp-ts/Either";
 import { GroupChatResult, HealthCheckResult, MessageResult } from "./object";
+import { GraphQLError } from "graphql/error";
 
-export class ValidationException extends Error {
+class ValidationError extends GraphQLError {
   constructor(message: string) {
-    super(message);
+    super(message, {
+      extensions: {
+        code: "400",
+      },
+    });
+  }
+}
+
+class OptimisticLockingError extends GraphQLError {
+  constructor(message: string) {
+    super(message, {
+      extensions: {
+        code: "409",
+      },
+    });
+  }
+}
+
+class InternalServerError extends GraphQLError {
+  constructor(message: string) {
+    super(message, {
+      extensions: {
+        code: "500",
+      },
+    });
   }
 }
 
@@ -44,22 +69,31 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatResult> {
     const nameEither = GroupChatName.validate(input.name);
     if (E.isLeft(nameEither)) {
-      throw new ValidationException(nameEither.left);
+      throw new ValidationError(nameEither.left);
     }
     const name = nameEither.right;
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
 
-    const groupChatEvent = await groupChatCommandProcessor.createGroupChat(
-      name,
-      executorId,
-    );
-
-    return { groupChatId: groupChatEvent.aggregateId.asString() };
+    try {
+      const groupChatEvent = await groupChatCommandProcessor.createGroupChat(
+        name,
+        executorId,
+      );
+      return { groupChatId: groupChatEvent.aggregateId.asString() };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Mutation(() => GroupChatResult)
@@ -69,22 +103,31 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatResult> {
     const groupChatIdEither = GroupChatId.validate(input.groupChatId);
     if (E.isLeft(groupChatIdEither)) {
-      throw new ValidationException(groupChatIdEither.left);
+      throw new ValidationError(groupChatIdEither.left);
     }
     const groupChatId = groupChatIdEither.right;
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
 
-    const groupChatEvent = await groupChatCommandProcessor.deleteGroupChat(
-      groupChatId,
-      executorId,
-    );
-
-    return { groupChatId: groupChatEvent.aggregateId.asString() };
+    try {
+      const groupChatEvent = await groupChatCommandProcessor.deleteGroupChat(
+        groupChatId,
+        executorId,
+      );
+      return { groupChatId: groupChatEvent.aggregateId.asString() };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Mutation(() => GroupChatResult)
@@ -94,29 +137,38 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatResult> {
     const groupChatIdEither = GroupChatId.validate(input.groupChatId);
     if (E.isLeft(groupChatIdEither)) {
-      throw new ValidationException(groupChatIdEither.left);
+      throw new ValidationError(groupChatIdEither.left);
     }
     const groupChatId = groupChatIdEither.right;
 
     const nameEither = GroupChatName.validate(input.name);
     if (E.isLeft(nameEither)) {
-      throw new ValidationException(nameEither.left);
+      throw new ValidationError(nameEither.left);
     }
     const name = nameEither.right;
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
 
-    const groupChatEvent = await groupChatCommandProcessor.renameGroupChat(
-      groupChatId,
-      name,
-      executorId,
-    );
-
-    return { groupChatId: groupChatEvent.aggregateId.asString() };
+    try {
+      const groupChatEvent = await groupChatCommandProcessor.renameGroupChat(
+        groupChatId,
+        name,
+        executorId,
+      );
+      return { groupChatId: groupChatEvent.aggregateId.asString() };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Mutation(() => GroupChatResult)
@@ -126,13 +178,13 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatResult> {
     const groupChatIdEither = GroupChatId.validate(input.groupChatId);
     if (E.isLeft(groupChatIdEither)) {
-      throw new ValidationException(groupChatIdEither.left);
+      throw new ValidationError(groupChatIdEither.left);
     }
     const groupChatId = groupChatIdEither.right;
 
     const userAccountIdEither = UserAccountId.validate(input.userAccountId);
     if (E.isLeft(userAccountIdEither)) {
-      throw new ValidationException(userAccountIdEither.left);
+      throw new ValidationError(userAccountIdEither.left);
     }
     const userAccountId = userAccountIdEither.right;
 
@@ -140,18 +192,28 @@ class GroupChatCommandResolver {
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
 
-    const groupChatEvent = await groupChatCommandProcessor.addMemberToGroupChat(
-      groupChatId,
-      userAccountId,
-      role,
-      executorId,
-    );
-
-    return { groupChatId: groupChatEvent.aggregateId.asString() };
+    try {
+      const groupChatEvent =
+        await groupChatCommandProcessor.addMemberToGroupChat(
+          groupChatId,
+          userAccountId,
+          role,
+          executorId,
+        );
+      return { groupChatId: groupChatEvent.aggregateId.asString() };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Mutation(() => GroupChatResult)
@@ -161,30 +223,38 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatResult> {
     const groupChatIdEither = GroupChatId.validate(input.groupChatId);
     if (E.isLeft(groupChatIdEither)) {
-      throw new ValidationException(groupChatIdEither.left);
+      throw new ValidationError(groupChatIdEither.left);
     }
     const groupChatId = groupChatIdEither.right;
 
     const userAccountIdEither = UserAccountId.validate(input.userAccountId);
     if (E.isLeft(userAccountIdEither)) {
-      throw new ValidationException(userAccountIdEither.left);
+      throw new ValidationError(userAccountIdEither.left);
     }
     const userAccountId = userAccountIdEither.right;
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
-
-    const groupChatEvent =
-      await groupChatCommandProcessor.removeMemberFromGroupChat(
-        groupChatId,
-        userAccountId,
-        executorId,
-      );
-
-    return { groupChatId: groupChatEvent.aggregateId.asString() };
+    try {
+      const groupChatEvent =
+        await groupChatCommandProcessor.removeMemberFromGroupChat(
+          groupChatId,
+          userAccountId,
+          executorId,
+        );
+      return { groupChatId: groupChatEvent.aggregateId.asString() };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Mutation(() => MessageResult)
@@ -194,13 +264,13 @@ class GroupChatCommandResolver {
   ): Promise<MessageResult> {
     const groupChatIdEither = GroupChatId.validate(input.groupChatId);
     if (E.isLeft(groupChatIdEither)) {
-      throw new ValidationException(groupChatIdEither.left);
+      throw new ValidationError(groupChatIdEither.left);
     }
     const groupChatId = groupChatIdEither.right;
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
 
@@ -211,21 +281,30 @@ class GroupChatCommandResolver {
       new Date(),
     );
     if (E.isLeft(messageEither)) {
-      throw new ValidationException(messageEither.left);
+      throw new ValidationError(messageEither.left);
     }
     const message = messageEither.right;
 
-    const groupChatEvent =
-      await groupChatCommandProcessor.postMessageToGroupChat(
-        groupChatId,
-        message,
-        executorId,
-      );
-
-    return {
-      groupChatId: groupChatEvent.aggregateId.asString(),
-      messageId: message.id.asString(),
-    };
+    try {
+      const groupChatEvent =
+        await groupChatCommandProcessor.postMessageToGroupChat(
+          groupChatId,
+          message,
+          executorId,
+        );
+      return {
+        groupChatId: groupChatEvent.aggregateId.asString(),
+        messageId: message.id.asString(),
+      };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Mutation(() => GroupChatResult)
@@ -235,31 +314,46 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatResult> {
     const groupChatIdEither = GroupChatId.validate(input.groupChatId);
     if (E.isLeft(groupChatIdEither)) {
-      throw new ValidationException(groupChatIdEither.left);
+      throw new ValidationError(groupChatIdEither.left);
     }
     const groupChatId = groupChatIdEither.right;
 
     const messageIdEither = MessageId.validate(input.messageId);
     if (E.isLeft(messageIdEither)) {
-      throw new ValidationException(messageIdEither.left);
+      throw new ValidationError(messageIdEither.left);
     }
     const messageId = messageIdEither.right;
 
     const executorIdEither = UserAccountId.validate(input.executorId);
     if (E.isLeft(executorIdEither)) {
-      throw new ValidationException(executorIdEither.left);
+      throw new ValidationError(executorIdEither.left);
     }
     const executorId = executorIdEither.right;
 
-    const groupChatEvent =
-      await groupChatCommandProcessor.deleteMessageFromGroupChat(
-        groupChatId,
-        messageId,
-        executorId,
-      );
-
-    return { groupChatId: groupChatEvent.aggregateId.asString() };
+    try {
+      const groupChatEvent =
+        await groupChatCommandProcessor.deleteMessageFromGroupChat(
+          groupChatId,
+          messageId,
+          executorId,
+        );
+      return { groupChatId: groupChatEvent.aggregateId.asString() };
+    } catch (e) {
+      if (e instanceof OptimisticLockingError) {
+        throw new OptimisticLockingError(e.message);
+      } else if (e instanceof Error) {
+        throw new InternalServerError(e.message);
+      } else {
+        throw e;
+      }
+    }
   }
 }
 
-export { CommandContext, GroupChatCommandResolver };
+export {
+  CommandContext,
+  GroupChatCommandResolver,
+  ValidationError,
+  OptimisticLockingError,
+  InternalServerError,
+};
