@@ -46,6 +46,12 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 
 ### Local Environment
 
+#### Prepare
+
+```shell
+$ pnpm install
+```
+
 #### Build the image
 
 ```shell
