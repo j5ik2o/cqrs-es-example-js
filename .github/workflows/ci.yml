@@ -41,7 +41,31 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install -g turbo
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma:generate
-      - run: pnpm run test
+      - run: |
+          pnpm install -g turbo
+          pnpm install
+          pnpm prisma:generate
+          pnpm run test
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      TEST_TIME_FACTOR: 10.0
+    strategy:
+      matrix:
+        node-version: [20.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: |
+          pnpm docker-build-e2e-test
+          pnpm docker-build
+          pnpm docker-compose-e2e-test

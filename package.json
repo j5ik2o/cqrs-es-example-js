@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "docker-build-e2e-test": "cd tools/e2e-test && make build",
     "docker-build": "docker build -t cqrs-es-example-js .",
+    "docker-compose-e2e-test": "./tools/scripts/docker-compose-e2e-test.sh",
     "docker-compose-up": "./tools/scripts/docker-compose-up.sh",
     "docker-compose-down": "./tools/scripts/docker-compose-down.sh",
     "create-group-chat": "./tools/scripts/curl-create-group-chat.sh",
