@@ -93,6 +93,4 @@ GroupChat:
 
 ## Links
 
-- [Rust Version](https://github.com/j5ik2o/cqrs-es-example-rs)
-- [Go Version](https://github.com/j5ik2o/cqrs-es-example-go)
-- [Common Documents](https://github.com/j5ik2o/cqrs-es-example-docs)
+- [Common Documents](https://github.com/j5ik2o/cqrs-es-example)
