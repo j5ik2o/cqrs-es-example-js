@@ -10,7 +10,7 @@ services:
       AWS_REGION: ${AWS_REGION}
       API_HOST: "0.0.0.0"
       API_PORT: 3000
-      API_ALLOW_ORIGINS: "http://localhost:28080,http://localhost:28082,http://localhost:8888"
+      API_ALLOW_ORIGINS: "http://localhost:38080,http://localhost:38082,http://localhost:8888"
       PERSISTENCE_JOURNAL_TABLE_NAME: journal
       PERSISTENCE_JOURNAL_AID_INDEX_NAME: journal-aid-index
       PERSISTENCE_SNAPSHOT_TABLE_NAME: snapshot
@@ -52,12 +52,12 @@ services:
     image: cqrs-es-example-js:latest
     container_name: read-api-server-js-1
     ports:
-      - 38082:8080
+      - 38082:3000
     environment:
       AWS_REGION: ${AWS_REGION}
       API_HOST: "0.0.0.0"
-      API_PORT: 8080
-      API_ALLOW_ORIGINS: "http://localhost:28080,http://localhost:18082,http://localhost:8888"
+      API_PORT: 3000
+      API_ALLOW_ORIGINS: "http://localhost:38080,http://localhost:38082,http://localhost:8888"
       DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
     depends_on:
       - mysql
