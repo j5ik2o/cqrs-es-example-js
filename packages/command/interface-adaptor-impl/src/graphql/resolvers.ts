@@ -106,12 +106,12 @@ class GroupChatCommandResolver {
           })),
         ),
       ),
-      TE.chainW(({ validatedName, validatedExecutorId }) => {
-        return groupChatCommandProcessor.createGroupChat(
+      TE.chainW(({ validatedName, validatedExecutorId }) =>
+        groupChatCommandProcessor.createGroupChat(
           validatedName,
           validatedExecutorId,
-        );
-      }),
+        ),
+      ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
@@ -137,12 +137,12 @@ class GroupChatCommandResolver {
           })),
         ),
       ),
-      TE.chainW(({ validateGroupChatId, validatedExecutorId }) => {
-        return groupChatCommandProcessor.deleteGroupChat(
+      TE.chainW(({ validateGroupChatId, validatedExecutorId }) =>
+        groupChatCommandProcessor.deleteGroupChat(
           validateGroupChatId,
           validatedExecutorId,
-        );
-      }),
+        ),
+      ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
@@ -185,13 +185,12 @@ class GroupChatCommandResolver {
           validateGroupChatId,
           validatedGroupChatName,
           validatedExecutorId,
-        }) => {
-          return groupChatCommandProcessor.renameGroupChat(
+        }) =>
+          groupChatCommandProcessor.renameGroupChat(
             validateGroupChatId,
             validatedGroupChatName,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
@@ -248,14 +247,13 @@ class GroupChatCommandResolver {
           validatedUserAccountId,
           validatedRole,
           validatedExecutorId,
-        }) => {
-          return groupChatCommandProcessor.addMemberToGroupChat(
+        }) =>
+          groupChatCommandProcessor.addMemberToGroupChat(
             validateGroupChatId,
             validatedUserAccountId,
             validatedRole,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
@@ -299,13 +297,12 @@ class GroupChatCommandResolver {
           validateGroupChatId,
           validatedUserAccountId,
           validatedExecutorId,
-        }) => {
-          return groupChatCommandProcessor.removeMemberFromGroupChat(
+        }) =>
+          groupChatCommandProcessor.removeMemberFromGroupChat(
             validateGroupChatId,
             validatedUserAccountId,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
@@ -399,13 +396,12 @@ class GroupChatCommandResolver {
         ),
       ),
       TE.chainW(
-        ({ validateGroupChatId, validatedMessageId, validatedExecutorId }) => {
-          return groupChatCommandProcessor.deleteMessageFromGroupChat(
+        ({ validateGroupChatId, validatedMessageId, validatedExecutorId }) =>
+          groupChatCommandProcessor.deleteMessageFromGroupChat(
             validateGroupChatId,
             validatedMessageId,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
