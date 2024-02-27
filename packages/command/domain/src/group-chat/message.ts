@@ -1,5 +1,5 @@
-import { UserAccountId } from "../user-account";
-import { MessageId } from "./message-id";
+import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
+import { convertJSONToMessageId, MessageId } from "./message-id";
 import * as E from "fp-ts/lib/Either";
 
 const MessageTypeSymbol = Symbol("Message");
@@ -21,6 +21,16 @@ class Message {
     this.senderId = params.senderId;
     this.sentAt = params.sentAt;
   }
+
+  toJSON() {
+    return {
+      id: this.id.toJSON(),
+      content: this.content,
+      senderId: this.senderId.toJSON(),
+      sentAt: this.sentAt.toISOString(),
+    };
+  }
+
   toString() {
     return `Message(${this.id.toString()}, ${this.content}, ${this.senderId.toString()}, ${this.sentAt.toISOString()})`;
   }
@@ -57,18 +67,18 @@ class Message {
   ): Message {
     return new Message({ id, content, senderId, sentAt });
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToMessage(json: any): Message {
-    const id = MessageId.convertJSONToMessageId(json.id);
-    const senderId = UserAccountId.convertJSONToUserAccountId(json.senderId);
-    return new Message({
-      id,
-      content: json.content,
-      senderId,
-      sentAt: new Date(json.sentAt),
-    });
-  }
 }
 
-export { Message, MessageTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMessage(json: any): Message {
+  const id = convertJSONToMessageId(json.id);
+  const senderId = convertJSONToUserAccountId(json.senderId);
+  return new Message({
+    id,
+    content: json.content,
+    senderId,
+    sentAt: new Date(json.sentAt),
+  });
+}
+
+export { Message, MessageTypeSymbol, convertJSONToMessage };

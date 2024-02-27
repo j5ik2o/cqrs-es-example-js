@@ -1,6 +1,6 @@
-import { GroupChatId } from "./group-chat-id";
-import { GroupChatName } from "./group-chat-name";
-import { Members } from "./members";
+import { convertJSONToGroupChatId, GroupChatId } from "./group-chat-id";
+import { convertJSONToGroupChatName, GroupChatName } from "./group-chat-name";
+import { convertJSONToMembers, Members } from "./members";
 import {
   GroupChatCreated,
   GroupChatDeleted,
@@ -30,7 +30,7 @@ import {
   GroupChatRenameError,
 } from "./group-chat-errors";
 import { Message } from "./message";
-import { Messages } from "./messages";
+import { convertJSONToMessages, Messages } from "./messages";
 import { MessageId } from "./message-id";
 import { Aggregate } from "event-store-adapter-js";
 import { MemberId } from "./member-id";
@@ -66,6 +66,18 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     this.messages = params.messages;
     this.sequenceNumber = params.sequenceNumber;
     this.version = params.version;
+  }
+
+  toJSON() {
+    return {
+      id: this.id.toJSON(),
+      deleted: this.deleted,
+      name: this.name.toJSON(),
+      members: this.members.toJSON(),
+      messages: this.messages.toJSON(),
+      sequenceNumber: this.sequenceNumber,
+      version: this.version,
+    };
   }
 
   rename(
@@ -398,23 +410,28 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       snapshot,
     );
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToGroupChat(json: any): GroupChat {
-    // console.log("convertJSONToGroupChat = ", obj);
-    const id = GroupChatId.convertJSONToGroupChatId(json.data.id);
-    const name = GroupChatName.convertJSONToGroupChatName(json.data.name);
-    const members = Members.convertJSONToMembers(json.data.members);
-    const messages = Messages.convertJSONToMessages(json.data.messages);
-    return new GroupChat({
-      id,
-      deleted: false,
-      name,
-      members,
-      messages,
-      sequenceNumber: json.data.sequenceNumber,
-      version: json.data.version,
-    });
+
+  static of(params: GroupChatParams): GroupChat {
+    return new GroupChat(params);
   }
 }
 
-export { GroupChat, GroupChatTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToGroupChat(json: any): GroupChat {
+  console.log("convertJSONToGroupChat = ", JSON.stringify(json, null, 2));
+  const id = convertJSONToGroupChatId(json.data.id);
+  const name = convertJSONToGroupChatName(json.data.name);
+  const members = convertJSONToMembers(json.data.members);
+  const messages = convertJSONToMessages(json.data.messages);
+  return GroupChat.of({
+    id,
+    deleted: false,
+    name,
+    members,
+    messages,
+    sequenceNumber: json.data.sequenceNumber,
+    version: json.data.version,
+  });
+}
+
+export { GroupChat, GroupChatTypeSymbol, convertJSONToGroupChat };

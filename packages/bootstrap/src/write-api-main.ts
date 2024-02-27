@@ -6,9 +6,10 @@ import {
 import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-use-case";
 import { EventStoreFactory } from "event-store-adapter-js";
 import {
+  convertJSONToGroupChat,
+  convertJSONToGroupChatEvent,
   GroupChat,
   GroupChatEvent,
-  GroupChatEventFactory,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -91,8 +92,8 @@ async function writeApiMain() {
     journalAidIndexName,
     snapshotAidIndexName,
     shardCount,
-    GroupChatEventFactory.convertJSONToGroupChatEvent,
-    GroupChat.convertJSONToGroupChat,
+    convertJSONToGroupChatEvent,
+    convertJSONToGroupChat,
   );
   const groupChatRepository = GroupChatRepositoryImpl.of(eventStore);
   const groupChatCommandProcessor =

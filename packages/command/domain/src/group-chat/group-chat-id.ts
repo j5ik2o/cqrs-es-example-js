@@ -8,38 +8,22 @@ class GroupChatId implements AggregateId {
   readonly symbol: typeof GroupChatIdTypeSymbol = GroupChatIdTypeSymbol;
   readonly typeName = GROUP_CHAT_PREFIX;
 
-  typName = "GroupChatId";
-  private readonly _value: string;
-  private constructor(value?: string) {
-    this._value = GroupChatId.initializeValue(value);
+  private constructor(public readonly value: string) {}
+
+  toJSON() {
+    return {
+      value: this.value,
+    };
   }
 
-  get value(): string {
-    return this._value;
-  }
-
-  private static initializeValue(value?: string): string {
-    if (value === undefined) {
-      return U.ulid();
-    } else {
-      const ulid = value.startsWith(GROUP_CHAT_PREFIX + "-")
-        ? value.substring(GROUP_CHAT_PREFIX.length + 1)
-        : value;
-      if (U.isValid(ulid)) {
-        return ulid;
-      } else {
-        throw new Error("Invalid group chat id");
-      }
-    }
-  }
   equals(anotherId: GroupChatId): boolean {
-    return this._value === anotherId._value;
+    return this.value === anotherId.value;
   }
   asString() {
-    return `${GROUP_CHAT_PREFIX}-${this._value}`;
+    return `${GROUP_CHAT_PREFIX}-${this.value}`;
   }
   toString() {
-    return `GroupChatId(${this._value})`;
+    return `GroupChatId(${this.value})`;
   }
 
   static validate(value: string): E.Either<string, GroupChatId> {
@@ -55,17 +39,24 @@ class GroupChatId implements AggregateId {
   }
 
   static of(value: string): GroupChatId {
-    return new GroupChatId(value);
+    const ulid = value.startsWith(GROUP_CHAT_PREFIX + "-")
+      ? value.substring(GROUP_CHAT_PREFIX.length + 1)
+      : value;
+    if (U.isValid(ulid)) {
+      return new GroupChatId(ulid);
+    } else {
+      throw new Error("Invalid group chat id");
+    }
   }
 
   static generate(): GroupChatId {
-    return new GroupChatId();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToGroupChatId(json: any): GroupChatId {
-    return GroupChatId.of(json.value);
+    return new GroupChatId(U.ulid());
   }
 }
 
-export { GroupChatId, GroupChatIdTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToGroupChatId(json: any): GroupChatId {
+  return GroupChatId.of(json.value);
+}
+
+export { GroupChatId, GroupChatIdTypeSymbol, convertJSONToGroupChatId };

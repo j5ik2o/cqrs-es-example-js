@@ -1,5 +1,5 @@
-import { UserAccountId } from "../user-account";
-import { MemberId } from "./member-id";
+import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
+import { convertJSONToMemberId, MemberId } from "./member-id";
 
 type MemberRole = "administrator" | "member";
 
@@ -22,6 +22,14 @@ class Member {
     this.id = params.id;
     this.userAccountId = params.userAccountId;
     this.memberRole = params.memberRole;
+  }
+
+  toJSON() {
+    return {
+      id: this.id.toJSON(),
+      userAccountId: this.userAccountId.toJSON(),
+      memberRole: this.memberRole,
+    };
   }
 
   isAdministrator() {
@@ -47,15 +55,13 @@ class Member {
   ): Member {
     return new Member({ id, userAccountId, memberRole });
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToMember(json: any): Member {
-    const id = MemberId.convertJSONToMemberId(json.id);
-    const userAccountId = UserAccountId.convertJSONToUserAccountId(
-      json.userAccountId,
-    );
-    return Member.of(id, userAccountId, json.memberRole);
-  }
 }
 
-export { MemberRole, Member, MemberTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMember(json: any): Member {
+  const id = convertJSONToMemberId(json.id);
+  const userAccountId = convertJSONToUserAccountId(json.userAccountId);
+  return Member.of(id, userAccountId, json.memberRole);
+}
+
+export { MemberRole, Member, MemberTypeSymbol, convertJSONToMember };

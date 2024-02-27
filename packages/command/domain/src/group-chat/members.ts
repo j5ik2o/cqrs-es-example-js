@@ -1,4 +1,4 @@
-import { Member } from "./member";
+import { convertJSONToMember, Member } from "./member";
 import { UserAccountId } from "../user-account";
 import * as O from "fp-ts/lib/Option";
 import { MemberId } from "./member-id";
@@ -7,52 +7,52 @@ const MembersTypeSymbol = Symbol("Members");
 
 class Members {
   readonly symbol: typeof MembersTypeSymbol = MembersTypeSymbol;
-  private _values: Map<string, Member>;
-  constructor(_values: Map<string, Member>) {
-    this._values = _values;
+  private constructor(public readonly values: Map<string, Member>) {
+    if (values.size === 0) {
+      throw new Error("Members cannot be empty");
+    }
   }
 
-  get values() {
-    return this.toArray();
+  toJSON() {
+    return {
+      values: this.toArray().map((m) => m.toJSON()),
+    };
   }
 
   addMember(member: Member): Members {
     return new Members(
-      new Map(this._values).set(member.userAccountId.value, member),
+      new Map(this.values).set(member.userAccountId.value, member),
     );
   }
   removeMemberById(userAccountId: UserAccountId): O.Option<[Members, Member]> {
-    const member = this._values.get(userAccountId.value);
+    const member = this.values.get(userAccountId.value);
     if (member === undefined) {
       return O.none;
     }
-    const newMap = new Map(this._values);
+    const newMap = new Map(this.values);
     newMap.delete(userAccountId.value);
     return O.some([new Members(newMap), member]);
   }
   containsById(userAccountId: UserAccountId): boolean {
-    return this._values.has(userAccountId.value);
+    return this.values.has(userAccountId.value);
   }
   isMember(userAccountId: UserAccountId): boolean {
-    const member = this._values.get(userAccountId.value);
+    const member = this.values.get(userAccountId.value);
     return member !== undefined && member.isMember();
   }
   isAdministrator(userAccountId: UserAccountId): boolean {
-    const member = this._values.get(userAccountId.value);
+    const member = this.values.get(userAccountId.value);
     return member !== undefined && member.isAdministrator();
   }
   findById(userAccountId: UserAccountId): Member | undefined {
-    return this._values.get(userAccountId.value);
+    return this.values.get(userAccountId.value);
   }
   toArray(): Member[] {
-    return Array.from(this._values.values());
+    return Array.from(this.values.values());
   }
   toMap(): Map<UserAccountId, Member> {
     return new Map(
-      Array.from(this._values, ([key, value]) => [
-        UserAccountId.of(key),
-        value,
-      ]),
+      Array.from(this.values, ([key, value]) => [UserAccountId.of(key), value]),
     );
   }
   toString() {
@@ -64,7 +64,7 @@ class Members {
       return false;
     }
     for (const [key, value] of values) {
-      const otherValue = this._values.get(key.value);
+      const otherValue = this.values.get(key.value);
       if (otherValue === undefined || !value.equals(otherValue)) {
         return false;
       }
@@ -97,15 +97,15 @@ class Members {
   static fromArray(values: Member[]): Members {
     return new Members(new Map(values.map((m) => [m.userAccountId.value, m])));
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToMembers(json: any): Members {
-    // console.log("convertJSONToMembers = ", obj);
-    return Members.fromArray(
-      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-      json.values.map((v: any) => Member.convertJSONToMember(v)),
-    );
-  }
 }
 
-export { Members, MembersTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMembers(json: any): Members {
+  // console.log("convertJSONToMembers = ", obj);
+  return Members.fromArray(
+    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    json.values.map((v: any) => convertJSONToMember(v)),
+  );
+}
+
+export { Members, MembersTypeSymbol, convertJSONToMembers };

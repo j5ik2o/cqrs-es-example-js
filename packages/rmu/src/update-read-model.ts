@@ -1,11 +1,11 @@
 import { DynamoDBStreamEvent } from "aws-lambda";
 import { GroupChatDao } from "./group-chat-dao";
 import {
+  convertJSONToGroupChatEvent,
   GroupChatCreated,
   GroupChatCreatedTypeSymbol,
   GroupChatDeleted,
   GroupChatDeletedTypeSymbol,
-  GroupChatEventFactory,
   GroupChatMemberAdded,
   GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
@@ -55,8 +55,7 @@ const ReadModelUpdater = {
             new Uint8Array(base64EncodedPayload.split(",").map(Number)),
           );
           const payloadJson = JSON.parse(payload);
-          const groupChatEvent =
-            GroupChatEventFactory.convertJSONToGroupChatEvent(payloadJson);
+          const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
           switch (groupChatEvent.symbol) {
             case GroupChatCreatedTypeSymbol: {
               const typedEvent = groupChatEvent as GroupChatCreated;
@@ -64,7 +63,7 @@ const ReadModelUpdater = {
               groupChatDao.insertGroupChat(
                 typedEvent.aggregateId,
                 typedEvent.name,
-                typedEvent.members.values[0].userAccountId,
+                typedEvent.members.toArray()[0].userAccountId,
                 new Date(),
               );
               logger.debug("inserted group chat");

@@ -4,24 +4,26 @@ const MessageIdTypeSymbol = Symbol("MessageId");
 
 class MessageId {
   readonly symbol: typeof MessageIdTypeSymbol = MessageIdTypeSymbol;
-  private readonly _value: string;
-  private constructor(value: string) {
-    if (U.isValid(value) === false) {
+  private constructor(public readonly value: string) {
+    if (!U.isValid(value)) {
       throw new Error("Invalid message id");
     }
-    this._value = value;
   }
-  get value() {
-    return this._value;
+
+  toJSON() {
+    return {
+      value: this.value,
+    };
   }
+
   asString() {
-    return this._value;
+    return this.value;
   }
   toString() {
-    return `MessageId(${this._value})`;
+    return `MessageId(${this.value})`;
   }
   equals(anotherId: MessageId): boolean {
-    return this._value === anotherId.value;
+    return this.value === anotherId.value;
   }
 
   static validate(value: string): E.Either<string, MessageId> {
@@ -41,11 +43,11 @@ class MessageId {
   static generate(): MessageId {
     return new MessageId(U.ulid());
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToMessageId(json: any): MessageId {
-    return new MessageId(json.value);
-  }
 }
 
-export { MessageId, MessageIdTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToMessageId(json: any): MessageId {
+  return MessageId.of(json.value);
+}
+
+export { MessageId, MessageIdTypeSymbol, convertJSONToMessageId };

@@ -1,4 +1,4 @@
-import { Message } from "./message";
+import { convertJSONToMessage, Message } from "./message";
 import { MessageId } from "./message-id";
 import * as O from "fp-ts/Option";
 
@@ -6,43 +6,46 @@ const MessagesTypeSymbol = Symbol("Messages");
 
 class Messages {
   readonly symbol: typeof MessagesTypeSymbol = MessagesTypeSymbol;
-  readonly _values: Map<string, Message>;
-  constructor(values: Map<string, Message>) {
-    this._values = values;
+  constructor(public readonly values: Map<string, Message>) {
+    this.values = values;
   }
-  get values() {
-    return this.toArray();
+
+  toJSON() {
+    return {
+      values: this.toArray().map((m) => m.toJSON()),
+    };
   }
+
   addMessage(message: Message) {
     return new Messages(
-      new Map(this._values).set(message.id.asString(), message),
+      new Map(this.values).set(message.id.asString(), message),
     );
   }
   removeMessageById(messageId: MessageId): O.Option<[Messages, Message]> {
-    const message = this._values.get(messageId.value);
+    const message = this.values.get(messageId.value);
     if (message === undefined) {
       return O.none;
     }
-    const newMap = new Map(this._values);
+    const newMap = new Map(this.values);
     newMap.delete(messageId.value);
     return O.some([new Messages(newMap), message]);
   }
   containsById(messageId: MessageId): boolean {
-    return this._values.has(messageId.value);
+    return this.values.has(messageId.value);
   }
   findById(messageId: MessageId): Message | undefined {
-    return this._values.get(messageId.value);
+    return this.values.get(messageId.value);
   }
   toArray(): Message[] {
-    return Array.from(this._values.values());
+    return Array.from(this.values.values());
   }
   toMap(): Map<MessageId, Message> {
     return new Map(
-      Array.from(this._values.entries()).map(([k, v]) => [MessageId.of(k), v]),
+      Array.from(this.values.entries()).map(([k, v]) => [MessageId.of(k), v]),
     );
   }
   size(): number {
-    return this._values.size;
+    return this.values.size;
   }
   toString() {
     return `Messages(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
@@ -74,14 +77,13 @@ class Messages {
       ),
     );
   }
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  static convertJSONToMessages(json: any): Messages {
-    // console.log("convertJSONToMessages = ", obj);
-    return Messages.fromArray(
-      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-      json.values.map((v: any) => Message.convertJSONToMessage(v)),
-    );
-  }
 }
-
-export { Messages, MessagesTypeSymbol };
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
+function convertJSONToMessages(json: any): Messages {
+  // console.log("convertJSONToMessages = ", obj);
+  return Messages.fromArray(
+    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    json.values.map((v: any) => convertJSONToMessage(v)),
+  );
+}
+export { Messages, MessagesTypeSymbol, convertJSONToMessages };

@@ -7,34 +7,24 @@ const UserAccountIdTypeSymbol = Symbol("UserAccountId");
 
 class UserAccountId implements AggregateId {
   readonly symbol: typeof UserAccountIdTypeSymbol = UserAccountIdTypeSymbol;
-  typeName: string = USER_ACCOUNT_PREFIX;
-  private readonly _value: string;
-  private constructor(value?: string) {
-    if (value === undefined) {
-      this._value = U.ulid();
-    } else {
-      const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
-        ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
-        : value;
-      if (U.isValid(ulid)) {
-        this._value = ulid;
-      } else {
-        throw new Error("Invalid user account id");
-      }
-    }
+  readonly typeName: string = USER_ACCOUNT_PREFIX;
+  private constructor(public readonly value: string) {}
+
+  toJSON() {
+    return {
+      value: this.value,
+    };
   }
-  get value() {
-    return this._value;
-  }
+
   asString() {
-    return `${USER_ACCOUNT_PREFIX}-${this._value}`;
+    return `${USER_ACCOUNT_PREFIX}-${this.value}`;
   }
   toString() {
-    return `UserAccountId(${this._value})`;
+    return `UserAccountId(${this.value})`;
   }
 
   equals(anotherId: UserAccountId): boolean {
-    return this._value === anotherId.value;
+    return this.value === anotherId.value;
   }
 
   static validate(value: string): E.Either<string, UserAccountId> {
@@ -49,16 +39,23 @@ class UserAccountId implements AggregateId {
     }
   }
   static of(value: string): UserAccountId {
-    return new UserAccountId(value);
+    const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
+      ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
+      : value;
+    if (U.isValid(ulid)) {
+      return new UserAccountId(ulid);
+    } else {
+      throw new Error("Invalid user account id");
+    }
   }
   static generate(): UserAccountId {
-    return new UserAccountId();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static convertJSONToUserAccountId(json: any): UserAccountId {
-    return UserAccountId.of(json.value);
+    return new UserAccountId(U.ulid());
   }
 }
 
-export { UserAccountId, UserAccountIdTypeSymbol };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertJSONToUserAccountId(json: any): UserAccountId {
+  return UserAccountId.of(json.value);
+}
+
+export { UserAccountId, UserAccountIdTypeSymbol, convertJSONToUserAccountId };
