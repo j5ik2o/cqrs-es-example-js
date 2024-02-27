@@ -19,9 +19,6 @@ importers:
       '@aws-sdk/client-dynamodb-streams':
         specifier: ^3.413.0
         version: 3.521.0
-      '@hono/node-server':
-        specifier: ^1.8.1
-        version: 1.8.2
       '@prisma/client':
         specifier: ^5.10.2
         version: 5.10.2(prisma@5.10.2)
@@ -265,9 +262,6 @@ importers:
       graphql-scalars:
         specifier: ^1.22.4
         version: 1.22.5(graphql@16.8.1)
-      hono:
-        specifier: ^4.0.4
-        version: 4.0.7
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -1810,11 +1804,6 @@ packages:
     dependencies:
       '@repeaterjs/repeater': 3.0.5
       tslib: 2.6.2
-
-  /@hono/node-server@1.8.2:
-    resolution: {integrity: sha512-h8l2TBLCPHZBUrrkosZ6L5CpBLj6zdESyF4B+zngiCDF7aZFQJ0alVbLx7jn8PCVi9EyoFf8a4hOZFi1tD95EA==}
-    engines: {node: '>=18.14.1'}
-    dev: false
 
   /@humanwhocodes/config-array@0.11.14:
     resolution: {integrity: sha512-3T8LkOmg45BV5FICb15QQMsyUSWrQ8AygVfC7ZG32zOalnqrilm018ZVCw0eapXux8FtA33q8PSRSstjee3jSg==}
