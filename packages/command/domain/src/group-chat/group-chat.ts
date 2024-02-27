@@ -113,6 +113,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     );
     return E.right([newGroupChat, event]);
   }
+
   addMember(
     userAccountId: UserAccountId,
     memberRole: MemberRole,
@@ -151,6 +152,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     );
     return E.right([newGroupChat, event]);
   }
+
   removeMemberById(
     userAccountId: UserAccountId,
     executorId: UserAccountId,
@@ -188,6 +190,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     );
     return E.right([newGroupChat, event]);
   }
+
   postMessage(
     message: Message,
     executorId: UserAccountId,
@@ -231,6 +234,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     );
     return E.right([newGroupChat, event]);
   }
+
   deleteMessage(
     messageId: MessageId,
     executorId: UserAccountId,
@@ -300,12 +304,15 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   withVersion(version: number): GroupChat {
     return new GroupChat({ ...this, version });
   }
+
   updateVersion(versionF: (value: number) => number): GroupChat {
     return new GroupChat({ ...this, version: versionF(this.version) });
   }
+
   toString() {
     return `GroupChat(${this.id.toString()}, ${this.deleted}, ${this.name.toString()}, ${this.members.toString()}, ${this.messages.toString()}, ${this.sequenceNumber}, ${this.version})`;
   }
+
   equals(other: GroupChat) {
     return (
       this.id.equals(other.id) &&
