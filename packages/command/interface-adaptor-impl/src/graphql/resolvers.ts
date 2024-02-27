@@ -24,6 +24,8 @@ import { pipe } from "fp-ts/function";
 import { ProcessError } from "cqrs-es-example-js-command-use-case/dist/group-chat/group-chat-command-processor";
 import { RepositoryError } from "cqrs-es-example-js-command-interface-adaptor-if";
 import { OptimisticLockError } from "event-store-adapter-js";
+import { TaskEither } from "fp-ts/TaskEither";
+import { Task } from "fp-ts/Task";
 
 class ValidationGraphQLError extends GraphQLError {
   constructor(message: string) {
@@ -65,14 +67,36 @@ class GroupChatCommandResolver {
   async healthCheck(): Promise<HealthCheckResult> {
     return { value: "OK" };
   }
+  private convertToError(error: string | ProcessError): Error {
+    if (typeof error === "string") {
+      return new ValidationGraphQLError(error);
+    } else if (error instanceof ProcessError) {
+      if (
+        error.cause instanceof RepositoryError &&
+        error.cause.cause instanceof OptimisticLockError
+      ) {
+        return new OptimisticLockingGraphQLError(error.message);
+      }
+      return new InternalServerGraphQLError(error.message);
+    } else {
+      return new InternalServerGraphQLError("An unknown error occurred");
+    }
+  }
 
+  private toTask<A, B>(): (_: TaskEither<A, B>) => Task<B> {
+    return TE.fold<A, B, B>(
+      (e) => () => Promise.reject(e),
+      (r) => () => Promise.resolve(r),
+    );
+  }
   @Mutation(() => GroupChatResult)
   async createGroupChat(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: CreateGroupChatInput,
   ): Promise<GroupChatResult> {
     return pipe(
-      TE.fromEither(GroupChatName.validate(input.name)),
+      GroupChatName.validate(input.name),
+      TE.fromEither,
       TE.chainW((validatedName) =>
         pipe(
           TE.fromEither(UserAccountId.validate(input.executorId)),
@@ -82,34 +106,17 @@ class GroupChatCommandResolver {
           })),
         ),
       ),
-      TE.chainW(({ validatedName, validatedExecutorId }) => {
-        return groupChatCommandProcessor.createGroupChat(
+      TE.chainW(({ validatedName, validatedExecutorId }) =>
+        groupChatCommandProcessor.createGroupChat(
           validatedName,
           validatedExecutorId,
-        );
-      }),
+        ),
+      ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 
@@ -119,7 +126,8 @@ class GroupChatCommandResolver {
     @Arg("input") input: DeleteGroupChatInput,
   ): Promise<GroupChatResult> {
     return pipe(
-      TE.fromEither(GroupChatId.validate(input.groupChatId)),
+      GroupChatId.validate(input.groupChatId),
+      TE.fromEither,
       TE.chainW((validateGroupChatId) =>
         pipe(
           TE.fromEither(UserAccountId.validate(input.executorId)),
@@ -129,34 +137,17 @@ class GroupChatCommandResolver {
           })),
         ),
       ),
-      TE.chainW(({ validateGroupChatId, validatedExecutorId }) => {
-        return groupChatCommandProcessor.deleteGroupChat(
+      TE.chainW(({ validateGroupChatId, validatedExecutorId }) =>
+        groupChatCommandProcessor.deleteGroupChat(
           validateGroupChatId,
           validatedExecutorId,
-        );
-      }),
+        ),
+      ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 
@@ -166,10 +157,12 @@ class GroupChatCommandResolver {
     @Arg("input") input: RenameGroupChatInput,
   ): Promise<GroupChatResult> {
     return pipe(
-      TE.fromEither(GroupChatId.validate(input.groupChatId)),
+      GroupChatId.validate(input.groupChatId),
+      TE.fromEither,
       TE.chainW((validateGroupChatId) =>
         pipe(
-          TE.fromEither(GroupChatName.validate(input.name)),
+          GroupChatName.validate(input.name),
+          TE.fromEither,
           TE.map((validatedGroupChatName) => ({
             validateGroupChatId,
             validatedGroupChatName,
@@ -178,7 +171,8 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedGroupChatName }) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.executorId)),
+          UserAccountId.validate(input.executorId),
+          TE.fromEither,
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedGroupChatName,
@@ -191,36 +185,18 @@ class GroupChatCommandResolver {
           validateGroupChatId,
           validatedGroupChatName,
           validatedExecutorId,
-        }) => {
-          return groupChatCommandProcessor.renameGroupChat(
+        }) =>
+          groupChatCommandProcessor.renameGroupChat(
             validateGroupChatId,
             validatedGroupChatName,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 
@@ -230,10 +206,12 @@ class GroupChatCommandResolver {
     @Arg("input") input: AddMemberInput,
   ): Promise<GroupChatResult> {
     return pipe(
-      TE.fromEither(GroupChatId.validate(input.groupChatId)),
+      GroupChatId.validate(input.groupChatId),
+      TE.fromEither,
       TE.chainW((validateGroupChatId) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.userAccountId)),
+          UserAccountId.validate(input.userAccountId),
+          TE.fromEither,
           TE.map((validatedUserAccountId) => ({
             validateGroupChatId,
             validatedUserAccountId,
@@ -253,7 +231,8 @@ class GroupChatCommandResolver {
       TE.chainW(
         ({ validateGroupChatId, validatedUserAccountId, validatedRole }) =>
           pipe(
-            TE.fromEither(UserAccountId.validate(input.executorId)),
+            UserAccountId.validate(input.executorId),
+            TE.fromEither,
             TE.map((validatedExecutorId) => ({
               validateGroupChatId,
               validatedUserAccountId,
@@ -268,37 +247,19 @@ class GroupChatCommandResolver {
           validatedUserAccountId,
           validatedRole,
           validatedExecutorId,
-        }) => {
-          return groupChatCommandProcessor.addMemberToGroupChat(
+        }) =>
+          groupChatCommandProcessor.addMemberToGroupChat(
             validateGroupChatId,
             validatedUserAccountId,
             validatedRole,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 
@@ -308,10 +269,12 @@ class GroupChatCommandResolver {
     @Arg("input") input: RemoveMemberInput,
   ): Promise<GroupChatResult> {
     return pipe(
-      TE.fromEither(GroupChatId.validate(input.groupChatId)),
+      GroupChatId.validate(input.groupChatId),
+      TE.fromEither,
       TE.chainW((validateGroupChatId) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.userAccountId)),
+          UserAccountId.validate(input.userAccountId),
+          TE.fromEither,
           TE.map((validatedUserAccountId) => ({
             validateGroupChatId,
             validatedUserAccountId,
@@ -320,7 +283,8 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedUserAccountId }) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.executorId)),
+          UserAccountId.validate(input.executorId),
+          TE.fromEither,
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedUserAccountId,
@@ -333,36 +297,18 @@ class GroupChatCommandResolver {
           validateGroupChatId,
           validatedUserAccountId,
           validatedExecutorId,
-        }) => {
-          return groupChatCommandProcessor.removeMemberFromGroupChat(
+        }) =>
+          groupChatCommandProcessor.removeMemberFromGroupChat(
             validateGroupChatId,
             validatedUserAccountId,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 
@@ -372,10 +318,12 @@ class GroupChatCommandResolver {
     @Arg("input") input: PostMessageInput,
   ): Promise<MessageResult> {
     return pipe(
-      TE.fromEither(GroupChatId.validate(input.groupChatId)),
+      GroupChatId.validate(input.groupChatId),
+      TE.fromEither,
       TE.chainW((validateGroupChatId) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.executorId)),
+          UserAccountId.validate(input.executorId),
+          TE.fromEither,
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedExecutorId,
@@ -413,25 +361,8 @@ class GroupChatCommandResolver {
             })),
           ),
       ),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 
@@ -441,10 +372,12 @@ class GroupChatCommandResolver {
     @Arg("input") input: DeleteMessageInput,
   ): Promise<GroupChatResult> {
     return pipe(
-      TE.fromEither(GroupChatId.validate(input.groupChatId)),
+      GroupChatId.validate(input.groupChatId),
+      TE.fromEither,
       TE.chainW((validateGroupChatId) =>
         pipe(
-          TE.fromEither(MessageId.validate(input.messageId)),
+          MessageId.validate(input.messageId),
+          TE.fromEither,
           TE.map((validatedMessageId) => ({
             validateGroupChatId,
             validatedMessageId,
@@ -453,7 +386,8 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedMessageId }) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.executorId)),
+          UserAccountId.validate(input.executorId),
+          TE.fromEither,
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedMessageId,
@@ -462,36 +396,18 @@ class GroupChatCommandResolver {
         ),
       ),
       TE.chainW(
-        ({ validateGroupChatId, validatedMessageId, validatedExecutorId }) => {
-          return groupChatCommandProcessor.deleteMessageFromGroupChat(
+        ({ validateGroupChatId, validatedMessageId, validatedExecutorId }) =>
+          groupChatCommandProcessor.deleteMessageFromGroupChat(
             validateGroupChatId,
             validatedMessageId,
             validatedExecutorId,
-          );
-        },
+          ),
       ),
       TE.map((groupChatEvent) => ({
         groupChatId: groupChatEvent.aggregateId.asString(),
       })),
-      TE.mapLeft((error) => {
-        if (typeof error === "string") {
-          return new ValidationGraphQLError(error);
-        } else if (error instanceof ProcessError) {
-          if (
-            error.cause instanceof RepositoryError &&
-            error.cause.cause instanceof OptimisticLockError
-          ) {
-            return new OptimisticLockingGraphQLError(error.message);
-          }
-          return new InternalServerGraphQLError(error.message);
-        } else {
-          return new InternalServerGraphQLError("An unknown error occurred");
-        }
-      }),
-      TE.fold(
-        (e) => () => Promise.reject(e),
-        (r) => () => Promise.resolve(r),
-      ),
+      TE.mapLeft(this.convertToError),
+      this.toTask(),
     )();
   }
 }
