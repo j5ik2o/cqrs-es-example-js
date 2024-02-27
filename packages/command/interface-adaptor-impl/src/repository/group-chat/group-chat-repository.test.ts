@@ -1,5 +1,5 @@
 import { describe } from "node:test";
-import { GroupChatRepository } from "./group-chat-repository";
+import { GroupChatRepositoryImpl } from "./group-chat-repository";
 import * as E from "fp-ts/lib/Either";
 import {
   GroupChatId,
@@ -89,7 +89,7 @@ describe("GroupChatRepository", () => {
   }, TIMEOUT);
 
   test("store and reply", async () => {
-    const repository = GroupChatRepository.of(eventStore);
+    const repository = GroupChatRepositoryImpl.of(eventStore);
 
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
