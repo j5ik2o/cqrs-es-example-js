@@ -1,5 +1,5 @@
 import { describe } from "node:test";
-import { GroupChatRepository } from "./group-chat-repository";
+import { GroupChatRepositoryImpl } from "./group-chat-repository";
 import * as E from "fp-ts/lib/Either";
 import {
   GroupChatId,
@@ -89,13 +89,19 @@ describe("GroupChatRepository", () => {
   }, TIMEOUT);
 
   test("store and reply", async () => {
-    const repository = GroupChatRepository.of(eventStore);
+    const repository = GroupChatRepositoryImpl.of(eventStore);
 
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat1, groupChatCreated] = GroupChat.create(id, name, adminId);
-    await repository.storeEventAndSnapshot(groupChatCreated, groupChat1);
+    const result = await repository.storeEventAndSnapshot(
+      groupChatCreated,
+      groupChat1,
+    )();
+    if (E.isLeft(result)) {
+      throw new Error(result.left.message);
+    }
 
     const name2 = GroupChatName.of("name2");
     const renameEither = groupChat1.rename(name2, adminId);
@@ -103,9 +109,21 @@ describe("GroupChatRepository", () => {
       throw new Error(`renameEither is left: ${renameEither.left.message}`);
     }
     const [, groupChatRenamed] = renameEither.right;
-    await repository.storeEvent(groupChatRenamed, groupChat1.version);
+    const result2 = await repository.storeEvent(
+      groupChatRenamed,
+      groupChat1.version,
+    )();
+    if (E.isLeft(result2)) {
+      throw new Error(result2.left.message);
+    }
 
-    const groupChat3 = await repository.findById(id);
+    const groupChat3Either = await repository.findById(id)();
+    if (E.isLeft(groupChat3Either)) {
+      throw new Error(
+        `groupChat3Either is left: ${groupChat3Either.left.message}`,
+      );
+    }
+    const groupChat3 = groupChat3Either.right;
     if (groupChat3 === undefined) {
       throw new Error("groupChat2 is undefined");
     }

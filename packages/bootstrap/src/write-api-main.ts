@@ -1,7 +1,7 @@
 import {
   CommandContext,
   createCommandSchema,
-  GroupChatRepository,
+  GroupChatRepositoryImpl,
 } from "cqrs-es-example-js-command-interface-adaptor-impl";
 import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-use-case";
 import { EventStoreFactory } from "event-store-adapter-js";
@@ -95,7 +95,7 @@ async function writeApiMain() {
     convertJSONToGroupChatEvent,
     convertJSONToGroupChat,
   );
-  const groupChatRepository = GroupChatRepository.of(eventStore);
+  const groupChatRepository = GroupChatRepositoryImpl.of(eventStore);
   const groupChatCommandProcessor =
     GroupChatCommandProcessor.of(groupChatRepository);
 
