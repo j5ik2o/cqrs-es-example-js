@@ -4,56 +4,31 @@ import { AggregateId } from "event-store-adapter-js";
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdTypeSymbol = Symbol("GroupChatId");
 
-interface GroupChatId extends AggregateId {
-  symbol: typeof GroupChatIdTypeSymbol;
-  value: string;
-  typeName: string;
-  equals: (anotherId: GroupChatId) => boolean;
-  toString: () => string;
-}
+class GroupChatId implements AggregateId {
+  readonly symbol: typeof GroupChatIdTypeSymbol = GroupChatIdTypeSymbol;
+  readonly typeName = GROUP_CHAT_PREFIX;
 
-function initialize(value?: string): GroupChatId {
-  const _value: string = initializeValue(value);
+  private constructor(public readonly value: string) {}
 
-  function initializeValue(value?: string): string {
-    if (value === undefined) {
-      return U.ulid();
-    } else {
-      const ulid = value.startsWith(GROUP_CHAT_PREFIX + "-")
-        ? value.substring(GROUP_CHAT_PREFIX.length + 1)
-        : value;
-      if (U.isValid(ulid)) {
-        return ulid;
-      } else {
-        throw new Error("Invalid group chat id");
-      }
-    }
+  toJSON() {
+    return {
+      value: this.value,
+    };
   }
 
-  return {
-    symbol: GroupChatIdTypeSymbol,
-    get value() {
-      return _value;
-    },
-    get typeName() {
-      return GROUP_CHAT_PREFIX;
-    },
-    asString() {
-      return `${GROUP_CHAT_PREFIX}-${_value}`;
-    },
-    toString() {
-      return `GroupChatId(${_value})`;
-    },
-    equals(anotherId: GroupChatId): boolean {
-      return _value === anotherId.value;
-    },
-  };
-}
+  equals(anotherId: GroupChatId): boolean {
+    return this.value === anotherId.value;
+  }
+  asString() {
+    return `${GROUP_CHAT_PREFIX}-${this.value}`;
+  }
+  toString() {
+    return `GroupChatId(${this.value})`;
+  }
 
-const GroupChatId = {
-  validate(value: string): E.Either<string, GroupChatId> {
+  static validate(value: string): E.Either<string, GroupChatId> {
     try {
-      return E.right(initialize(value));
+      return E.right(GroupChatId.of(value));
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
@@ -61,14 +36,23 @@ const GroupChatId = {
         throw error;
       }
     }
-  },
-  of(value: string): GroupChatId {
-    return initialize(value);
-  },
-  generate(): GroupChatId {
-    return initialize();
-  },
-};
+  }
+
+  static of(value: string): GroupChatId {
+    const ulid = value.startsWith(GROUP_CHAT_PREFIX + "-")
+      ? value.substring(GROUP_CHAT_PREFIX.length + 1)
+      : value;
+    if (U.isValid(ulid)) {
+      return new GroupChatId(ulid);
+    } else {
+      throw new Error("Invalid group chat id");
+    }
+  }
+
+  static generate(): GroupChatId {
+    return new GroupChatId(U.ulid());
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertJSONToGroupChatId(json: any): GroupChatId {

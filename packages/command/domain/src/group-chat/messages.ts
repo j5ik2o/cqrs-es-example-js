@@ -4,93 +4,80 @@ import * as O from "fp-ts/Option";
 
 const MessagesTypeSymbol = Symbol("Messages");
 
-interface Messages {
-  symbol: typeof MessagesTypeSymbol;
-  values: Message[];
-  addMessage: (message: Message) => Messages;
-  removeMessageById: (messageId: MessageId) => O.Option<[Messages, Message]>;
-  containsById: (messageId: MessageId) => boolean;
-  findById: (messageId: MessageId) => Message | undefined;
-  toArray: () => Message[];
-  toMap: () => Map<MessageId, Message>;
-  size: () => number;
-  toString: () => string;
-  equals: (anotherMessages: Messages) => boolean;
-}
+class Messages {
+  readonly symbol: typeof MessagesTypeSymbol = MessagesTypeSymbol;
+  constructor(public readonly values: Map<string, Message>) {
+    this.values = values;
+  }
 
-function initialize(values: Map<string, Message>): Messages {
-  let _toArray: Message[] | undefined = undefined;
-  let _toMap: Map<MessageId, Message> | undefined = undefined;
-  return {
-    symbol: MessagesTypeSymbol,
-    get values() {
-      return this.toArray();
-    },
-    addMessage: (message: Message) =>
-      initialize(new Map(values).set(message.id.asString(), message)),
-    removeMessageById: (
-      messageId: MessageId,
-    ): O.Option<[Messages, Message]> => {
-      const message = values.get(messageId.value);
-      if (message === undefined) {
-        return O.none;
-      }
-      const newMap = new Map(values);
-      newMap.delete(messageId.value);
-      return O.some([initialize(newMap), message]);
-    },
-    containsById: (messageId: MessageId) => values.has(messageId.value),
-    findById: (messageId: MessageId) => values.get(messageId.value),
-    toArray() {
-      if (_toArray === undefined) {
-        _toArray = Array.from(values.values());
-      }
-      return _toArray;
-    },
-    toMap() {
-      if (_toMap === undefined) {
-        _toMap = new Map(
-          Array.from(values.entries()).map(([k, v]) => [MessageId.of(k), v]),
-        );
-      }
-      return _toMap;
-    },
-    size: () => values.size,
-    toString() {
-      return `Messages(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
-    },
-    equals(anotherMessages: Messages) {
-      return (
-        this.size() === anotherMessages.size() &&
-        this.toArray().every((message, index) =>
-          message.equals(anotherMessages.toArray()[index]),
-        )
-      );
-    },
-  };
-}
+  toJSON() {
+    return {
+      values: this.toArray().map((m) => m.toJSON()),
+    };
+  }
 
-const Messages = {
-  ofEmpty(): Messages {
-    return initialize(new Map());
-  },
-  ofSingle(message: Message): Messages {
-    return initialize(new Map([[message.id.asString(), message]]));
-  },
-  fromArray(messages: Message[]): Messages {
-    return initialize(
+  addMessage(message: Message) {
+    return new Messages(
+      new Map(this.values).set(message.id.asString(), message),
+    );
+  }
+  removeMessageById(messageId: MessageId): O.Option<[Messages, Message]> {
+    const message = this.values.get(messageId.value);
+    if (message === undefined) {
+      return O.none;
+    }
+    const newMap = new Map(this.values);
+    newMap.delete(messageId.value);
+    return O.some([new Messages(newMap), message]);
+  }
+  containsById(messageId: MessageId): boolean {
+    return this.values.has(messageId.value);
+  }
+  findById(messageId: MessageId): Message | undefined {
+    return this.values.get(messageId.value);
+  }
+  toArray(): Message[] {
+    return Array.from(this.values.values());
+  }
+  toMap(): Map<MessageId, Message> {
+    return new Map(
+      Array.from(this.values.entries()).map(([k, v]) => [MessageId.of(k), v]),
+    );
+  }
+  size(): number {
+    return this.values.size;
+  }
+  toString() {
+    return `Messages(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
+  }
+  equals(anotherMessages: Messages) {
+    return (
+      this.size() === anotherMessages.size() &&
+      this.toArray().every((message, index) =>
+        message.equals(anotherMessages.toArray()[index]),
+      )
+    );
+  }
+
+  static ofEmpty(): Messages {
+    return new Messages(new Map());
+  }
+  static ofSingle(message: Message): Messages {
+    return new Messages(new Map([[message.id.asString(), message]]));
+  }
+  static fromArray(messages: Message[]): Messages {
+    return new Messages(
       new Map(messages.map((message) => [message.id.asString(), message])),
     );
-  },
-  fromMap(messages: Map<MessageId, Message>): Messages {
-    return initialize(
+  }
+  static fromMap(messages: Map<MessageId, Message>): Messages {
+    return new Messages(
       new Map(
         Array.from(messages.entries()).map(([k, v]) => [k.asString(), v]),
       ),
     );
-  },
-};
-
+  }
+}
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 function convertJSONToMessages(json: any): Messages {
   // console.log("convertJSONToMessages = ", obj);
@@ -99,5 +86,4 @@ function convertJSONToMessages(json: any): Messages {
     json.values.map((v: any) => convertJSONToMessage(v)),
   );
 }
-
 export { Messages, MessagesTypeSymbol, convertJSONToMessages };

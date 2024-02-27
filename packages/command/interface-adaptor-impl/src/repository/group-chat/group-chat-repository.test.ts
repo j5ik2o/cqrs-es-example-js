@@ -7,8 +7,8 @@ import {
   GroupChatName,
   UserAccountId,
   GroupChatEvent,
-  convertJSONToGroupChat,
   convertJSONToGroupChatEvent,
+  convertJSONToGroupChat,
 } from "cqrs-es-example-js-command-domain";
 import {
   GenericContainer,
@@ -106,7 +106,9 @@ describe("GroupChatRepository", () => {
     const name2 = GroupChatName.of("name2");
     const renameEither = groupChat1.rename(name2, adminId);
     if (E.isLeft(renameEither)) {
-      throw new Error(`renameEither is left: ${renameEither.left.message}`);
+      throw new Error(
+        `groupChat3Either is left: ${renameEither.left.stack?.toString()}`,
+      );
     }
     const [, groupChatRenamed] = renameEither.right;
     const result2 = await repository.storeEvent(
@@ -120,7 +122,7 @@ describe("GroupChatRepository", () => {
     const groupChat3Either = await repository.findById(id)();
     if (E.isLeft(groupChat3Either)) {
       throw new Error(
-        `groupChat3Either is left: ${groupChat3Either.left.message}`,
+        `groupChat3Either is left: ${groupChat3Either.left.stack?.toString()}`,
       );
     }
     const groupChat3 = groupChat3Either.right;

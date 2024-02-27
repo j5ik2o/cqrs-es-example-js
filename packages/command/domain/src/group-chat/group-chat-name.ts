@@ -1,42 +1,37 @@
 import * as E from "fp-ts/lib/Either";
 const GroupChatNameTypeSymbol = Symbol("GroupChatName");
 
-interface GroupChatName {
-  symbol: typeof GroupChatNameTypeSymbol;
-  value: string;
-  asString: () => string;
-  toString: () => string;
-  equals: (anotherName: GroupChatName) => boolean;
-}
+class GroupChatName {
+  readonly symbol: typeof GroupChatNameTypeSymbol = GroupChatNameTypeSymbol;
 
-function initialize(_value: string): GroupChatName {
-  if (_value.length === 0) {
-    throw new Error("Group chat name cannot be empty");
+  private constructor(public readonly value: string) {
+    if (this.value.length === 0) {
+      throw new Error("Group chat name cannot be empty");
+    }
+    if (this.value.length > 100) {
+      throw new Error("Group chat name cannot be longer than 100 characters");
+    }
   }
-  if (_value.length > 100) {
-    throw new Error("Group chat name cannot be longer than 100 characters");
-  }
-  return {
-    symbol: GroupChatNameTypeSymbol,
-    get value() {
-      return _value;
-    },
-    asString() {
-      return this.value;
-    },
-    toString() {
-      return `GroupChatName(${this.value})`;
-    },
-    equals(anotherName: GroupChatName): boolean {
-      return this.value === anotherName.value;
-    },
-  };
-}
 
-const GroupChatName = {
-  validate(value: string): E.Either<string, GroupChatName> {
+  toJSON() {
+    return {
+      value: this.value,
+    };
+  }
+
+  asString() {
+    return this.value;
+  }
+  toString() {
+    return `GroupChatName(${this.value})`;
+  }
+  equals(anotherName: GroupChatName): boolean {
+    return this.value === anotherName.value;
+  }
+
+  static validate(value: string): E.Either<string, GroupChatName> {
     try {
-      return E.right(initialize(value));
+      return E.right(GroupChatName.of(value));
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
@@ -44,11 +39,11 @@ const GroupChatName = {
         throw error;
       }
     }
-  },
-  of(value: string): GroupChatName {
-    return initialize(value);
-  },
-};
+  }
+  static of(value: string): GroupChatName {
+    return new GroupChatName(value);
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertJSONToGroupChatName(json: any): GroupChatName {

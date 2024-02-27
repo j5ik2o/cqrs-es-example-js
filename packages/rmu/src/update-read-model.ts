@@ -18,6 +18,7 @@ import {
   GroupChatRenamedTypeSymbol,
 } from "cqrs-es-example-js-command-domain";
 import { ILogObj, Logger } from "tslog";
+
 // import {Callback} from "aws-lambda/handler";
 
 // const lambdaHandler: Handler<DynamoDBStreamEvent, void> = async (event: DynamoDBStreamEvent, context: Context, callback: Callback<void>) => {
@@ -62,7 +63,7 @@ const ReadModelUpdater = {
               groupChatDao.insertGroupChat(
                 typedEvent.aggregateId,
                 typedEvent.name,
-                typedEvent.members.values[0].userAccountId,
+                typedEvent.members.toArray()[0].userAccountId,
                 new Date(),
               );
               logger.debug("inserted group chat");

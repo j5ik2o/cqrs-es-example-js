@@ -5,57 +5,31 @@ import { AggregateId } from "event-store-adapter-js";
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdTypeSymbol = Symbol("UserAccountId");
 
-interface UserAccountId extends AggregateId {
-  symbol: typeof UserAccountIdTypeSymbol;
-  value: string;
-  typeName: string;
-  toString: () => string;
-  equals: (anotherId: UserAccountId) => boolean;
-}
+class UserAccountId implements AggregateId {
+  readonly symbol: typeof UserAccountIdTypeSymbol = UserAccountIdTypeSymbol;
+  readonly typeName: string = USER_ACCOUNT_PREFIX;
+  private constructor(public readonly value: string) {}
 
-function initialize(value?: string): UserAccountId {
-  const _value: string = initializeValue(value);
-
-  function initializeValue(value?: string): string {
-    if (value === undefined) {
-      return U.ulid();
-    } else {
-      const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
-        ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
-        : value;
-      if (U.isValid(ulid)) {
-        return ulid;
-      } else {
-        throw new Error("Invalid user account id");
-      }
-    }
+  toJSON() {
+    return {
+      value: this.value,
+    };
   }
 
-  const equals = (anotherId: UserAccountId): boolean =>
-    _value === anotherId.value;
+  asString() {
+    return `${USER_ACCOUNT_PREFIX}-${this.value}`;
+  }
+  toString() {
+    return `UserAccountId(${this.value})`;
+  }
 
-  return {
-    symbol: UserAccountIdTypeSymbol,
-    get value() {
-      return _value;
-    },
-    get typeName() {
-      return USER_ACCOUNT_PREFIX;
-    },
-    asString() {
-      return `${USER_ACCOUNT_PREFIX}-${_value}`;
-    },
-    toString() {
-      return `UserAccountId(${_value})`;
-    },
-    equals,
-  };
-}
+  equals(anotherId: UserAccountId): boolean {
+    return this.value === anotherId.value;
+  }
 
-const UserAccountId = {
-  validate(value: string): E.Either<string, UserAccountId> {
+  static validate(value: string): E.Either<string, UserAccountId> {
     try {
-      return E.right(initialize(value));
+      return E.right(new UserAccountId(value));
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
@@ -63,14 +37,21 @@ const UserAccountId = {
         throw error;
       }
     }
-  },
-  of(value: string): UserAccountId {
-    return initialize(value);
-  },
-  generate(): UserAccountId {
-    return initialize();
-  },
-};
+  }
+  static of(value: string): UserAccountId {
+    const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
+      ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
+      : value;
+    if (U.isValid(ulid)) {
+      return new UserAccountId(ulid);
+    } else {
+      throw new Error("Invalid user account id");
+    }
+  }
+  static generate(): UserAccountId {
+    return new UserAccountId(U.ulid());
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertJSONToUserAccountId(json: any): UserAccountId {

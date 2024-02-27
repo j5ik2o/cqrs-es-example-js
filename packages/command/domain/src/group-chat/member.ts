@@ -5,57 +5,57 @@ type MemberRole = "administrator" | "member";
 
 const MemberTypeSymbol = Symbol("Member");
 
-interface Member {
-  symbol: typeof MemberTypeSymbol;
-  id: MemberId;
-  userAccountId: UserAccountId;
-  memberRole: MemberRole;
-  isAdministrator: () => boolean;
-  isMember: () => boolean;
-  withRole: (role: MemberRole) => Member;
-  toString: () => string;
-  equals: (other: Member) => boolean;
-}
-
 interface MemberParams {
   id: MemberId;
   userAccountId: UserAccountId;
   memberRole: MemberRole;
 }
 
-function initialize(params: MemberParams): Member {
-  return {
-    symbol: MemberTypeSymbol,
-    id: params.id,
-    userAccountId: params.userAccountId,
-    memberRole: params.memberRole,
-    isAdministrator() {
-      return this.memberRole === "administrator";
-    },
-    isMember() {
-      return this.memberRole === "member";
-    },
-    withRole(role: MemberRole) {
-      return initialize({ ...this, memberRole: role });
-    },
-    toString() {
-      return `Member(${this.id.toString()}, ${this.userAccountId.toString()}, ${this.memberRole.toString()})`;
-    },
-    equals(other: Member) {
-      return this.userAccountId.value === other.userAccountId.value;
-    },
-  };
-}
+class Member {
+  readonly symbol: typeof MemberTypeSymbol = MemberTypeSymbol;
 
-const Member = {
-  of(
+  public readonly id: MemberId;
+  public readonly userAccountId: UserAccountId;
+  public readonly memberRole: MemberRole;
+
+  private constructor(params: MemberParams) {
+    this.id = params.id;
+    this.userAccountId = params.userAccountId;
+    this.memberRole = params.memberRole;
+  }
+
+  toJSON() {
+    return {
+      id: this.id.toJSON(),
+      userAccountId: this.userAccountId.toJSON(),
+      memberRole: this.memberRole,
+    };
+  }
+
+  isAdministrator() {
+    return this.memberRole === "administrator";
+  }
+  isMember() {
+    return this.memberRole === "member";
+  }
+  withRole(role: MemberRole) {
+    return new Member({ ...this, memberRole: role });
+  }
+  toString() {
+    return `Member(${this.id.toString()}, ${this.userAccountId.toString()}, ${this.memberRole.toString()})`;
+  }
+  equals(other: Member) {
+    return this.userAccountId.value === other.userAccountId.value;
+  }
+
+  static of(
     id: MemberId,
     userAccountId: UserAccountId,
     memberRole: MemberRole,
   ): Member {
-    return initialize({ id, userAccountId, memberRole });
-  },
-};
+    return new Member({ id, userAccountId, memberRole });
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertJSONToMember(json: any): Member {
