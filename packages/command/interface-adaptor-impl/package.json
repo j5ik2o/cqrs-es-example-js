@@ -34,7 +34,6 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "hono": "^4.0.4",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "aws-sdk": "^2.1459.0",
     "cqrs-es-example-js-command-domain": "workspace:*",

@@ -18,6 +18,7 @@ import {
   GroupChatRenamedTypeSymbol,
 } from "cqrs-es-example-js-command-domain";
 import { ILogObj, Logger } from "tslog";
+import { TextDecoder } from "node:util";
 
 // import {Callback} from "aws-lambda/handler";
 
@@ -25,114 +26,113 @@ import { ILogObj, Logger } from "tslog";
 //
 // }
 
-interface ReadModelUpdater {
-  updateReadModel: (event: DynamoDBStreamEvent) => Promise<void>;
-}
+class ReadModelUpdater {
+  private logger: Logger<ILogObj> = new Logger();
+  private decoder: TextDecoder = new TextDecoder("utf-8");
 
-const ReadModelUpdater = {
-  of(groupChatDao: GroupChatDao): ReadModelUpdater {
-    const logger: Logger<ILogObj> = new Logger();
-    const decoder = new TextDecoder("utf-8");
-    return {
-      updateReadModel: async (event: DynamoDBStreamEvent) => {
-        logger.info("EVENT: \n" + JSON.stringify(event, null, 2));
-        event.Records.forEach((record) => {
-          if (!record.dynamodb) {
-            logger.warn("No DynamoDB record");
-            return;
-          }
-          const attributeValues = record.dynamodb.NewImage;
-          if (!attributeValues) {
-            logger.warn("No NewImage");
-            return;
-          }
-          const base64EncodedPayload = attributeValues.payload.B;
-          if (!base64EncodedPayload) {
-            logger.warn("No payload");
-            return;
-          }
-          const payload = decoder.decode(
-            new Uint8Array(base64EncodedPayload.split(",").map(Number)),
+  private constructor(private readonly groupChatDao: GroupChatDao) {}
+
+  async updateReadModel(event: DynamoDBStreamEvent): Promise<void> {
+    this.logger.info("EVENT: \n" + JSON.stringify(event, null, 2));
+    event.Records.forEach((record) => {
+      if (!record.dynamodb) {
+        this.logger.warn("No DynamoDB record");
+        return;
+      }
+      const attributeValues = record.dynamodb.NewImage;
+      if (!attributeValues) {
+        this.logger.warn("No NewImage");
+        return;
+      }
+      const base64EncodedPayload = attributeValues.payload.B;
+      if (!base64EncodedPayload) {
+        this.logger.warn("No payload");
+        return;
+      }
+      const payload = this.decoder.decode(
+        new Uint8Array(base64EncodedPayload.split(",").map(Number)),
+      );
+      const payloadJson = JSON.parse(payload);
+      const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
+      switch (groupChatEvent.symbol) {
+        case GroupChatCreatedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatCreated;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.insertGroupChat(
+            typedEvent.aggregateId,
+            typedEvent.name,
+            typedEvent.members.toArray()[0].userAccountId,
+            new Date(),
           );
-          const payloadJson = JSON.parse(payload);
-          const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
-          switch (groupChatEvent.symbol) {
-            case GroupChatCreatedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatCreated;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.insertGroupChat(
-                typedEvent.aggregateId,
-                typedEvent.name,
-                typedEvent.members.toArray()[0].userAccountId,
-                new Date(),
-              );
-              logger.debug("inserted group chat");
-              break;
-            }
-            case GroupChatDeletedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatDeleted;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.deleteGroupChat(typedEvent.aggregateId, new Date());
-              logger.debug("deleted group chat");
-              break;
-            }
-            case GroupChatRenamedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatRenamed;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.updateGroupChatName(
-                typedEvent.aggregateId,
-                typedEvent.name,
-                new Date(),
-              );
-              logger.debug("updated group chat name");
-              break;
-            }
-            case GroupChatMemberAddedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatMemberAdded;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.insertGroupChatMember(
-                typedEvent.member.id,
-                typedEvent.aggregateId,
-                typedEvent.member.userAccountId,
-                typedEvent.member.memberRole,
-                new Date(),
-              );
-              logger.debug("inserted member");
-              break;
-            }
-            case GroupChatMemberRemovedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatMemberRemoved;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.deleteMember(
-                typedEvent.aggregateId,
-                typedEvent.member.userAccountId,
-              );
-              logger.debug("deleted member");
-              break;
-            }
-            case GroupChatMessagePostedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatMessagePosted;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.insertMessage(
-                typedEvent.aggregateId,
-                typedEvent.message,
-                new Date(),
-              );
-              logger.debug("inserted message");
-              break;
-            }
-            case GroupChatMessageDeletedTypeSymbol: {
-              const typedEvent = groupChatEvent as GroupChatMessageDeleted;
-              logger.debug(`event = ${typedEvent.toString()}`);
-              groupChatDao.deleteMessage(typedEvent.message.id, new Date());
-              logger.debug("deleted message");
-              break;
-            }
-          }
-        });
-      },
-    };
-  },
-};
+          this.logger.debug("inserted group chat");
+          break;
+        }
+        case GroupChatDeletedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatDeleted;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.deleteGroupChat(typedEvent.aggregateId, new Date());
+          this.logger.debug("deleted group chat");
+          break;
+        }
+        case GroupChatRenamedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatRenamed;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.updateGroupChatName(
+            typedEvent.aggregateId,
+            typedEvent.name,
+            new Date(),
+          );
+          this.logger.debug("updated group chat name");
+          break;
+        }
+        case GroupChatMemberAddedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatMemberAdded;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.insertGroupChatMember(
+            typedEvent.member.id,
+            typedEvent.aggregateId,
+            typedEvent.member.userAccountId,
+            typedEvent.member.memberRole,
+            new Date(),
+          );
+          this.logger.debug("inserted member");
+          break;
+        }
+        case GroupChatMemberRemovedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatMemberRemoved;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.deleteMember(
+            typedEvent.aggregateId,
+            typedEvent.member.userAccountId,
+          );
+          this.logger.debug("deleted member");
+          break;
+        }
+        case GroupChatMessagePostedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatMessagePosted;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.insertMessage(
+            typedEvent.aggregateId,
+            typedEvent.message,
+            new Date(),
+          );
+          this.logger.debug("inserted message");
+          break;
+        }
+        case GroupChatMessageDeletedTypeSymbol: {
+          const typedEvent = groupChatEvent as GroupChatMessageDeleted;
+          this.logger.debug(`event = ${typedEvent.toString()}`);
+          this.groupChatDao.deleteMessage(typedEvent.message.id, new Date());
+          this.logger.debug("deleted message");
+          break;
+        }
+      }
+    });
+  }
+
+  static of(groupChatDao: GroupChatDao): ReadModelUpdater {
+    return new ReadModelUpdater(groupChatDao);
+  }
+}
 
 export { ReadModelUpdater };
