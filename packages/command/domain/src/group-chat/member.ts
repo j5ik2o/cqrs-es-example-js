@@ -51,7 +51,9 @@ class Member {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static convertJSONToMember(json: any): Member {
     const id = MemberId.convertJSONToMemberId(json.id);
-    const userAccountId = UserAccountId.convertJSONToUserAccountId(json.userAccountId);
+    const userAccountId = UserAccountId.convertJSONToUserAccountId(
+      json.userAccountId,
+    );
     return Member.of(id, userAccountId, json.memberRole);
   }
 }

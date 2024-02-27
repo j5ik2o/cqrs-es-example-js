@@ -14,8 +14,8 @@ class UserAccountId implements AggregateId {
       this._value = U.ulid();
     } else {
       const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
-          ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
-          : value;
+        ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
+        : value;
       if (U.isValid(ulid)) {
         this._value = ulid;
       } else {
@@ -60,6 +60,5 @@ class UserAccountId implements AggregateId {
     return UserAccountId.of(json.value);
   }
 }
-
 
 export { UserAccountId, UserAccountIdTypeSymbol };

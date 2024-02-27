@@ -68,6 +68,4 @@ class GroupChatId implements AggregateId {
   }
 }
 
-
-
 export { GroupChatId, GroupChatIdTypeSymbol };

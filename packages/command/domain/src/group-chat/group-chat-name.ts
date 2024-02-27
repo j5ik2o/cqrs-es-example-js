@@ -49,6 +49,4 @@ class GroupChatName {
   }
 }
 
-
-
-export { GroupChatName, GroupChatNameTypeSymbol  };
+export { GroupChatName, GroupChatNameTypeSymbol };

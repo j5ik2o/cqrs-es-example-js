@@ -367,7 +367,9 @@ class GroupChatEventFactory {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static convertJSONToGroupChatEvent(json: any): GroupChatEvent {
     const id = GroupChatId.convertJSONToGroupChatId(json.data.aggregateId);
-    const executorId = UserAccountId.convertJSONToUserAccountId(json.data.executorId);
+    const executorId = UserAccountId.convertJSONToUserAccountId(
+      json.data.executorId,
+    );
     switch (json.type) {
       case "GroupChatCreated": {
         const name = GroupChatName.convertJSONToGroupChatName(json.data.name);
