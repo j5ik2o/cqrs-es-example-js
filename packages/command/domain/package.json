@@ -34,7 +34,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "event-store-adapter-js": "2.1.0",
+    "event-store-adapter-js": "2.1.1",
     "fp-ts": "^2.16.2",
     "ulidx": "^2.3.0"
   }
