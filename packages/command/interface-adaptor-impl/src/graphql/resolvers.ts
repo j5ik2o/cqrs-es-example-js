@@ -18,7 +18,7 @@ import {
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import * as TE from "fp-ts/TaskEither";
-import { GroupChatResult, HealthCheckResult, MessageResult } from "./object";
+import { GroupChatOutput, HealthCheckOutput, MessageOutput } from "./outputs";
 import { GraphQLError } from "graphql/error";
 import { pipe } from "fp-ts/function";
 import { ProcessError } from "cqrs-es-example-js-command-use-case/dist/group-chat/group-chat-command-processor";
@@ -61,10 +61,10 @@ interface CommandContext {
   groupChatCommandProcessor: GroupChatCommandProcessor;
 }
 
-@Resolver(() => GroupChatResult)
+@Resolver(() => GroupChatOutput)
 class GroupChatCommandResolver {
-  @Query(() => HealthCheckResult)
-  async healthCheck(): Promise<HealthCheckResult> {
+  @Query(() => HealthCheckOutput)
+  async healthCheck(): Promise<HealthCheckOutput> {
     return { value: "OK" };
   }
   private convertToError(error: string | ProcessError): Error {
@@ -89,11 +89,11 @@ class GroupChatCommandResolver {
       (r) => () => Promise.resolve(r),
     );
   }
-  @Mutation(() => GroupChatResult)
+  @Mutation(() => GroupChatOutput)
   async createGroupChat(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: CreateGroupChatInput,
-  ): Promise<GroupChatResult> {
+  ): Promise<GroupChatOutput> {
     return pipe(
       GroupChatName.validate(input.name),
       TE.fromEither,
@@ -120,11 +120,11 @@ class GroupChatCommandResolver {
     )();
   }
 
-  @Mutation(() => GroupChatResult)
+  @Mutation(() => GroupChatOutput)
   async deleteGroupChat(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: DeleteGroupChatInput,
-  ): Promise<GroupChatResult> {
+  ): Promise<GroupChatOutput> {
     return pipe(
       GroupChatId.validate(input.groupChatId),
       TE.fromEither,
@@ -151,11 +151,11 @@ class GroupChatCommandResolver {
     )();
   }
 
-  @Mutation(() => GroupChatResult)
+  @Mutation(() => GroupChatOutput)
   async renameGroupChat(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: RenameGroupChatInput,
-  ): Promise<GroupChatResult> {
+  ): Promise<GroupChatOutput> {
     return pipe(
       GroupChatId.validate(input.groupChatId),
       TE.fromEither,
@@ -200,11 +200,11 @@ class GroupChatCommandResolver {
     )();
   }
 
-  @Mutation(() => GroupChatResult)
+  @Mutation(() => GroupChatOutput)
   async addMember(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: AddMemberInput,
-  ): Promise<GroupChatResult> {
+  ): Promise<GroupChatOutput> {
     return pipe(
       GroupChatId.validate(input.groupChatId),
       TE.fromEither,
@@ -263,11 +263,11 @@ class GroupChatCommandResolver {
     )();
   }
 
-  @Mutation(() => GroupChatResult)
+  @Mutation(() => GroupChatOutput)
   async removeMember(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: RemoveMemberInput,
-  ): Promise<GroupChatResult> {
+  ): Promise<GroupChatOutput> {
     return pipe(
       GroupChatId.validate(input.groupChatId),
       TE.fromEither,
@@ -312,11 +312,11 @@ class GroupChatCommandResolver {
     )();
   }
 
-  @Mutation(() => MessageResult)
+  @Mutation(() => MessageOutput)
   async postMessage(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: PostMessageInput,
-  ): Promise<MessageResult> {
+  ): Promise<MessageOutput> {
     return pipe(
       GroupChatId.validate(input.groupChatId),
       TE.fromEither,
@@ -366,11 +366,11 @@ class GroupChatCommandResolver {
     )();
   }
 
-  @Mutation(() => GroupChatResult)
+  @Mutation(() => GroupChatOutput)
   async deleteMessage(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: DeleteMessageInput,
-  ): Promise<GroupChatResult> {
+  ): Promise<GroupChatOutput> {
     return pipe(
       GroupChatId.validate(input.groupChatId),
       TE.fromEither,
