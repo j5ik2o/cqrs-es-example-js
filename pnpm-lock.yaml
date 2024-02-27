@@ -55,9 +55,6 @@ importers:
       graphql-yoga:
         specifier: ^5.1.1
         version: 5.1.1(graphql@16.8.1)
-      hono:
-        specifier: ^4.0.4
-        version: 4.0.7
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -4517,11 +4514,6 @@ packages:
     engines: {node: '>= 0.4'}
     dependencies:
       function-bind: 1.1.2
-
-  /hono@4.0.7:
-    resolution: {integrity: sha512-1fhi9MUzMIXWqPWA7OGPTpzjQupT78rf+U6N+2vxwy7U76jUX0dmkUtp572gR+dbGR1YugLYvyg/JrgPOSoutw==}
-    engines: {node: '>=16.0.0'}
-    dev: false
 
   /html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
