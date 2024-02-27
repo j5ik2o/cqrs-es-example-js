@@ -5,57 +5,41 @@ import { AggregateId } from "event-store-adapter-js";
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 const UserAccountIdTypeSymbol = Symbol("UserAccountId");
 
-interface UserAccountId extends AggregateId {
-  symbol: typeof UserAccountIdTypeSymbol;
-  value: string;
-  typeName: string;
-  toString: () => string;
-  equals: (anotherId: UserAccountId) => boolean;
-}
-
-function initialize(value?: string): UserAccountId {
-  const _value: string = initializeValue(value);
-
-  function initializeValue(value?: string): string {
+class UserAccountId implements AggregateId {
+  readonly symbol: typeof UserAccountIdTypeSymbol = UserAccountIdTypeSymbol;
+  typeName: string = USER_ACCOUNT_PREFIX;
+  private readonly _value: string;
+  private constructor(value?: string) {
     if (value === undefined) {
-      return U.ulid();
+      this._value = U.ulid();
     } else {
       const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
-        ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
-        : value;
+          ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
+          : value;
       if (U.isValid(ulid)) {
-        return ulid;
+        this._value = ulid;
       } else {
         throw new Error("Invalid user account id");
       }
     }
   }
+  get value() {
+    return this._value;
+  }
+  asString() {
+    return `${USER_ACCOUNT_PREFIX}-${this._value}`;
+  }
+  toString() {
+    return `UserAccountId(${this._value})`;
+  }
 
-  const equals = (anotherId: UserAccountId): boolean =>
-    _value === anotherId.value;
+  equals(anotherId: UserAccountId): boolean {
+    return this._value === anotherId.value;
+  }
 
-  return {
-    symbol: UserAccountIdTypeSymbol,
-    get value() {
-      return _value;
-    },
-    get typeName() {
-      return USER_ACCOUNT_PREFIX;
-    },
-    asString() {
-      return `${USER_ACCOUNT_PREFIX}-${_value}`;
-    },
-    toString() {
-      return `UserAccountId(${_value})`;
-    },
-    equals,
-  };
-}
-
-const UserAccountId = {
-  validate(value: string): E.Either<string, UserAccountId> {
+  static validate(value: string): E.Either<string, UserAccountId> {
     try {
-      return E.right(initialize(value));
+      return E.right(new UserAccountId(value));
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
@@ -63,18 +47,19 @@ const UserAccountId = {
         throw error;
       }
     }
-  },
-  of(value: string): UserAccountId {
-    return initialize(value);
-  },
-  generate(): UserAccountId {
-    return initialize();
-  },
-};
+  }
+  static of(value: string): UserAccountId {
+    return new UserAccountId(value);
+  }
+  static generate(): UserAccountId {
+    return new UserAccountId();
+  }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertJSONToUserAccountId(json: any): UserAccountId {
-  return UserAccountId.of(json.value);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static convertJSONToUserAccountId(json: any): UserAccountId {
+    return UserAccountId.of(json.value);
+  }
 }
 
-export { UserAccountId, UserAccountIdTypeSymbol, convertJSONToUserAccountId };
+
+export { UserAccountId, UserAccountIdTypeSymbol };

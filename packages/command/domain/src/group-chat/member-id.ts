@@ -2,42 +2,42 @@ import * as U from "ulidx";
 
 const MemberIdTypeSymbol = Symbol("MemberId");
 
-interface MemberId {
-  symbol: typeof MemberIdTypeSymbol;
-  value: string;
-  asString: () => string;
-  toString: () => string;
-  equals: (anotherId: MemberId) => boolean;
+class MemberId {
+  readonly symbol: typeof MemberIdTypeSymbol = MemberIdTypeSymbol;
+  private readonly _value: string;
+  private constructor(value: string) {
+    if (U.isValid(value) === false) {
+      throw new Error("Invalid member id");
+    }
+    this._value = value;
+  }
+  get value() {
+    return this._value;
+  }
+  asString() {
+    return this._value;
+  }
+
+  toString() {
+    return `MemberId(${this._value})`;
+  }
+
+  equals(anotherId: MemberId): boolean {
+    return this._value === anotherId._value;
+  }
+
+  static of(value: string): MemberId {
+    return new MemberId(value);
+  }
+
+  static generate(): MemberId {
+    return new MemberId(U.ulid());
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static convertJSONToMemberId(json: any): MemberId {
+    return new MemberId(json.value);
+  }
 }
 
-function initialize(value: string): MemberId {
-  return {
-    symbol: MemberIdTypeSymbol,
-    value,
-    asString() {
-      return value;
-    },
-    toString() {
-      return `MemberId(${value})`;
-    },
-    equals(anotherId: MemberId): boolean {
-      return value === anotherId.value;
-    },
-  };
-}
-
-const MemberId = {
-  of(value: string): MemberId {
-    return initialize(value);
-  },
-  generate(): MemberId {
-    return initialize(U.ulid());
-  },
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertJSONToMemberId(json: any): MemberId {
-  return initialize(json.value);
-}
-
-export { MemberId, MemberIdTypeSymbol, convertJSONToMemberId };
+export { MemberId, MemberIdTypeSymbol };

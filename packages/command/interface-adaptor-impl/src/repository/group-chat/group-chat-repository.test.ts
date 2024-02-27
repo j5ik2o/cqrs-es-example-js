@@ -7,8 +7,7 @@ import {
   GroupChatName,
   UserAccountId,
   GroupChatEvent,
-  convertJSONToGroupChat,
-  convertJSONToGroupChatEvent,
+  GroupChatEventFactory,
 } from "cqrs-es-example-js-command-domain";
 import {
   GenericContainer,
@@ -51,8 +50,8 @@ describe("GroupChatRepository", () => {
       JOURNAL_AID_INDEX_NAME,
       SNAPSHOTS_AID_INDEX_NAME,
       32,
-      convertJSONToGroupChatEvent,
-      convertJSONToGroupChat,
+      GroupChatEventFactory.convertJSONToGroupChatEvent,
+      GroupChat.convertJSONToGroupChat,
     );
   }
 

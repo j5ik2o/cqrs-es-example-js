@@ -2,37 +2,31 @@ import * as U from "ulidx";
 import * as E from "fp-ts/lib/Either";
 const MessageIdTypeSymbol = Symbol("MessageId");
 
-interface MessageId {
-  symbol: typeof MessageIdTypeSymbol;
-  value: string;
-  asString: () => string;
-  toString: () => string;
-  equals: (anotherId: MessageId) => boolean;
-}
-
-function initialize(value: string): MessageId {
-  if (!U.isValid(value)) {
-    throw new Error("Invalid message id");
+class MessageId {
+  readonly symbol: typeof MessageIdTypeSymbol = MessageIdTypeSymbol;
+  private readonly _value: string;
+  private constructor(value: string) {
+    if (U.isValid(value) === false) {
+      throw new Error("Invalid message id");
+    }
+    this._value = value;
   }
-  return {
-    symbol: MessageIdTypeSymbol,
-    value,
-    asString() {
-      return value;
-    },
-    toString() {
-      return `MessageId(${value})`;
-    },
-    equals(anotherId: MessageId): boolean {
-      return value === anotherId.value;
-    },
-  };
-}
+  get value() {
+    return this._value;
+  }
+  asString() {
+    return this._value;
+  }
+  toString() {
+    return `MessageId(${this._value})`;
+  }
+  equals(anotherId: MessageId): boolean {
+    return this._value === anotherId.value;
+  }
 
-const MessageId = {
-  validate(value: string): E.Either<string, MessageId> {
+  static validate(value: string): E.Either<string, MessageId> {
     try {
-      return E.right(initialize(value));
+      return E.right(new MessageId(value));
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
@@ -40,18 +34,18 @@ const MessageId = {
         throw error;
       }
     }
-  },
-  of(value: string): MessageId {
-    return initialize(value);
-  },
-  generate(): MessageId {
-    return initialize(U.ulid());
-  },
-};
+  }
+  static of(value: string): MessageId {
+    return new MessageId(value);
+  }
+  static generate(): MessageId {
+    return new MessageId(U.ulid());
+  }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertJSONToMessageId(json: any): MessageId {
-  return initialize(json.value);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static convertJSONToMessageId(json: any): MessageId {
+    return new MessageId(json.value);
+  }
 }
 
-export { MessageId, MessageIdTypeSymbol, convertJSONToMessageId };
+export { MessageId, MessageIdTypeSymbol };

@@ -1,11 +1,11 @@
 import { DynamoDBStreamEvent } from "aws-lambda";
 import { GroupChatDao } from "./group-chat-dao";
 import {
-  convertJSONToGroupChatEvent,
   GroupChatCreated,
   GroupChatCreatedTypeSymbol,
   GroupChatDeleted,
   GroupChatDeletedTypeSymbol,
+  GroupChatEventFactory,
   GroupChatMemberAdded,
   GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
@@ -18,6 +18,7 @@ import {
   GroupChatRenamedTypeSymbol,
 } from "cqrs-es-example-js-command-domain";
 import { ILogObj, Logger } from "tslog";
+
 // import {Callback} from "aws-lambda/handler";
 
 // const lambdaHandler: Handler<DynamoDBStreamEvent, void> = async (event: DynamoDBStreamEvent, context: Context, callback: Callback<void>) => {
@@ -54,7 +55,8 @@ const ReadModelUpdater = {
             new Uint8Array(base64EncodedPayload.split(",").map(Number)),
           );
           const payloadJson = JSON.parse(payload);
-          const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
+          const groupChatEvent =
+            GroupChatEventFactory.convertJSONToGroupChatEvent(payloadJson);
           switch (groupChatEvent.symbol) {
             case GroupChatCreatedTypeSymbol: {
               const typedEvent = groupChatEvent as GroupChatCreated;
