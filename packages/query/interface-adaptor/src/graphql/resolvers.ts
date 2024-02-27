@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { Arg, Ctx, Query, Resolver } from "type-graphql";
-import { GroupChatOutput, MemberOutput, MessageOutput } from "./object";
+import { GroupChatOutput, MemberOutput, MessageOutput } from "./outputs";
 import { ILogObj, Logger } from "tslog";
 
 interface QueryContext {

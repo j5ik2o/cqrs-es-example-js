@@ -1,4 +1,4 @@
 export * from "./inputs";
-export * from "./object";
+export * from "./outputs";
 export * from "./resolvers";
 export * from "./schema";
