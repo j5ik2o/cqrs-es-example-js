@@ -1,5 +1,6 @@
 import {
   GroupChat,
+  GroupChatDeleteError,
   GroupChatEvent,
   GroupChatId,
   GroupChatName,
@@ -8,183 +9,313 @@ import {
   MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import { GroupChatRepository } from "cqrs-es-example-js-command-interface-adaptor-if";
-import * as E from "fp-ts/lib/Either";
+import {
+  GroupChatRepository,
+  RepositoryError,
+} from "cqrs-es-example-js-command-interface-adaptor-if";
+import * as TE from "fp-ts/TaskEither";
+import { pipe } from "fp-ts/function";
+
+class ProcessError extends Error {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "ProcessError";
+    this.cause = cause;
+  }
+}
 
 interface GroupChatCommandProcessor {
   createGroupChat: (
     name: GroupChatName,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
   deleteGroupChat: (
     id: GroupChatId,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
   renameGroupChat: (
     id: GroupChatId,
     name: GroupChatName,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
   addMemberToGroupChat: (
     id: GroupChatId,
     memberId: UserAccountId,
     memberRole: MemberRole,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
   removeMemberFromGroupChat: (
     id: GroupChatId,
     memberId: UserAccountId,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
   postMessageToGroupChat: (
     id: GroupChatId,
     message: Message,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
   deleteMessageFromGroupChat: (
     id: GroupChatId,
     messageId: MessageId,
     executorId: UserAccountId,
-  ) => Promise<GroupChatEvent>;
+  ) => TE.TaskEither<ProcessError, GroupChatEvent>;
 }
 
 function initialize(
   groupChatRepository: GroupChatRepository,
 ): GroupChatCommandProcessor {
   return {
-    createGroupChat: async (name: GroupChatName, executorId: UserAccountId) => {
-      const id = GroupChatId.generate();
-      const [groupChat, groupChatCreated] = GroupChat.create(
-        id,
-        name,
-        executorId,
+    createGroupChat(
+      name: GroupChatName,
+      executorId: UserAccountId,
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        TE.right(GroupChatId.generate()),
+        TE.chain((id) => TE.right(GroupChat.create(id, name, executorId))),
+        TE.chain(([groupChat, groupChatCreated]) =>
+          pipe(
+            groupChatRepository.storeEventAndSnapshot(
+              groupChatCreated,
+              groupChat,
+            ),
+            TE.map(() => groupChatCreated),
+          ),
+        ),
       );
-      await groupChatRepository.storeEventAndSnapshot(
-        groupChatCreated,
-        groupChat,
+    },
+    deleteGroupChat(
+      id: GroupChatId,
+      executorId: UserAccountId,
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        groupChatRepository.findById(id),
+        TE.chainW((groupChatOpt) =>
+          groupChatOpt === undefined
+            ? TE.left(new ProcessError("Group chat not found"))
+            : TE.right(groupChatOpt),
+        ),
+        TE.chainW((groupChat) =>
+          pipe(
+            groupChat.delete(executorId),
+            TE.fromEither,
+            TE.chainW(([groupChat, groupChatDeleted]) =>
+              pipe(
+                groupChatRepository.storeEvent(
+                  groupChatDeleted,
+                  groupChat.version,
+                ),
+                TE.map(() => groupChatDeleted),
+              ),
+            ),
+          ),
+        ),
+        TE.mapLeft((e) => {
+          if (e instanceof ProcessError) {
+            return e;
+          } else if (e instanceof RepositoryError) {
+            return new ProcessError("Failed to delete group chat", e);
+          } else if (e instanceof GroupChatDeleteError) {
+            return new ProcessError("Failed to delete group chat", e);
+          }
+          throw e;
+        }),
       );
-      return groupChatCreated;
     },
-    deleteGroupChat: async (id: GroupChatId, executorId: UserAccountId) => {
-      const groupChat = await groupChatRepository.findById(id);
-      if (groupChat === undefined) {
-        throw new Error("Group chat not found");
-      }
-      const deleteEither = groupChat.delete(executorId);
-      if (E.isLeft(deleteEither)) {
-        throw new Error(deleteEither.left.message);
-      }
-      const [, groupChatDeleted] = deleteEither.right;
-      await groupChatRepository.storeEvent(groupChatDeleted, groupChat.version);
-      return groupChatDeleted;
-    },
-    renameGroupChat: async (
+    renameGroupChat(
       id: GroupChatId,
       name: GroupChatName,
       executorId: UserAccountId,
-    ) => {
-      const groupChat = await groupChatRepository.findById(id);
-      if (groupChat === undefined) {
-        throw new Error("Group chat not found");
-      }
-      const renameEither = groupChat.rename(name, executorId);
-      if (E.isLeft(renameEither)) {
-        throw new Error(renameEither.left.message);
-      }
-      const [, groupChatRenamed] = renameEither.right;
-      await groupChatRepository.storeEvent(groupChatRenamed, groupChat.version);
-      return groupChatRenamed;
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        groupChatRepository.findById(id),
+        TE.chainW((groupChatOpt) =>
+          groupChatOpt === undefined
+            ? TE.left(new ProcessError("Group chat not found"))
+            : TE.right(groupChatOpt),
+        ),
+        TE.chainW((groupChat) =>
+          pipe(
+            groupChat.rename(name, executorId),
+            TE.fromEither,
+            TE.chainW(([groupChat, groupChatDeleted]) =>
+              pipe(
+                groupChatRepository.storeEvent(
+                  groupChatDeleted,
+                  groupChat.version,
+                ),
+                TE.map(() => groupChatDeleted),
+              ),
+            ),
+          ),
+        ),
+        TE.mapLeft((e) => {
+          if (e instanceof ProcessError) {
+            return e;
+          } else if (e instanceof RepositoryError) {
+            return new ProcessError("Failed to delete group chat", e);
+          } else if (e instanceof GroupChatDeleteError) {
+            return new ProcessError("Failed to delete group chat", e);
+          }
+          throw e;
+        }),
+      );
     },
-    addMemberToGroupChat: async (
+    addMemberToGroupChat(
       id: GroupChatId,
       memberId: UserAccountId,
       memberRole: MemberRole,
       executorId: UserAccountId,
-    ) => {
-      const groupChat = await groupChatRepository.findById(id);
-      if (groupChat === undefined) {
-        throw new Error("Group chat not found");
-      }
-      const addMemberEither = groupChat.addMember(
-        memberId,
-        memberRole,
-        executorId,
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        groupChatRepository.findById(id),
+        TE.chainW((groupChatOpt) =>
+          groupChatOpt === undefined
+            ? TE.left(new ProcessError("Group chat not found"))
+            : TE.right(groupChatOpt),
+        ),
+        TE.chainW((groupChat) =>
+          pipe(
+            groupChat.addMember(memberId, memberRole, executorId),
+            TE.fromEither,
+            TE.chainW(([groupChat, groupChatDeleted]) =>
+              pipe(
+                groupChatRepository.storeEvent(
+                  groupChatDeleted,
+                  groupChat.version,
+                ),
+                TE.map(() => groupChatDeleted),
+              ),
+            ),
+          ),
+        ),
+        TE.mapLeft((e) => {
+          if (e instanceof ProcessError) {
+            return e;
+          } else if (e instanceof RepositoryError) {
+            return new ProcessError("Failed to delete group chat", e);
+          } else if (e instanceof GroupChatDeleteError) {
+            return new ProcessError("Failed to delete group chat", e);
+          }
+          throw e;
+        }),
       );
-      if (E.isLeft(addMemberEither)) {
-        throw new Error(addMemberEither.left.message);
-      }
-      const [, groupChatMemberAdded] = addMemberEither.right;
-      await groupChatRepository.storeEvent(
-        groupChatMemberAdded,
-        groupChat.version,
-      );
-      return groupChatMemberAdded;
     },
-    removeMemberFromGroupChat: async (
+    removeMemberFromGroupChat(
       id: GroupChatId,
       memberId: UserAccountId,
       executorId: UserAccountId,
-    ) => {
-      const groupChat = await groupChatRepository.findById(id);
-      if (groupChat === undefined) {
-        throw new Error("Group chat not found");
-      }
-      const removeMemberEither = groupChat.removeMemberById(
-        memberId,
-        executorId,
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        groupChatRepository.findById(id),
+        TE.chainW((groupChatOpt) =>
+          groupChatOpt === undefined
+            ? TE.left(new ProcessError("Group chat not found"))
+            : TE.right(groupChatOpt),
+        ),
+        TE.chainW((groupChat) =>
+          pipe(
+            groupChat.removeMemberById(memberId, executorId),
+            TE.fromEither,
+            TE.chainW(([groupChat, groupChatDeleted]) =>
+              pipe(
+                groupChatRepository.storeEvent(
+                  groupChatDeleted,
+                  groupChat.version,
+                ),
+                TE.map(() => groupChatDeleted),
+              ),
+            ),
+          ),
+        ),
+        TE.mapLeft((e) => {
+          if (e instanceof ProcessError) {
+            return e;
+          } else if (e instanceof RepositoryError) {
+            return new ProcessError("Failed to delete group chat", e);
+          } else if (e instanceof GroupChatDeleteError) {
+            return new ProcessError("Failed to delete group chat", e);
+          }
+          throw e;
+        }),
       );
-      if (E.isLeft(removeMemberEither)) {
-        throw new Error(removeMemberEither.left.message);
-      }
-      const [, groupChatMemberRemoved] = removeMemberEither.right;
-      await groupChatRepository.storeEvent(
-        groupChatMemberRemoved,
-        groupChat.version,
-      );
-      return groupChatMemberRemoved;
     },
-    postMessageToGroupChat: async (
+    postMessageToGroupChat(
       id: GroupChatId,
       message: Message,
       executorId: UserAccountId,
-    ) => {
-      const groupChat = await groupChatRepository.findById(id);
-      if (groupChat === undefined) {
-        throw new Error("Group chat not found");
-      }
-      const postMessageEither = groupChat.postMessage(message, executorId);
-      if (E.isLeft(postMessageEither)) {
-        throw new Error(postMessageEither.left.message);
-      }
-      const [, groupChatMessagePosted] = postMessageEither.right;
-      await groupChatRepository.storeEvent(
-        groupChatMessagePosted,
-        groupChat.version,
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        groupChatRepository.findById(id),
+        TE.chainW((groupChatOpt) =>
+          groupChatOpt === undefined
+            ? TE.left(new ProcessError("Group chat not found"))
+            : TE.right(groupChatOpt),
+        ),
+        TE.chainW((groupChat) =>
+          pipe(
+            groupChat.postMessage(message, executorId),
+            TE.fromEither,
+            TE.chainW(([groupChat, groupChatDeleted]) =>
+              pipe(
+                groupChatRepository.storeEvent(
+                  groupChatDeleted,
+                  groupChat.version,
+                ),
+                TE.map(() => groupChatDeleted),
+              ),
+            ),
+          ),
+        ),
+        TE.mapLeft((e) => {
+          if (e instanceof ProcessError) {
+            return e;
+          } else if (e instanceof RepositoryError) {
+            return new ProcessError("Failed to delete group chat", e);
+          } else if (e instanceof GroupChatDeleteError) {
+            return new ProcessError("Failed to delete group chat", e);
+          }
+          throw e;
+        }),
       );
-      return groupChatMessagePosted;
     },
-    deleteMessageFromGroupChat: async (
+    deleteMessageFromGroupChat(
       id: GroupChatId,
       messageId: MessageId,
       executorId: UserAccountId,
-    ) => {
-      const groupChat = await groupChatRepository.findById(id);
-      if (groupChat === undefined) {
-        throw new Error("Group chat not found");
-      }
-      const deleteMessageEither = groupChat.deleteMessage(
-        messageId,
-        executorId,
+    ): TE.TaskEither<ProcessError, GroupChatEvent> {
+      return pipe(
+        groupChatRepository.findById(id),
+        TE.chainW((groupChatOpt) =>
+          groupChatOpt === undefined
+            ? TE.left(new ProcessError("Group chat not found"))
+            : TE.right(groupChatOpt),
+        ),
+        TE.chainW((groupChat) =>
+          pipe(
+            groupChat.deleteMessage(messageId, executorId),
+            TE.fromEither,
+            TE.chainW(([groupChat, groupChatDeleted]) =>
+              pipe(
+                groupChatRepository.storeEvent(
+                  groupChatDeleted,
+                  groupChat.version,
+                ),
+                TE.map(() => groupChatDeleted),
+              ),
+            ),
+          ),
+        ),
+        TE.mapLeft((e) => {
+          if (e instanceof ProcessError) {
+            return e;
+          } else if (e instanceof RepositoryError) {
+            return new ProcessError("Failed to delete group chat", e);
+          } else if (e instanceof GroupChatDeleteError) {
+            return new ProcessError("Failed to delete group chat", e);
+          }
+          throw e;
+        }),
       );
-      if (E.isLeft(deleteMessageEither)) {
-        throw new Error(deleteMessageEither.left.message);
-      }
-      const [, groupChatMessageDeleted] = deleteMessageEither.right;
-      await groupChatRepository.storeEvent(
-        groupChatMessageDeleted,
-        groupChat.version,
-      );
-      return groupChatMessageDeleted;
     },
   };
 }
@@ -195,4 +326,4 @@ const GroupChatCommandProcessor = {
   },
 };
 
-export { GroupChatCommandProcessor };
+export { GroupChatCommandProcessor, ProcessError };
