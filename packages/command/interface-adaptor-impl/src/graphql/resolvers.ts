@@ -70,7 +70,7 @@ class GroupChatCommandResolver {
   private convertToError(error: string | ProcessError): Error {
     if (typeof error === "string") {
       return new ValidationGraphQLError(error);
-    } else if (error instanceof ProcessError) {
+    } else {
       if (
         error.cause instanceof RepositoryError &&
         error.cause.cause instanceof OptimisticLockError
@@ -78,8 +78,6 @@ class GroupChatCommandResolver {
         return new OptimisticLockingGraphQLError(error.message);
       }
       return new InternalServerGraphQLError(error.message);
-    } else {
-      return new InternalServerGraphQLError("An unknown error occurred");
     }
   }
 
@@ -89,6 +87,7 @@ class GroupChatCommandResolver {
       (r) => () => Promise.resolve(r),
     );
   }
+
   @Mutation(() => GroupChatOutput)
   async createGroupChat(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
@@ -99,7 +98,8 @@ class GroupChatCommandResolver {
       TE.fromEither,
       TE.chainW((validatedName) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.executorId)),
+          UserAccountId.validate(input.executorId),
+          TE.fromEither,
           TE.map((validatedExecutorId) => ({
             validatedName,
             validatedExecutorId,
@@ -332,14 +332,13 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedExecutorId }) =>
         pipe(
-          TE.fromEither(
-            Message.validate(
-              MessageId.generate(),
-              input.content,
-              validatedExecutorId,
-              new Date(),
-            ),
+          Message.validate(
+            MessageId.generate(),
+            input.content,
+            validatedExecutorId,
+            new Date(),
           ),
+          TE.fromEither,
           TE.map((validatedMessage) => ({
             validateGroupChatId,
             validatedExecutorId,
