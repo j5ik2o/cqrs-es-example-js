@@ -3,12 +3,18 @@ import * as E from "fp-ts/Either";
 import { AggregateId } from "event-store-adapter-js";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
+
 const UserAccountIdTypeSymbol = Symbol("UserAccountId");
 
 class UserAccountId implements AggregateId {
   readonly symbol: typeof UserAccountIdTypeSymbol = UserAccountIdTypeSymbol;
   readonly typeName: string = USER_ACCOUNT_PREFIX;
-  private constructor(public readonly value: string) {}
+
+  private constructor(public readonly value: string) {
+    if (!U.isValid(value)) {
+      throw new Error(`Invalid user account id: ${value}`);
+    }
+  }
 
   toJSON() {
     return {
@@ -19,6 +25,7 @@ class UserAccountId implements AggregateId {
   asString() {
     return `${USER_ACCOUNT_PREFIX}-${this.value}`;
   }
+
   toString() {
     return `UserAccountId(${this.value})`;
   }
@@ -29,7 +36,7 @@ class UserAccountId implements AggregateId {
 
   static validate(value: string): E.Either<string, UserAccountId> {
     try {
-      return E.right(new UserAccountId(value));
+      return E.right(UserAccountId.of(value));
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
@@ -42,12 +49,9 @@ class UserAccountId implements AggregateId {
     const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
       ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
       : value;
-    if (U.isValid(ulid)) {
-      return new UserAccountId(ulid);
-    } else {
-      throw new Error("Invalid user account id");
-    }
+    return new UserAccountId(ulid);
   }
+
   static generate(): UserAccountId {
     return new UserAccountId(U.ulid());
   }
