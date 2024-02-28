@@ -1,1 +1,1 @@
-export { GroupChatCommandProcessor } from "./group-chat-command-processor";
+export * from "./group-chat-command-processor";

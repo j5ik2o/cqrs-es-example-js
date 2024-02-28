@@ -21,7 +21,7 @@ import * as TE from "fp-ts/TaskEither";
 import { GroupChatOutput, HealthCheckOutput, MessageOutput } from "./outputs";
 import { GraphQLError } from "graphql/error";
 import { pipe } from "fp-ts/function";
-import { ProcessError } from "cqrs-es-example-js-command-use-case/dist/group-chat/group-chat-command-processor";
+import { ProcessError } from "cqrs-es-example-js-command-use-case";
 import { RepositoryError } from "cqrs-es-example-js-command-interface-adaptor-if";
 import { OptimisticLockError } from "event-store-adapter-js";
 import { TaskEither } from "fp-ts/TaskEither";
