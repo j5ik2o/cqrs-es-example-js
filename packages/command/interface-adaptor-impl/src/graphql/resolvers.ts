@@ -88,18 +88,41 @@ class GroupChatCommandResolver {
     );
   }
 
+  private validateGroupChatId(value: string): TaskEither<string, GroupChatId> {
+    return TE.fromEither(GroupChatId.validate(value));
+  }
+
+  private validateUserAccountId(
+    value: string,
+  ): TaskEither<string, UserAccountId> {
+    return TE.fromEither(UserAccountId.validate(value));
+  }
+
+  private validateGroupChatName(
+    value: string,
+  ): TaskEither<string, GroupChatName> {
+    return TE.fromEither(GroupChatName.validate(value));
+  }
+
+  private validateMessage(
+    id: MessageId,
+    content: string,
+    senderId: UserAccountId,
+    sentAt: Date,
+  ): TE.TaskEither<string, Message> {
+    return TE.fromEither(Message.validate(id, content, senderId, sentAt));
+  }
+
   @Mutation(() => GroupChatOutput)
   async createGroupChat(
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input") input: CreateGroupChatInput,
   ): Promise<GroupChatOutput> {
     return pipe(
-      GroupChatName.validate(input.name),
-      TE.fromEither,
+      this.validateGroupChatName(input.name),
       TE.chainW((validatedName) =>
         pipe(
-          UserAccountId.validate(input.executorId),
-          TE.fromEither,
+          this.validateUserAccountId(input.executorId),
           TE.map((validatedExecutorId) => ({
             validatedName,
             validatedExecutorId,
@@ -126,11 +149,10 @@ class GroupChatCommandResolver {
     @Arg("input") input: DeleteGroupChatInput,
   ): Promise<GroupChatOutput> {
     return pipe(
-      GroupChatId.validate(input.groupChatId),
-      TE.fromEither,
+      this.validateGroupChatId(input.groupChatId),
       TE.chainW((validateGroupChatId) =>
         pipe(
-          TE.fromEither(UserAccountId.validate(input.executorId)),
+          this.validateUserAccountId(input.executorId),
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedExecutorId,
@@ -157,12 +179,10 @@ class GroupChatCommandResolver {
     @Arg("input") input: RenameGroupChatInput,
   ): Promise<GroupChatOutput> {
     return pipe(
-      GroupChatId.validate(input.groupChatId),
-      TE.fromEither,
+      this.validateGroupChatId(input.groupChatId),
       TE.chainW((validateGroupChatId) =>
         pipe(
-          GroupChatName.validate(input.name),
-          TE.fromEither,
+          this.validateGroupChatName(input.name),
           TE.map((validatedGroupChatName) => ({
             validateGroupChatId,
             validatedGroupChatName,
@@ -171,8 +191,7 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedGroupChatName }) =>
         pipe(
-          UserAccountId.validate(input.executorId),
-          TE.fromEither,
+          this.validateUserAccountId(input.executorId),
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedGroupChatName,
@@ -206,12 +225,10 @@ class GroupChatCommandResolver {
     @Arg("input") input: AddMemberInput,
   ): Promise<GroupChatOutput> {
     return pipe(
-      GroupChatId.validate(input.groupChatId),
-      TE.fromEither,
+      this.validateGroupChatId(input.groupChatId),
       TE.chainW((validateGroupChatId) =>
         pipe(
-          UserAccountId.validate(input.userAccountId),
-          TE.fromEither,
+          this.validateUserAccountId(input.userAccountId),
           TE.map((validatedUserAccountId) => ({
             validateGroupChatId,
             validatedUserAccountId,
@@ -231,8 +248,7 @@ class GroupChatCommandResolver {
       TE.chainW(
         ({ validateGroupChatId, validatedUserAccountId, validatedRole }) =>
           pipe(
-            UserAccountId.validate(input.executorId),
-            TE.fromEither,
+            this.validateUserAccountId(input.executorId),
             TE.map((validatedExecutorId) => ({
               validateGroupChatId,
               validatedUserAccountId,
@@ -269,12 +285,10 @@ class GroupChatCommandResolver {
     @Arg("input") input: RemoveMemberInput,
   ): Promise<GroupChatOutput> {
     return pipe(
-      GroupChatId.validate(input.groupChatId),
-      TE.fromEither,
+      this.validateGroupChatId(input.groupChatId),
       TE.chainW((validateGroupChatId) =>
         pipe(
-          UserAccountId.validate(input.userAccountId),
-          TE.fromEither,
+          this.validateUserAccountId(input.userAccountId),
           TE.map((validatedUserAccountId) => ({
             validateGroupChatId,
             validatedUserAccountId,
@@ -283,8 +297,7 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedUserAccountId }) =>
         pipe(
-          UserAccountId.validate(input.executorId),
-          TE.fromEither,
+          this.validateUserAccountId(input.executorId),
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedUserAccountId,
@@ -318,12 +331,10 @@ class GroupChatCommandResolver {
     @Arg("input") input: PostMessageInput,
   ): Promise<MessageOutput> {
     return pipe(
-      GroupChatId.validate(input.groupChatId),
-      TE.fromEither,
+      this.validateGroupChatId(input.groupChatId),
       TE.chainW((validateGroupChatId) =>
         pipe(
-          UserAccountId.validate(input.executorId),
-          TE.fromEither,
+          this.validateUserAccountId(input.executorId),
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedExecutorId,
@@ -332,13 +343,12 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedExecutorId }) =>
         pipe(
-          Message.validate(
+          this.validateMessage(
             MessageId.generate(),
             input.content,
             validatedExecutorId,
             new Date(),
           ),
-          TE.fromEither,
           TE.map((validatedMessage) => ({
             validateGroupChatId,
             validatedExecutorId,
@@ -371,8 +381,7 @@ class GroupChatCommandResolver {
     @Arg("input") input: DeleteMessageInput,
   ): Promise<GroupChatOutput> {
     return pipe(
-      GroupChatId.validate(input.groupChatId),
-      TE.fromEither,
+      this.validateGroupChatId(input.groupChatId),
       TE.chainW((validateGroupChatId) =>
         pipe(
           MessageId.validate(input.messageId),
@@ -385,8 +394,7 @@ class GroupChatCommandResolver {
       ),
       TE.chainW(({ validateGroupChatId, validatedMessageId }) =>
         pipe(
-          UserAccountId.validate(input.executorId),
-          TE.fromEither,
+          this.validateUserAccountId(input.executorId),
           TE.map((validatedExecutorId) => ({
             validateGroupChatId,
             validatedMessageId,
