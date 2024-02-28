@@ -40,6 +40,14 @@ class GroupChatCommandProcessor {
     throw e;
   }
 
+  private getOrError(
+    groupChatOpt: GroupChat | undefined,
+  ): TE.TaskEither<ProcessError, GroupChat> {
+    return groupChatOpt === undefined
+      ? TE.left(new ProcessError("Group chat not found"))
+      : TE.right(groupChatOpt);
+  }
+
   createGroupChat(
     name: GroupChatName,
     executorId: UserAccountId,
@@ -65,11 +73,7 @@ class GroupChatCommandProcessor {
   ): TE.TaskEither<ProcessError, GroupChatEvent> {
     return pipe(
       this.groupChatRepository.findById(id),
-      TE.chainW((groupChatOpt) =>
-        groupChatOpt === undefined
-          ? TE.left(new ProcessError("Group chat not found"))
-          : TE.right(groupChatOpt),
-      ),
+      TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
           groupChat.delete(executorId),
@@ -96,11 +100,7 @@ class GroupChatCommandProcessor {
   ): TE.TaskEither<ProcessError, GroupChatEvent> {
     return pipe(
       this.groupChatRepository.findById(id),
-      TE.chainW((groupChatOpt) =>
-        groupChatOpt === undefined
-          ? TE.left(new ProcessError("Group chat not found"))
-          : TE.right(groupChatOpt),
-      ),
+      TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
           groupChat.rename(name, executorId),
@@ -128,11 +128,7 @@ class GroupChatCommandProcessor {
   ): TE.TaskEither<ProcessError, GroupChatEvent> {
     return pipe(
       this.groupChatRepository.findById(id),
-      TE.chainW((groupChatOpt) =>
-        groupChatOpt === undefined
-          ? TE.left(new ProcessError("Group chat not found"))
-          : TE.right(groupChatOpt),
-      ),
+      TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
           groupChat.addMember(memberId, memberRole, executorId),
@@ -159,11 +155,7 @@ class GroupChatCommandProcessor {
   ): TE.TaskEither<ProcessError, GroupChatEvent> {
     return pipe(
       this.groupChatRepository.findById(id),
-      TE.chainW((groupChatOpt) =>
-        groupChatOpt === undefined
-          ? TE.left(new ProcessError("Group chat not found"))
-          : TE.right(groupChatOpt),
-      ),
+      TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
           groupChat.removeMemberById(memberId, executorId),
@@ -190,11 +182,7 @@ class GroupChatCommandProcessor {
   ): TE.TaskEither<ProcessError, GroupChatEvent> {
     return pipe(
       this.groupChatRepository.findById(id),
-      TE.chainW((groupChatOpt) =>
-        groupChatOpt === undefined
-          ? TE.left(new ProcessError("Group chat not found"))
-          : TE.right(groupChatOpt),
-      ),
+      TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
           groupChat.postMessage(message, executorId),
@@ -221,11 +209,7 @@ class GroupChatCommandProcessor {
   ): TE.TaskEither<ProcessError, GroupChatEvent> {
     return pipe(
       this.groupChatRepository.findById(id),
-      TE.chainW((groupChatOpt) =>
-        groupChatOpt === undefined
-          ? TE.left(new ProcessError("Group chat not found"))
-          : TE.right(groupChatOpt),
-      ),
+      TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
           groupChat.deleteMessage(messageId, executorId),
