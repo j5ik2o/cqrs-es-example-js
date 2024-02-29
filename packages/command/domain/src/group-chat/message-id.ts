@@ -4,6 +4,7 @@ const MessageIdTypeSymbol = Symbol("MessageId");
 
 class MessageId {
   readonly symbol: typeof MessageIdTypeSymbol = MessageIdTypeSymbol;
+
   private constructor(public readonly value: string) {
     if (!U.isValid(value)) {
       throw new Error("Invalid message id");
@@ -37,9 +38,11 @@ class MessageId {
       }
     }
   }
+
   static of(value: string): MessageId {
     return new MessageId(value);
   }
+
   static generate(): MessageId {
     return new MessageId(U.ulid());
   }

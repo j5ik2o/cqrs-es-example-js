@@ -18,6 +18,7 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
       GroupChatEvent
     >,
   ) {}
+
   storeEvent(
     event: GroupChatEvent,
     version: number,

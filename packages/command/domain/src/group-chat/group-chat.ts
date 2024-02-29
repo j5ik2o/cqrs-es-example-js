@@ -36,6 +36,7 @@ import { Aggregate } from "event-store-adapter-js";
 import { MemberId } from "./member-id";
 
 const GroupChatTypeSymbol = Symbol("GroupChat");
+
 interface GroupChatParams {
   id: GroupChatId;
   deleted: boolean;
@@ -411,6 +412,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
       GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
     ];
   }
+
   static replay(events: GroupChatEvent[], snapshot: GroupChat): GroupChat {
     return events.reduce(
       (groupChat, event) => groupChat.applyEvent(event),
@@ -432,7 +434,7 @@ function convertJSONToGroupChat(json: any): GroupChat {
   const messages = convertJSONToMessages(json.data.messages);
   return GroupChat.of({
     id,
-    deleted: false,
+    deleted: json.data.deleted,
     name,
     members,
     messages,

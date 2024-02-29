@@ -35,15 +35,19 @@ class Member {
   isAdministrator() {
     return this.memberRole === "administrator";
   }
+
   isMember() {
     return this.memberRole === "member";
   }
+
   withRole(role: MemberRole) {
     return new Member({ ...this, memberRole: role });
   }
+
   toString() {
     return `Member(${this.id.toString()}, ${this.userAccountId.toString()}, ${this.memberRole.toString()})`;
   }
+
   equals(other: Member) {
     return this.userAccountId.value === other.userAccountId.value;
   }

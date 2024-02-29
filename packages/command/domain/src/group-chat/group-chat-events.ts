@@ -28,6 +28,7 @@ class GroupChatCreated implements GroupChatEvent {
   readonly symbol: typeof GroupChatCreatedTypeSymbol =
     GroupChatCreatedTypeSymbol;
   readonly typeName = "GroupChatCreated";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -69,6 +70,7 @@ class GroupChatRenamed implements GroupChatEvent {
   readonly symbol: typeof GroupChatRenamedTypeSymbol =
     GroupChatRenamedTypeSymbol;
   readonly typeName = "GroupChatRenamed";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -77,10 +79,13 @@ class GroupChatRenamed implements GroupChatEvent {
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
   ) {}
+
   isCreated: boolean = false;
+
   toString() {
     return `GroupChatRenamed(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
   }
+
   static of(
     aggregateId: GroupChatId,
     name: GroupChatName,
@@ -104,6 +109,7 @@ class GroupChatMemberAdded implements GroupChatEvent {
   readonly symbol: typeof GroupChatMemberAddedTypeSymbol =
     GroupChatMemberAddedTypeSymbol;
   readonly typeName = "GroupChatMemberAdded";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -112,7 +118,9 @@ class GroupChatMemberAdded implements GroupChatEvent {
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
   ) {}
+
   isCreated: boolean = false;
+
   toString() {
     return `GroupChatMemberAdded(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
   }
@@ -140,6 +148,7 @@ class GroupChatMemberRemoved implements GroupChatEvent {
   readonly symbol: typeof GroupChatMemberRemovedTypeSymbol =
     GroupChatMemberRemovedTypeSymbol;
   readonly typeName = "GroupChatMemberRemoved";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -148,7 +157,9 @@ class GroupChatMemberRemoved implements GroupChatEvent {
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
   ) {}
+
   isCreated: boolean = false;
+
   toString() {
     return `GroupChatMemberRemoved(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
   }
@@ -176,6 +187,7 @@ class GroupChatDeleted implements GroupChatEvent {
   readonly symbol: typeof GroupChatDeletedTypeSymbol =
     GroupChatDeletedTypeSymbol;
   readonly typeName = "GroupChatDeleted";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -183,7 +195,9 @@ class GroupChatDeleted implements GroupChatEvent {
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
   ) {}
+
   isCreated: boolean = false;
+
   toString() {
     return `GroupChatDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
   }
@@ -209,6 +223,7 @@ class GroupChatMessagePosted implements GroupChatEvent {
   readonly symbol: typeof GroupChatMessagePostedTypeSymbol =
     GroupChatMessagePostedTypeSymbol;
   readonly typeName = "GroupChatMessagePosted";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -217,7 +232,9 @@ class GroupChatMessagePosted implements GroupChatEvent {
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
   ) {}
+
   isCreated: boolean = false;
+
   toString() {
     return `GroupChatMessagePosted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
   }
@@ -245,6 +262,7 @@ class GroupChatMessageDeleted implements GroupChatEvent {
   symbol: typeof GroupChatMessageDeletedTypeSymbol =
     GroupChatMessageDeletedTypeSymbol;
   typeName = "GroupChatMessageDeleted";
+
   private constructor(
     public readonly id: string,
     public readonly aggregateId: GroupChatId,
@@ -253,7 +271,9 @@ class GroupChatMessageDeleted implements GroupChatEvent {
     public readonly sequenceNumber: number,
     public readonly occurredAt: Date,
   ) {}
+
   isCreated: boolean = false;
+
   toString() {
     return `GroupChatMessageDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
   }
@@ -291,6 +311,7 @@ class GroupChatEventFactory {
       sequenceNumber,
     );
   }
+
   static ofGroupChatRenamed(
     aggregateId: GroupChatId,
     name: GroupChatName,

@@ -15,6 +15,7 @@ class Message {
   readonly content: string;
   readonly senderId: UserAccountId;
   readonly sentAt: Date;
+
   constructor(params: MessageParams) {
     this.id = params.id;
     this.content = params.content;
@@ -34,6 +35,7 @@ class Message {
   toString() {
     return `Message(${this.id.toString()}, ${this.content}, ${this.senderId.toString()}, ${this.sentAt.toISOString()})`;
   }
+
   equals(anotherMessage: Message): boolean {
     return (
       this.id.equals(anotherMessage.id) &&
@@ -59,6 +61,7 @@ class Message {
       }
     }
   }
+
   static of(
     id: MessageId,
     content: string,

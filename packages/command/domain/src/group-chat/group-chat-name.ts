@@ -22,9 +22,11 @@ class GroupChatName {
   asString() {
     return this.value;
   }
+
   toString() {
     return `GroupChatName(${this.value})`;
   }
+
   equals(anotherName: GroupChatName): boolean {
     return this.value === anotherName.value;
   }
@@ -40,6 +42,7 @@ class GroupChatName {
       }
     }
   }
+
   static of(value: string): GroupChatName {
     return new GroupChatName(value);
   }

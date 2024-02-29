@@ -17,10 +17,12 @@ interface GroupChatRepository {
     event: GroupChatEvent,
     version: number,
   ): TE.TaskEither<RepositoryError, void>;
+
   storeEventAndSnapshot(
     event: GroupChatEvent,
     snapshot: GroupChat,
   ): TE.TaskEither<RepositoryError, void>;
+
   findById(
     id: GroupChatId,
   ): TE.TaskEither<RepositoryError, GroupChat | undefined>;

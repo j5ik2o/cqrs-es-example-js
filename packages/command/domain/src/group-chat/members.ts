@@ -7,6 +7,7 @@ const MembersTypeSymbol = Symbol("Members");
 
 class Members {
   readonly symbol: typeof MembersTypeSymbol = MembersTypeSymbol;
+
   private constructor(public readonly values: Map<string, Member>) {
     if (values.size === 0) {
       throw new Error("Members cannot be empty");
@@ -24,6 +25,7 @@ class Members {
       new Map(this.values).set(member.userAccountId.value, member),
     );
   }
+
   removeMemberById(userAccountId: UserAccountId): O.Option<[Members, Member]> {
     const member = this.values.get(userAccountId.value);
     if (member === undefined) {
@@ -33,31 +35,39 @@ class Members {
     newMap.delete(userAccountId.value);
     return O.some([new Members(newMap), member]);
   }
+
   containsById(userAccountId: UserAccountId): boolean {
     return this.values.has(userAccountId.value);
   }
+
   isMember(userAccountId: UserAccountId): boolean {
     const member = this.values.get(userAccountId.value);
     return member !== undefined && member.isMember();
   }
+
   isAdministrator(userAccountId: UserAccountId): boolean {
     const member = this.values.get(userAccountId.value);
     return member !== undefined && member.isAdministrator();
   }
+
   findById(userAccountId: UserAccountId): Member | undefined {
     return this.values.get(userAccountId.value);
   }
+
   toArray(): Member[] {
     return Array.from(this.values.values());
   }
+
   toMap(): Map<UserAccountId, Member> {
     return new Map(
       Array.from(this.values, ([key, value]) => [UserAccountId.of(key), value]),
     );
   }
+
   toString() {
     return `Members(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
   }
+
   equals(other: Members): boolean {
     const values = this.toMap();
     if (values.size !== other.toMap().size) {

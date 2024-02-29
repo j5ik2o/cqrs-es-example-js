@@ -45,6 +45,7 @@ class UserAccountId implements AggregateId {
       }
     }
   }
+
   static of(value: string): UserAccountId {
     const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
       ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
