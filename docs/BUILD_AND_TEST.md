@@ -3,8 +3,8 @@
 Before building, make sure Docker is up and running.
 
 ```shell
-$ pnpm install # 初回だけ
-$ pnpm prisma:generate # 初回だけ
+$ pnpm install # first time only
+$ pnpm prisma:generate # first time only
 $ pnpm build
 ```
 
