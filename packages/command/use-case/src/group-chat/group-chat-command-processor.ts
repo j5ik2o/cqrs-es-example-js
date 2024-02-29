@@ -16,37 +16,10 @@ import {
 import * as TE from "fp-ts/TaskEither";
 import { pipe } from "fp-ts/function";
 
-class ProcessError extends Error {
-  constructor(message: string, cause?: Error) {
-    super(message);
-    this.name = "ProcessError";
-    this.cause = cause;
-  }
-}
-
 class GroupChatCommandProcessor {
   private constructor(
     private readonly groupChatRepository: GroupChatRepository,
   ) {}
-
-  private convertToProcessError(e: unknown): ProcessError {
-    if (e instanceof ProcessError) {
-      return e;
-    } else if (e instanceof RepositoryError) {
-      return new ProcessError("Failed to delete group chat", e);
-    } else if (e instanceof GroupChatDeleteError) {
-      return new ProcessError("Failed to delete group chat", e);
-    }
-    throw e;
-  }
-
-  private getOrError(
-    groupChatOpt: GroupChat | undefined,
-  ): TE.TaskEither<ProcessError, GroupChat> {
-    return groupChatOpt === undefined
-      ? TE.left(new ProcessError("Group chat not found"))
-      : TE.right(groupChatOpt);
-  }
 
   createGroupChat(
     name: GroupChatName,
@@ -64,6 +37,7 @@ class GroupChatCommandProcessor {
           TE.map(() => groupChatCreated),
         ),
       ),
+      TE.mapLeft(this.convertToProcessError),
     );
   }
 
@@ -76,8 +50,7 @@ class GroupChatCommandProcessor {
       TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
-          groupChat.delete(executorId),
-          TE.fromEither,
+          this.deleteGroupChatAsync(groupChat, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
               this.groupChatRepository.storeEvent(
@@ -103,8 +76,7 @@ class GroupChatCommandProcessor {
       TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
-          groupChat.rename(name, executorId),
-          TE.fromEither,
+          this.renameGroupChatAsync(groupChat, name, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
               this.groupChatRepository.storeEvent(
@@ -131,8 +103,7 @@ class GroupChatCommandProcessor {
       TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
-          groupChat.addMember(memberId, memberRole, executorId),
-          TE.fromEither,
+          this.addMemberAsync(groupChat, memberId, memberRole, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
               this.groupChatRepository.storeEvent(
@@ -158,8 +129,7 @@ class GroupChatCommandProcessor {
       TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
-          groupChat.removeMemberById(memberId, executorId),
-          TE.fromEither,
+          this.removeMemberByIdAsync(groupChat, memberId, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
               this.groupChatRepository.storeEvent(
@@ -185,8 +155,7 @@ class GroupChatCommandProcessor {
       TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
-          groupChat.postMessage(message, executorId),
-          TE.fromEither,
+          this.postMessageAsync(groupChat, message, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
               this.groupChatRepository.storeEvent(
@@ -212,8 +181,7 @@ class GroupChatCommandProcessor {
       TE.chainW(this.getOrError),
       TE.chainW((groupChat) =>
         pipe(
-          groupChat.deleteMessage(messageId, executorId),
-          TE.fromEither,
+          this.deleteMessageAsync(groupChat, messageId, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
               this.groupChatRepository.storeEvent(
@@ -234,6 +202,96 @@ class GroupChatCommandProcessor {
   ): GroupChatCommandProcessor {
     return new GroupChatCommandProcessor(groupChatRepository);
   }
+
+  private convertToProcessError(e: unknown): ProcessError {
+    if (e instanceof ProcessError) {
+      return e;
+    } else if (e instanceof RepositoryError) {
+      return new ProcessInternalError("Failed to delete group chat", e);
+    } else if (e instanceof GroupChatDeleteError) {
+      return new ProcessInternalError("Failed to delete group chat", e);
+    }
+    throw e;
+  }
+
+  private getOrError(
+    groupChatOpt: GroupChat | undefined,
+  ): TE.TaskEither<ProcessError, GroupChat> {
+    return groupChatOpt === undefined
+      ? TE.left(new ProcessNotFoundError("Group chat not found"))
+      : TE.right(groupChatOpt);
+  }
+
+  private deleteGroupChatAsync(
+    groupChat: GroupChat,
+    executorId: UserAccountId,
+  ) {
+    return TE.fromEither(groupChat.delete(executorId));
+  }
+
+  private renameGroupChatAsync(
+    groupChat: GroupChat,
+    name: GroupChatName,
+    executorId: UserAccountId,
+  ) {
+    return TE.fromEither(groupChat.rename(name, executorId));
+  }
+
+  private addMemberAsync(
+    groupChat: GroupChat,
+    memberId: UserAccountId,
+    memberRole: MemberRole,
+    executorId: UserAccountId,
+  ) {
+    return TE.fromEither(groupChat.addMember(memberId, memberRole, executorId));
+  }
+
+  private removeMemberByIdAsync(
+    groupChat: GroupChat,
+    memberId: UserAccountId,
+    executorId: UserAccountId,
+  ) {
+    return TE.fromEither(groupChat.removeMemberById(memberId, executorId));
+  }
+
+  private postMessageAsync(
+    groupChat: GroupChat,
+    message: Message,
+    executorId: UserAccountId,
+  ) {
+    return TE.fromEither(groupChat.postMessage(message, executorId));
+  }
+
+  private deleteMessageAsync(
+    groupChat: GroupChat,
+    messageId: MessageId,
+    executorId: UserAccountId,
+  ) {
+    return TE.fromEither(groupChat.deleteMessage(messageId, executorId));
+  }
 }
 
-export { GroupChatCommandProcessor, ProcessError };
+abstract class ProcessError extends Error {}
+
+class ProcessInternalError extends ProcessError {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "ProcessError";
+    this.cause = cause;
+  }
+}
+
+class ProcessNotFoundError extends ProcessError {
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = "ProcessError";
+    this.cause = cause;
+  }
+}
+
+export {
+  GroupChatCommandProcessor,
+  ProcessError,
+  ProcessInternalError,
+  ProcessNotFoundError,
+};
