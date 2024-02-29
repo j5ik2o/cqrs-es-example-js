@@ -18,10 +18,10 @@ jobs:
           node-version: 20.x
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install -g turbo
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma:generate
-      - run: pnpm run lint
+      - run: |
+          pnpm install
+          pnpm prisma:generate
+          pnpm run lint
   test:
     runs-on: ubuntu-latest
     needs: lint
@@ -42,7 +42,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: |
-          pnpm install -g turbo
           pnpm install
           pnpm prisma:generate
           pnpm run test

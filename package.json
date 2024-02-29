@@ -2,6 +2,7 @@
   "name": "cqrs-es-example-js",
   "version": "1.0.0",
   "description": "",
+  "private": true,
   "main": "index.js",
   "scripts": {
     "docker-build-e2e-test": "cd tools/e2e-test && make build",
@@ -24,5 +25,15 @@
   },
   "keywords": [],
   "author": "Junichi Kato <j5ik2o@gmail.com> (https://j5ik2o.me/)",
-  "license": "MIT"
+  "license": "(MIT OR Apache-2.0)",
+  "engines": {
+    "node": ">=20.5.0",
+    "pnpm": ">=8",
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm"
+  },
+  "packageManager": "pnpm@8.6.12",
+  "devDependencies": {
+    "turbo": "^1.12.4"
+  }
 }

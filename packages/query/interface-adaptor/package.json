@@ -50,5 +50,12 @@
     "tslib": "^2.6.2",
     "type-graphql": "2.0.0-beta.6",
     "tslog": "^4.9.2"
-  }
+  },
+  "engines": {
+    "node": ">=20.5.0",
+    "pnpm": ">=8",
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm"
+  },
+  "packageManager": "pnpm@8.6.12"
 }

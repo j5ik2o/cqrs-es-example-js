@@ -46,5 +46,12 @@
     "fp-ts": "^2.16.2",
     "moment": "^2.29.4",
     "tslog": "^4.9.2"
-  }
+  },
+  "engines": {
+    "node": ">=20.5.0",
+    "pnpm": ">=8",
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm"
+  },
+  "packageManager": "pnpm@8.6.12"
 }
