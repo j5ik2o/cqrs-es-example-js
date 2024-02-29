@@ -52,7 +52,7 @@ class GroupChatQueryResolver {
             gc.owner_id as ownerId,
             gc.created_at as createdAt,
             gc.updated_at as updatedAt
-	    FROM
+	FROM
 	        group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
             gc.disabled = 'false' AND m.user_account_id = ${userAccountId}`;
@@ -74,10 +74,10 @@ class GroupChatQueryResolver {
             m.role as role,
             m.created_at as createdAt,
             m.updated_at as updatedAt
-	    FROM
-	        group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
-	    WHERE
-	        gc.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
+	FROM
+	    group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
+	WHERE
+	    gc.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
     if (!members.length) {
       throw new Error("not found");
     }
@@ -126,8 +126,8 @@ class GroupChatQueryResolver {
             m.text as text,
             m.created_at as createdAt,
             m.updated_at as updatedAt
-	    FROM
-	        group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
+	FROM
+	    group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
         WHERE
             gc.disabled = 'false' AND m.disabled = 'false' AND m.id = ${messageId}
             AND EXISTS (
@@ -157,8 +157,8 @@ class GroupChatQueryResolver {
             m.text as text,
             m.created_at as createdAt,
             m.updated_at as updatedAt
-	    FROM
-	        group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
+	FROM
+	    group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
         WHERE
             gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId}
             AND EXISTS (
