@@ -15,16 +15,21 @@ async function readApiMain() {
   const apiPort =
     process.env.API_PORT !== undefined ? parseInt(process.env.API_PORT) : 3000;
 
-  const DATABASE_URL = process.env.DATABASE_URL;
-  if (!DATABASE_URL) {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
     throw new Error("DATABASE_URL is not set");
   }
 
   logger.info(`API_HOST: ${apiHost}`);
   logger.info(`API_PORT: ${apiPort}`);
-  logger.info(`DATABASE_URL: ${DATABASE_URL}`);
+  logger.info(`DATABASE_URL: ${databaseUrl}`);
 
   const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
     log: [{ level: "query", emit: "event" }],
   });
   prisma.$on("query", async (e) => {

@@ -38,8 +38,8 @@ async function localRmuMain() {
       ? parseInt(process.env.STREAM_MAX_ITEM_COUNT)
       : 100;
 
-  const DATABASE_URL = process.env.DATABASE_URL;
-  if (!DATABASE_URL) {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
     throw new Error("DATABASE_URL is not set");
   }
 
@@ -51,7 +51,7 @@ async function localRmuMain() {
   logger.info(`AWS_DYNAMODB_SECRET_ACCESS_KEY: ${awsDynamodbSecretAccessKey}`);
   logger.info(`STREAM_JOURNAL_TABLE_NAME: ${streamJournalTableName}`);
   logger.info(`STREAM_MAX_ITEM_COUNT: ${streamMaxItemCount}`);
-  logger.info(`DATABASE_URL: ${DATABASE_URL}`);
+  logger.info(`DATABASE_URL: ${databaseUrl}`);
 
   let dynamodbClient: DynamoDBClient;
   let dynamodbStreamsClient: DynamoDBStreamsClient;
@@ -83,6 +83,11 @@ async function localRmuMain() {
   }
 
   const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
     log: [{ level: "query", emit: "event" }],
   });
   prisma.$on("query", async (e) => {
