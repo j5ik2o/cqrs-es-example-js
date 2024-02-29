@@ -42,6 +42,11 @@ This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/even
 
 ![](docs/images/system-layout.png)
 
+
+## Development Environment
+
+
+
 ## Usage
 
 ### Local Environment
