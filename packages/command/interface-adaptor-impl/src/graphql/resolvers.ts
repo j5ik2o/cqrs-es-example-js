@@ -35,7 +35,7 @@ interface CommandContext {
   groupChatCommandProcessor: GroupChatCommandProcessor;
 }
 
-@Resolver(() => GroupChatOutput)
+@Resolver()
 class GroupChatCommandResolver {
   @Query(() => HealthCheckOutput)
   async healthCheck(): Promise<HealthCheckOutput> {
