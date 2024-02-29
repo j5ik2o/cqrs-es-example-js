@@ -1,8 +1,6 @@
 ## ビルド方法
 
-## Build
-
-Before building, make sure Docker is up and running.
+ビルドを行う前に、Dockerを必ず起動してください。
 
 ```shell
 $ pnpm install # 初回だけ
@@ -10,19 +8,19 @@ $ pnpm prisma:generate # 初回だけ
 $ pnpm build
 ```
 
-## Testing
+## テスト方法
 
-## Unit Tests
+## 単体テスト
 
-Ensure Docker is running beforehand.
+事前にDockerを必ず起動してください。
 
 ```shell
 $ pnpm test
 ```
 
-## E2E Tests
+## E2Eテスト
 
-Executes E2E tests against the application started with docker compose.
+docker composeで起動したアプリケーションに対してE2Eテストを実行します。
 
 ```shell
 $ pnpm docker-build
