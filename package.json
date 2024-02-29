@@ -2,6 +2,7 @@
   "name": "cqrs-es-example-js",
   "version": "1.0.0",
   "description": "",
+  "private": true,
   "main": "index.js",
   "scripts": {
     "docker-build-e2e-test": "cd tools/e2e-test && make build",
