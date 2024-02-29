@@ -42,7 +42,7 @@
     "aws-lambda": "^1.0.7",
     "aws-sdk": "^2.1459.0",
     "cqrs-es-example-js-command-domain": "workspace:*",
-    "event-store-adapter-js": "2.1.2",
+    "event-store-adapter-js": "2.1.3",
     "fp-ts": "^2.16.2",
     "moment": "^2.29.4",
     "tslog": "^4.9.2"
