@@ -30,10 +30,7 @@ class GroupChatCommandProcessor {
       TE.chain((id) => TE.right(GroupChat.create(id, name, executorId))),
       TE.chain(([groupChat, groupChatCreated]) =>
         pipe(
-          this.groupChatRepository.storeEventAndSnapshot(
-            groupChatCreated,
-            groupChat,
-          ),
+          this.groupChatRepository.store(groupChatCreated, groupChat),
           TE.map(() => groupChatCreated),
         ),
       ),
@@ -53,10 +50,7 @@ class GroupChatCommandProcessor {
           this.deleteGroupChatAsync(groupChat, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
-              this.groupChatRepository.storeEvent(
-                groupChatDeleted,
-                groupChat.version,
-              ),
+              this.groupChatRepository.store(groupChatDeleted, groupChat),
               TE.map(() => groupChatDeleted),
             ),
           ),
@@ -79,10 +73,7 @@ class GroupChatCommandProcessor {
           this.renameGroupChatAsync(groupChat, name, executorId),
           TE.chainW(([groupChat, groupChatDeleted]) =>
             pipe(
-              this.groupChatRepository.storeEvent(
-                groupChatDeleted,
-                groupChat.version,
-              ),
+              this.groupChatRepository.store(groupChatDeleted, groupChat),
               TE.map(() => groupChatDeleted),
             ),
           ),
@@ -104,13 +95,10 @@ class GroupChatCommandProcessor {
       TE.chainW((groupChat) =>
         pipe(
           this.addMemberAsync(groupChat, memberId, memberRole, executorId),
-          TE.chainW(([groupChat, groupChatDeleted]) =>
+          TE.chainW(([groupChat, groupChatMemberAdded]) =>
             pipe(
-              this.groupChatRepository.storeEvent(
-                groupChatDeleted,
-                groupChat.version,
-              ),
-              TE.map(() => groupChatDeleted),
+              this.groupChatRepository.store(groupChatMemberAdded, groupChat),
+              TE.map(() => groupChatMemberAdded),
             ),
           ),
         ),
@@ -130,13 +118,10 @@ class GroupChatCommandProcessor {
       TE.chainW((groupChat) =>
         pipe(
           this.removeMemberByIdAsync(groupChat, memberId, executorId),
-          TE.chainW(([groupChat, groupChatDeleted]) =>
+          TE.chainW(([groupChat, groupChatMemberRemoved]) =>
             pipe(
-              this.groupChatRepository.storeEvent(
-                groupChatDeleted,
-                groupChat.version,
-              ),
-              TE.map(() => groupChatDeleted),
+              this.groupChatRepository.store(groupChatMemberRemoved, groupChat),
+              TE.map(() => groupChatMemberRemoved),
             ),
           ),
         ),
@@ -156,13 +141,10 @@ class GroupChatCommandProcessor {
       TE.chainW((groupChat) =>
         pipe(
           this.postMessageAsync(groupChat, message, executorId),
-          TE.chainW(([groupChat, groupChatDeleted]) =>
+          TE.chainW(([groupChat, groupChatMessagePosted]) =>
             pipe(
-              this.groupChatRepository.storeEvent(
-                groupChatDeleted,
-                groupChat.version,
-              ),
-              TE.map(() => groupChatDeleted),
+              this.groupChatRepository.store(groupChatMessagePosted, groupChat),
+              TE.map(() => groupChatMessagePosted),
             ),
           ),
         ),
@@ -182,13 +164,13 @@ class GroupChatCommandProcessor {
       TE.chainW((groupChat) =>
         pipe(
           this.deleteMessageAsync(groupChat, messageId, executorId),
-          TE.chainW(([groupChat, groupChatDeleted]) =>
+          TE.chainW(([groupChat, groupChatMessageDeleted]) =>
             pipe(
-              this.groupChatRepository.storeEvent(
-                groupChatDeleted,
-                groupChat.version,
+              this.groupChatRepository.store(
+                groupChatMessageDeleted,
+                groupChat,
               ),
-              TE.map(() => groupChatDeleted),
+              TE.map(() => groupChatMessageDeleted),
             ),
           ),
         ),
