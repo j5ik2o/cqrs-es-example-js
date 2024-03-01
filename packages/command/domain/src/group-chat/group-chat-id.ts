@@ -1,6 +1,8 @@
 import * as U from "ulidx";
 import * as E from "fp-ts/lib/Either";
 import { AggregateId } from "event-store-adapter-js";
+import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdTypeSymbol = Symbol("GroupChatId");
 
@@ -50,7 +52,7 @@ class GroupChatId implements AggregateId {
   }
 
   static generate(): GroupChatId {
-    return new GroupChatId(U.ulid());
+    return new GroupChatId(Infrastructure.generateULID());
   }
 }
 

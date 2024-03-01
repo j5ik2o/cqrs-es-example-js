@@ -1,4 +1,5 @@
 import * as U from "ulidx";
+import * as Infrastructure from "cqrs-es-example-js-infrastructure";
 
 const MemberIdTypeSymbol = Symbol("MemberId");
 
@@ -33,7 +34,7 @@ class MemberId {
   }
 
   static generate(): MemberId {
-    return new MemberId(U.ulid());
+    return new MemberId(Infrastructure.generateULID());
   }
 }
 
