@@ -3,9 +3,9 @@ import { convertJSONToGroupChatId, GroupChatId } from "./group-chat-id";
 import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
 import { convertJSONToGroupChatName, GroupChatName } from "./group-chat-name";
 import { convertJSONToMembers, Members } from "./members";
-import { ulid } from "ulidx";
 import { convertJSONToMember, Member } from "./member";
 import { convertJSONToMessage, Message } from "./message";
+import * as Infrastructure from "cqrs-es-example-js-infrastructure";
 
 type GroupChatEventTypeSymbol =
   | typeof GroupChatCreatedTypeSymbol
@@ -53,7 +53,7 @@ class GroupChatCreated implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatCreated {
     return new GroupChatCreated(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       name,
       members,
@@ -93,7 +93,7 @@ class GroupChatRenamed implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatRenamed {
     return new GroupChatRenamed(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       name,
       executorId,
@@ -132,7 +132,7 @@ class GroupChatMemberAdded implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatMemberAdded {
     return new GroupChatMemberAdded(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       member,
       executorId,
@@ -171,7 +171,7 @@ class GroupChatMemberRemoved implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatMemberRemoved {
     return new GroupChatMemberRemoved(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       member,
       executorId,
@@ -208,7 +208,7 @@ class GroupChatDeleted implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatDeleted {
     return new GroupChatDeleted(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       executorId,
       sequenceNumber,
@@ -246,7 +246,7 @@ class GroupChatMessagePosted implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatMessagePosted {
     return new GroupChatMessagePosted(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       message,
       executorId,
@@ -285,7 +285,7 @@ class GroupChatMessageDeleted implements GroupChatEvent {
     sequenceNumber: number,
   ): GroupChatMessageDeleted {
     return new GroupChatMessageDeleted(
-      ulid(),
+      Infrastructure.generateULID(),
       aggregateId,
       message,
       executorId,

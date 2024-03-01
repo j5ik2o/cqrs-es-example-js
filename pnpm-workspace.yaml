@@ -1,5 +1,6 @@
 packages:
   - 'packages/bootstrap'
+  - 'packages/infrastructure'
   - 'packages/rmu'
   - 'packages/command/*'
   - 'packages/query/*'

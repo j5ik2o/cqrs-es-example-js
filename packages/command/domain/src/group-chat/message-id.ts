@@ -1,5 +1,7 @@
 import * as U from "ulidx";
 import * as E from "fp-ts/lib/Either";
+import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+
 const MessageIdTypeSymbol = Symbol("MessageId");
 
 class MessageId {
@@ -44,7 +46,7 @@ class MessageId {
   }
 
   static generate(): MessageId {
-    return new MessageId(U.ulid());
+    return new MessageId(Infrastructure.generateULID());
   }
 }
 
