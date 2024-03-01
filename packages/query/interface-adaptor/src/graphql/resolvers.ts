@@ -53,7 +53,7 @@ class GroupChatQueryResolver {
             gc.created_at as createdAt,
             gc.updated_at as updatedAt
 	FROM
-	        group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
+	    group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
             gc.disabled = 'false' AND m.user_account_id = ${userAccountId}`;
     this.logger.debug("getGroupChats:", groupChats);
@@ -120,7 +120,8 @@ class GroupChatQueryResolver {
     @Arg("userAccountId") userAccountId: string,
   ): Promise<MessageOutput> {
     const messages: MessageOutput[] = await prisma.$queryRaw<MessageOutput[]>`
-        SELECT m.id as id,
+        SELECT
+	    m.id as id,
             m.group_chat_id as groupChatId,
             m.user_account_id as userAccountId,
             m.text as text,
