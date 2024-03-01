@@ -427,7 +427,6 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertJSONToGroupChat(json: any): GroupChat {
-  console.log("convertJSONToGroupChat = ", JSON.stringify(json, null, 2));
   const id = convertJSONToGroupChatId(json.data.id);
   const name = convertJSONToGroupChatName(json.data.name);
   const members = convertJSONToMembers(json.data.members);

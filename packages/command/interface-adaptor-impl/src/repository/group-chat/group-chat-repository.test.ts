@@ -111,10 +111,7 @@ describe("GroupChatRepository", () => {
       );
     }
     const [, groupChatRenamed] = renameEither.right;
-    const result2 = await repository.storeEvent(
-      groupChatRenamed,
-      groupChat1.version,
-    )();
+    const result2 = await repository.store(groupChatRenamed, groupChat1)();
     if (E.isLeft(result2)) {
       throw new Error(result2.left.message);
     }
@@ -132,5 +129,76 @@ describe("GroupChatRepository", () => {
 
     expect(groupChat3.id.equals(id)).toEqual(true);
     expect(groupChat3.name.equals(name2)).toEqual(true);
+  });
+
+  test("store and reply: store method calling only", async () => {
+    const repository = GroupChatRepositoryImpl.of(eventStore).withRetention(3);
+
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat1, groupChatCreated] = GroupChat.create(id, name, adminId);
+    expect(groupChat1.version).toEqual(1);
+
+    const result1Either = await repository.store(
+      groupChatCreated,
+      groupChat1,
+    )();
+    if (E.isLeft(result1Either)) {
+      throw new Error(result1Either.left.message);
+    }
+
+    const groupChat2Either = await repository.findById(id)();
+    if (E.isLeft(groupChat2Either)) {
+      throw new Error(groupChat2Either.left.message);
+    }
+    const groupChat2 = groupChat2Either.right!;
+    expect(groupChat2.version).toEqual(1);
+
+    const name2 = GroupChatName.of("name2");
+    const rename2Either = groupChat2.rename(name2, adminId);
+    if (E.isLeft(rename2Either)) {
+      throw new Error(
+        `groupChat3Either is left: ${rename2Either.left.stack?.toString()}`,
+      );
+    }
+    const [groupChat3, groupChatRenamed] = rename2Either.right;
+    expect(groupChat3.version).toEqual(1);
+
+    const result2Either = await repository.store(
+      groupChatRenamed,
+      groupChat3,
+    )();
+    if (E.isLeft(result2Either)) {
+      throw new Error(result2Either.left.message);
+    }
+
+    const groupChat3Either = await repository.findById(id)();
+    if (E.isLeft(groupChat3Either)) {
+      throw new Error(
+        `groupChat3Either is left: ${groupChat3Either.left.stack?.toString()}`,
+      );
+    }
+    const groupChat4 = groupChat3Either.right!;
+    expect(groupChat4.id.equals(id)).toEqual(true);
+    expect(groupChat4.name.equals(name2)).toEqual(true);
+    expect(groupChat4.version).toEqual(2);
+
+    const name3 = GroupChatName.of("name3");
+    const rename3Either = groupChat4.rename(name3, adminId);
+    if (E.isLeft(rename3Either)) {
+      throw new Error(
+        `groupChat3Either is left: ${rename3Either.left.stack?.toString()}`,
+      );
+    }
+    const [GroupChat5, groupChatRenamed2] = rename3Either.right;
+
+    const result3Either = await repository.store(
+      groupChatRenamed2,
+      GroupChat5,
+    )();
+    if (E.isLeft(result3Either)) {
+      throw new Error(result3Either.left.message);
+    }
   });
 });

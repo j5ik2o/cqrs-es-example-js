@@ -10,6 +10,8 @@ import {
 } from "cqrs-es-example-js-command-interface-adaptor-if";
 import * as TE from "fp-ts/TaskEither";
 
+type SnapshotDecider = (event: GroupChatEvent, snapshot: GroupChat) => boolean;
+
 class GroupChatRepositoryImpl implements GroupChatRepository {
   private constructor(
     public readonly eventStore: EventStore<
@@ -17,7 +19,23 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
       GroupChat,
       GroupChatEvent
     >,
+    private readonly snapshotDecider: SnapshotDecider | undefined,
   ) {}
+
+  store(
+    event: GroupChatEvent,
+    snapshot: GroupChat,
+  ): TE.TaskEither<RepositoryError, void> {
+    if (
+      event.isCreated ||
+      (this.snapshotDecider !== undefined &&
+        this.snapshotDecider(event, snapshot))
+    ) {
+      return this.storeEventAndSnapshot(event, snapshot);
+    } else {
+      return this.storeEvent(event, snapshot.version);
+    }
+  }
 
   storeEvent(
     event: GroupChatEvent,
@@ -92,8 +110,22 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
 
   static of(
     eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent>,
+    snapshotDecider: SnapshotDecider | undefined = undefined,
   ): GroupChatRepository {
-    return new GroupChatRepositoryImpl(eventStore);
+    return new GroupChatRepositoryImpl(eventStore, snapshotDecider);
+  }
+
+  withRetention(numberOfEvents: number): GroupChatRepository {
+    return new GroupChatRepositoryImpl(
+      this.eventStore,
+      GroupChatRepositoryImpl.retentionCriteriaOf(numberOfEvents),
+    );
+  }
+
+  static retentionCriteriaOf(numberOfEvents: number): SnapshotDecider {
+    return (event: GroupChatEvent, _: GroupChat) => {
+      return event.sequenceNumber % numberOfEvents == 0;
+    };
   }
 }
 

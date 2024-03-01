@@ -54,6 +54,10 @@ COPY --from=builder --chown=nodejs:nodejs /app/packages/query/interface-adaptor/
 COPY --from=builder --chown=nodejs:nodejs /app/packages/query/interface-adaptor/dist /app/packages/query/interface-adaptor/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/query/interface-adaptor/package.json /app/packages/query/interface-adaptor/package.json
 
+COPY --from=builder --chown=nodejs:nodejs /app/packages/infrastructure/node_modules /app/packages/infrastructure/node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/packages/infrastructure/dist /app/packages/infrastructure/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/infrastructure/package.json /app/packages/infrastructure/package.json
+
 USER nodejs
 EXPOSE 3000
 

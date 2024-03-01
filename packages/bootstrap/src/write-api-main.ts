@@ -95,7 +95,8 @@ async function writeApiMain() {
     convertJSONToGroupChatEvent,
     convertJSONToGroupChat,
   );
-  const groupChatRepository = GroupChatRepositoryImpl.of(eventStore);
+  const groupChatRepository =
+    GroupChatRepositoryImpl.of(eventStore).withRetention(100);
   const groupChatCommandProcessor =
     GroupChatCommandProcessor.of(groupChatRepository);
 

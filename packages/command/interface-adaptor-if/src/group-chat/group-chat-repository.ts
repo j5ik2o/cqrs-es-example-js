@@ -12,13 +12,21 @@ class RepositoryError extends Error {
     this.cause = cause;
   }
 }
+
 interface GroupChatRepository {
+  withRetention(numberOfEvents: number): GroupChatRepository;
+
   storeEvent(
     event: GroupChatEvent,
     version: number,
   ): TE.TaskEither<RepositoryError, void>;
 
   storeEventAndSnapshot(
+    event: GroupChatEvent,
+    snapshot: GroupChat,
+  ): TE.TaskEither<RepositoryError, void>;
+
+  store(
     event: GroupChatEvent,
     snapshot: GroupChat,
   ): TE.TaskEither<RepositoryError, void>;
