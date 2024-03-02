@@ -38,9 +38,9 @@ importers:
       cqrs-es-example-js-command-interface-adaptor-impl:
         specifier: workspace:*
         version: link:../command/interface-adaptor-impl
-      cqrs-es-example-js-command-use-case:
+      cqrs-es-example-js-command-processor:
         specifier: workspace:*
-        version: link:../command/use-case
+        version: link:../command/processor
       cqrs-es-example-js-query-interface-adaptor:
         specifier: workspace:*
         version: link:../query/interface-adaptor
@@ -239,9 +239,9 @@ importers:
       cqrs-es-example-js-command-interface-adaptor-if:
         specifier: workspace:*
         version: link:../interface-adaptor-if
-      cqrs-es-example-js-command-use-case:
+      cqrs-es-example-js-command-processor:
         specifier: workspace:*
-        version: link:../use-case
+        version: link:../processor
       event-store-adapter-js:
         specifier: 2.1.6
         version: 2.1.6
@@ -310,7 +310,7 @@ importers:
         specifier: ^5.2.2
         version: 5.3.3
 
-  packages/command/use-case:
+  packages/command/processor:
     dependencies:
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
@@ -1492,7 +1492,7 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
     dependencies:
-      '@babel/types': 7.23.9
+      '@babel/types': 7.24.0
     dev: true
 
   /@babel/parser@7.24.0:
@@ -1637,7 +1637,7 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       '@babel/code-frame': 7.23.5
-      '@babel/parser': 7.23.9
+      '@babel/parser': 7.24.0
       '@babel/types': 7.24.0
     dev: true
 
@@ -1666,15 +1666,6 @@ packages:
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
-    dev: true
-
-  /@babel/types@7.23.9:
-    resolution: {integrity: sha512-dQjSq/7HaSjRM43FFGnv5keM2HsxpmyV1PfaSVm0nzzjwwTmjOe6J4bC8e3+pTEIgHaHj+1ZlLThRJ2auc/w1Q==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/helper-string-parser': 7.23.4
-      '@babel/helper-validator-identifier': 7.22.20
-      to-fast-properties: 2.0.0
     dev: true
 
   /@babel/types@7.24.0:
