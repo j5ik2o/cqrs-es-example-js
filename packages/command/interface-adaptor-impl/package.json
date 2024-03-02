@@ -38,7 +38,7 @@
     "aws-sdk": "^2.1459.0",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
-    "cqrs-es-example-js-command-use-case": "workspace:*",
+    "cqrs-es-example-js-command-processor": "workspace:*",
     "event-store-adapter-js": "2.1.6",
     "fp-ts": "^2.16.2",
     "moment": "^2.29.4",

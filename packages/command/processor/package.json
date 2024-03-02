@@ -1,5 +1,5 @@
 {
-  "name": "cqrs-es-example-js-command-use-case",
+  "name": "cqrs-es-example-js-command-processor",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",

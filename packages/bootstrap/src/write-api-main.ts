@@ -3,7 +3,7 @@ import {
   createCommandSchema,
   GroupChatRepositoryImpl,
 } from "cqrs-es-example-js-command-interface-adaptor-impl";
-import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-use-case";
+import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-processor";
 import { EventStoreFactory } from "event-store-adapter-js";
 import {
   convertJSONToGroupChat,
