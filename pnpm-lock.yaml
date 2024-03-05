@@ -68,7 +68,7 @@ importers:
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.134
-        version: 8.10.135
+        version: 8.10.136
       '@types/jest':
         specifier: ^29.5.5
         version: 29.5.12
@@ -543,7 +543,7 @@ importers:
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.134
-        version: 8.10.135
+        version: 8.10.136
       '@types/jest':
         specifier: ^29.5.5
         version: 29.5.12
@@ -2657,8 +2657,8 @@ packages:
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
     dev: true
 
-  /@types/aws-lambda@8.10.135:
-    resolution: {integrity: sha512-kD3aDbS5la1LcS89a4bJTLVSJI5euO2fx3euZTge7SbArH7+kcoLS+lK87cdI5GCEfiBQSio5gz546N0FhMmjg==}
+  /@types/aws-lambda@8.10.136:
+    resolution: {integrity: sha512-cmmgqxdVGhxYK9lZMYYXYRJk6twBo53ivtXjIUEFZxfxe4TkZTZBK3RRWrY2HjJcUIix0mdifn15yjOAat5lTA==}
     dev: true
 
   /@types/babel__core@7.20.5:
