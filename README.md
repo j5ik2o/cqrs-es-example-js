@@ -25,23 +25,27 @@ Please refer to [here](https://github.com/j5ik2o/cqrs-es-example) for implementa
 - [ ] Read Model Updater on AWS Lambda
 - [ ] Deployment to AWS
 
-## Overview
-
-### Component Composition
+## Component Composition
 
 - Write API Server
   - API is implemented by GraphQL (Mutation)
   - Event Sourced Aggregate is implemented by [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js)
-  - GraphQL Server is [apollographql/apollo-server](https://github.com/apollographql/apollo-server), GraphQL Schema tool is [MichalLytek/type-graphql](https://github.com/MichalLytek/type-graphql)
 - Read Model Updater
   - Lambda to build read models based on journals
   - Locally, run code that emulates Lambda behavior (local-rmu)
 - Read API Server
   - API is implemented by GraphQL (Query)
-  - GraphQL Server is [apollographql/apollo-server](https://github.com/apollographql/apollo-server), GraphQL Schema tool is [MichalLytek/type-graphql](https://github.com/MichalLytek/type-graphql), ORM is [prisma](https://github.com/prisma/prisma)
 
+## Stack
 
-### System Architecture Diagram
+This OSS repository mainly utilizes the following technology stack.
+
+- [apollographql/apollo-server](https://github.com/apollographql/apollo-server)
+- [MichalLytek/type-graphql](https://github.com/MichalLytek/type-graphql)
+- [prisma](https://github.com/prisma/prisma)
+- [j5ik2o/cqrs-es-example-js](https://github.com/j5ik2o/cqrs-es-example-js)
+
+## System Architecture Diagram
 
 ![](docs/images/system-layout.png)
 
