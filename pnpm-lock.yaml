@@ -31,7 +31,7 @@ importers:
         version: 1.0.7
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1570.0
+        version: 2.1571.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../command/domain
@@ -171,7 +171,7 @@ importers:
         version: 3.525.0
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1570.0
+        version: 2.1571.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../domain
@@ -232,7 +232,7 @@ importers:
         version: 3.525.0
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1570.0
+        version: 2.1571.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../domain
@@ -436,7 +436,7 @@ importers:
         version: 1.3.9
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1570.0
+        version: 2.1571.0
       event-store-adapter-js:
         specifier: 2.1.7
         version: 2.1.7
@@ -524,7 +524,7 @@ importers:
         version: 1.0.7
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1570.0
+        version: 2.1571.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../command/domain
@@ -3208,14 +3208,14 @@ packages:
     resolution: {integrity: sha512-9GNFMRrEMG5y3Jvv+V4azWvc+qNWdWLTjDdhf/zgMlz8haaaLWv0xeAIWxz9PuWUBawsVxy0zZotjCdR3Xq+2w==}
     hasBin: true
     dependencies:
-      aws-sdk: 2.1570.0
+      aws-sdk: 2.1571.0
       commander: 3.0.2
       js-yaml: 3.14.1
       watchpack: 2.4.0
     dev: false
 
-  /aws-sdk@2.1570.0:
-    resolution: {integrity: sha512-WySdibC3YOPCFcXNSevX7cGp6Nc0Ksv7m6aaz6YoqSrmSn7mZhkWaVXqfd14nsjJuyEbEgX+gAiZaahyvkUYJw==}
+  /aws-sdk@2.1571.0:
+    resolution: {integrity: sha512-Hixs1aD+7IwsP/Bkb7StFCrOC9ejmw8zBv8xVqEtEughRX6AF8bLKFRoJRbD4V6TrM+gPGpCqoFlpa84HLHkSA==}
     engines: {node: '>= 10.0.0'}
     dependencies:
       buffer: 4.9.2
@@ -4015,7 +4015,7 @@ packages:
     resolution: {integrity: sha512-qfrah/09I1F0A5GhC3Z2aBHz5DLSNJktlAdB7a0ZcX+J6z01s9a5qyPtoClohDHjh+WZRjdv9oDXE/3+mmE5HQ==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.525.0
-      aws-sdk: 2.1570.0
+      aws-sdk: 2.1571.0
       moment: 2.30.1
       ulid: 2.3.0
       winston: 3.11.0
