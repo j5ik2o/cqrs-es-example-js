@@ -48,8 +48,8 @@ importers:
         specifier: workspace:*
         version: link:../rmu
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -115,8 +115,8 @@ importers:
         specifier: workspace:*
         version: link:../../infrastructure
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -176,8 +176,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -243,8 +243,8 @@ importers:
         specifier: workspace:*
         version: link:../processor
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -319,8 +319,8 @@ importers:
         specifier: workspace:*
         version: link:../interface-adaptor-if
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -438,8 +438,8 @@ importers:
         specifier: ^2.1459.0
         version: 2.1574.0
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -529,8 +529,8 @@ importers:
         specifier: workspace:*
         version: link:../command/domain
       event-store-adapter-js:
-        specifier: 2.1.11
-        version: 2.1.11
+        specifier: 2.1.12
+        version: 2.1.12
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.2
@@ -1324,8 +1324,8 @@ packages:
         optional: true
     dependencies:
       '@aws-sdk/types': 3.523.0
-      '@smithy/node-config-provider': 2.2.4
-      '@smithy/types': 2.10.1
+      '@smithy/node-config-provider': 2.2.5
+      '@smithy/types': 2.11.0
       tslib: 2.6.2
     dev: false
 
@@ -2391,16 +2391,6 @@ packages:
       tslib: 2.6.2
     dev: false
 
-  /@smithy/node-config-provider@2.2.4:
-    resolution: {integrity: sha512-nqazHCp8r4KHSFhRQ+T0VEkeqvA0U+RhehBSr1gunUuNW3X7j0uDrWBxB2gE9eutzy6kE3Y7L+Dov/UXT871vg==}
-    engines: {node: '>=14.0.0'}
-    dependencies:
-      '@smithy/property-provider': 2.1.4
-      '@smithy/shared-ini-file-loader': 2.3.5
-      '@smithy/types': 2.10.1
-      tslib: 2.6.2
-    dev: false
-
   /@smithy/node-config-provider@2.2.5:
     resolution: {integrity: sha512-CxPf2CXhjO79IypHJLBATB66Dw6suvr1Yc2ccY39hpR6wdse3pZ3E8RF83SODiNH0Wjmkd0ze4OF8exugEixgA==}
     engines: {node: '>=14.0.0'}
@@ -2493,13 +2483,6 @@ packages:
       '@smithy/protocol-http': 3.2.2
       '@smithy/types': 2.11.0
       '@smithy/util-stream': 2.1.4
-      tslib: 2.6.2
-    dev: false
-
-  /@smithy/types@2.10.1:
-    resolution: {integrity: sha512-hjQO+4ru4cQ58FluQvKKiyMsFg0A6iRpGm2kqdH8fniyNd2WyanoOsYJfMX/IFLuLxEoW6gnRkNZy1y6fUUhtA==}
-    engines: {node: '>=14.0.0'}
-    dependencies:
       tslib: 2.6.2
     dev: false
 
@@ -4030,8 +4013,8 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /event-store-adapter-js@2.1.11:
-    resolution: {integrity: sha512-qrMNXaIlmJbIiYwIDrpbKc4iB3K7RYO1qJcDMaxhdnIi801hmG0F3D2gvMZUpkkk40S0FvZcthO8UM9kzNwtpg==}
+  /event-store-adapter-js@2.1.12:
+    resolution: {integrity: sha512-kgZEcUrKsnafKTm+KoX/ka2B2rdeGYZh/XZrk/XR2e1R1XPRZak52g9mD3kTG1vBEsbgIuHJEdLEA+QvFui3kA==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.529.1
       aws-sdk: 2.1574.0
