@@ -48,8 +48,8 @@ importers:
         specifier: workspace:*
         version: link:../rmu
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -115,8 +115,8 @@ importers:
         specifier: workspace:*
         version: link:../../infrastructure
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -176,8 +176,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -243,8 +243,8 @@ importers:
         specifier: workspace:*
         version: link:../processor
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -319,8 +319,8 @@ importers:
         specifier: workspace:*
         version: link:../interface-adaptor-if
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -438,8 +438,8 @@ importers:
         specifier: ^2.1459.0
         version: 2.1576.0
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -529,8 +529,8 @@ importers:
         specifier: workspace:*
         version: link:../command/domain
       event-store-adapter-js:
-        specifier: 2.1.13
-        version: 2.1.13
+        specifier: 2.1.14
+        version: 2.1.14
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.3
@@ -4045,8 +4045,8 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /event-store-adapter-js@2.1.13:
-    resolution: {integrity: sha512-u9c2aUv4ch+tTtXQsXPNw0nHtBPI1MO9L8LCnkjQLK+OkEkV4ixDK3i3HwWbgEUkju1EQb3Z9WVLWhKjHWygsw==}
+  /event-store-adapter-js@2.1.14:
+    resolution: {integrity: sha512-wjyxq7QjqyseFDpd3Yb0Jj4p3CsyojBwMPvqoTlxha/fXuZgrs2scJ35HRaH+50L5HJ0X4+GFQsHecnotlJoRQ==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.529.1
       aws-sdk: 2.1576.0
