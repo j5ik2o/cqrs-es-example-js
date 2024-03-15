@@ -44,8 +44,13 @@
 
 ## Development Environment
 
-- [Tools Setup](./docs/TOOLS_INSTALLATION.ja.md)
-- [Build and Test](./docs/BUILD_AND_TEST.ja.md)
+- [ツールのセットアップ](./docs/TOOLS_INSTALLATION.ja.md)
+- [ビルドとテスト](./docs/BUILD_AND_TEST.ja.md)
+
+### ローカル環境
+
+- [ローカルマシンでのデバッグ](docs/DEBUG_ON_LOCAL_MACHINE.md)
+- [Docker Composeでのデバッグ](docs/DEBUG_ON_DOCKER_COMPOSE.md)
 
 ## Links
 

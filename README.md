@@ -55,6 +55,11 @@ This OSS repository mainly utilizes the following technology stack.
 - [Tools Setup](./docs/TOOLS_INSTALLATION.md)
 - [Build and Test](./docs/BUILD_AND_TEST.md)
 
+### Local Environment
+
+- [Debugging on Local Machine](docs/DEBUG_ON_LOCAL_MACHINE.md)
+- [Debugging on Docker Compose](docs/DEBUG_ON_DOCKER_COMPOSE.md)
+
 ## Links
 
 - [Common Documents](https://github.com/j5ik2o/cqrs-es-example)
