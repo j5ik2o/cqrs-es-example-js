@@ -31,7 +31,7 @@ importers:
         version: 1.0.7
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1580.0
+        version: 2.1581.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../command/domain
@@ -171,7 +171,7 @@ importers:
         version: 3.535.0
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1580.0
+        version: 2.1581.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../domain
@@ -232,7 +232,7 @@ importers:
         version: 3.535.0
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1580.0
+        version: 2.1581.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../domain
@@ -436,7 +436,7 @@ importers:
         version: 1.3.9
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1580.0
+        version: 2.1581.0
       event-store-adapter-js:
         specifier: 2.1.19
         version: 2.1.19
@@ -524,7 +524,7 @@ importers:
         version: 1.0.7
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1580.0
+        version: 2.1581.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../command/domain
@@ -1351,11 +1351,11 @@ packages:
       chalk: 2.4.2
     dev: true
 
-  /@babel/code-frame@7.24.1:
-    resolution: {integrity: sha512-bC49z4spJQR3j8vFtJBLqzyzFV0ciuL5HYX7qfSl3KEqeMVV+eTquRvmXxpvB0AMubRrvv7y5DILiLLPi57Ewg==}
+  /@babel/code-frame@7.24.2:
+    resolution: {integrity: sha512-y5+tLQyV8pg3fsiln67BVLD1P13Eg4lh5RW9mF0zUuvLrv9uIQ4MCL+CRT+FTsBlBjcIan6PGsLcBN0m3ClUyQ==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      '@babel/highlight': 7.24.1
+      '@babel/highlight': 7.24.2
       picocolors: 1.0.0
     dev: true
 
@@ -1392,7 +1392,7 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       '@ampproject/remapping': 2.3.0
-      '@babel/code-frame': 7.24.1
+      '@babel/code-frame': 7.24.2
       '@babel/generator': 7.24.1
       '@babel/helper-compilation-targets': 7.23.6
       '@babel/helper-module-transforms': 7.23.3(@babel/core@7.24.1)
@@ -1561,8 +1561,8 @@ packages:
       js-tokens: 4.0.0
     dev: true
 
-  /@babel/highlight@7.24.1:
-    resolution: {integrity: sha512-EPmDPxidWe/Ex+HTFINpvXdPHRmgSF3T8hGvzondYjmgzTQ/0EbLpSxyt+w3zzlYSk9cNBQNF9k0dT5Z2NiBjw==}
+  /@babel/highlight@7.24.2:
+    resolution: {integrity: sha512-Yac1ao4flkTxTteCDZLEvdxg2fZfz1v8M4QpaGypq/WPDqg3ijHYbDfs+LG5hvzSoqaSZ9/Z9lKSP3CjZjv+pA==}
     engines: {node: '>=6.9.0'}
     dependencies:
       '@babel/helper-validator-identifier': 7.22.20
@@ -1764,7 +1764,7 @@ packages:
     resolution: {integrity: sha512-xuU6o9m68KeqZbQuDt2TcKSxUw/mrsvavlEqQ1leZ/B+C9tk6E4sRWy97WaXgvq5E+nU3cXMxv3WKOCanVMCmQ==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      '@babel/code-frame': 7.24.1
+      '@babel/code-frame': 7.24.2
       '@babel/generator': 7.24.1
       '@babel/helper-environment-visitor': 7.22.20
       '@babel/helper-function-name': 7.23.0
@@ -3372,14 +3372,14 @@ packages:
     resolution: {integrity: sha512-9GNFMRrEMG5y3Jvv+V4azWvc+qNWdWLTjDdhf/zgMlz8haaaLWv0xeAIWxz9PuWUBawsVxy0zZotjCdR3Xq+2w==}
     hasBin: true
     dependencies:
-      aws-sdk: 2.1580.0
+      aws-sdk: 2.1581.0
       commander: 3.0.2
       js-yaml: 3.14.1
       watchpack: 2.4.0
     dev: false
 
-  /aws-sdk@2.1580.0:
-    resolution: {integrity: sha512-jR9EWyo1UY6QrYs+jhXCpqxBYXU6QYmqNejpsPgU5OzAWxUgalbXfQPAaw0A/DBxXU99qHO+j6RUYof82veiKw==}
+  /aws-sdk@2.1581.0:
+    resolution: {integrity: sha512-lWvpj36dL0HC8i4l8N0NnV2ljedOrij1Ox0SjHwQTIvePes4lNm+khOLV0T7NDA1C6igsGozBO+8OcNGPDhfAw==}
     engines: {node: '>= 10.0.0'}
     requiresBuild: true
     dependencies:
@@ -4180,7 +4180,7 @@ packages:
     resolution: {integrity: sha512-5nqj1jCxkxkkOaU0JkIEHTuzX2d6QHdHVCQOMThIw07xaglxQkxglryBGy6cInR67Uk5v5x7s7GTOr8yjzcl4w==}
     dependencies:
       '@aws-sdk/client-dynamodb': 3.535.0
-      aws-sdk: 2.1580.0
+      aws-sdk: 2.1581.0
       moment: 2.30.1
       ulid: 2.3.0
       winston: 3.11.0
