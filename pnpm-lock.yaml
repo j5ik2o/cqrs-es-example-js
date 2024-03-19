@@ -256,7 +256,7 @@ importers:
         version: 2.0.3
       graphql-scalars:
         specifier: ^1.22.4
-        version: 1.22.5(graphql@16.8.1)
+        version: 1.23.0(graphql@16.8.1)
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -268,7 +268,7 @@ importers:
         version: 4.9.2
       type-graphql:
         specifier: 2.0.0-beta.6
-        version: 2.0.0-beta.6(graphql-scalars@1.22.5)(graphql@16.8.1)
+        version: 2.0.0-beta.6(graphql-scalars@1.23.0)(graphql@16.8.1)
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -451,7 +451,7 @@ importers:
         version: 2.0.3
       graphql-scalars:
         specifier: ^1.22.4
-        version: 1.22.5(graphql@16.8.1)
+        version: 1.23.0(graphql@16.8.1)
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -463,7 +463,7 @@ importers:
         version: 4.9.2
       type-graphql:
         specifier: 2.0.0-beta.6
-        version: 2.0.0-beta.6(graphql-scalars@1.22.5)(graphql@16.8.1)
+        version: 2.0.0-beta.6(graphql-scalars@1.23.0)(graphql@16.8.1)
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -506,7 +506,7 @@ importers:
         version: 10.9.2(@types/node@20.11.29)(typescript@5.4.2)
       typegraphql-prisma:
         specifier: ^0.27.1
-        version: 0.27.2(@prisma/client@5.11.0)(@types/graphql-fields@1.3.9)(@types/node@20.11.29)(graphql-fields@2.0.3)(graphql-scalars@1.22.5)(prisma@5.11.0)(tslib@2.6.2)(type-graphql@2.0.0-beta.6)
+        version: 0.27.2(@prisma/client@5.11.0)(@types/graphql-fields@1.3.9)(@types/node@20.11.29)(graphql-fields@2.0.3)(graphql-scalars@1.23.0)(prisma@5.11.0)(tslib@2.6.2)(type-graphql@2.0.0-beta.6)
       typescript:
         specifier: ^5.2.2
         version: 5.4.2
@@ -4422,8 +4422,8 @@ packages:
       graphql: 16.8.1
       lodash.get: 4.4.2
 
-  /graphql-scalars@1.22.5(graphql@16.8.1):
-    resolution: {integrity: sha512-Mw7uaqRscjdaXmxlHbt3sYGLU8o1hfFvTvN2VRrYEJyEPy6zGIbaFyJ4PPyt9H6GRHp01MQwS6HqXroRYHyGOg==}
+  /graphql-scalars@1.23.0(graphql@16.8.1):
+    resolution: {integrity: sha512-YTRNcwitkn8CqYcleKOx9IvedA8JIERn8BRq21nlKgOr4NEcTaWEG0sT+H92eF3ALTFbPgsqfft4cw+MGgv0Gg==}
     engines: {node: '>=10'}
     peerDependencies:
       graphql: ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
@@ -6464,7 +6464,7 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /type-graphql@2.0.0-beta.6(graphql-scalars@1.22.5)(graphql@16.8.1):
+  /type-graphql@2.0.0-beta.6(graphql-scalars@1.23.0)(graphql@16.8.1):
     resolution: {integrity: sha512-uSp42MLWzuR0+wiQmHUdsmenSEs8O+vC+dSa1ZlYPBo1oRe6+EVPYTwm2iCnSxN4nxt2v4Qpt0+mBqnE92sVRw==}
     engines: {node: '>= 16.16.0'}
     peerDependencies:
@@ -6480,7 +6480,7 @@ packages:
       '@types/semver': 7.5.7
       graphql: 16.8.1
       graphql-query-complexity: 0.12.0(graphql@16.8.1)
-      graphql-scalars: 1.22.5(graphql@16.8.1)
+      graphql-scalars: 1.23.0(graphql@16.8.1)
       semver: 7.6.0
       tslib: 2.6.2
 
@@ -6492,7 +6492,7 @@ packages:
       mime-types: 2.1.35
     dev: false
 
-  /typegraphql-prisma@0.27.2(@prisma/client@5.11.0)(@types/graphql-fields@1.3.9)(@types/node@20.11.29)(graphql-fields@2.0.3)(graphql-scalars@1.22.5)(prisma@5.11.0)(tslib@2.6.2)(type-graphql@2.0.0-beta.6):
+  /typegraphql-prisma@0.27.2(@prisma/client@5.11.0)(@types/graphql-fields@1.3.9)(@types/node@20.11.29)(graphql-fields@2.0.3)(graphql-scalars@1.23.0)(prisma@5.11.0)(tslib@2.6.2)(type-graphql@2.0.0-beta.6):
     resolution: {integrity: sha512-BHJMzR9PGZVOxBRix03AJvLvd/7xnATDsy4+gAbjuW7YdwfrtFdVmpS1xUjCBFbo1Gj4u1SFlhGrffFK6GypxA==}
     engines: {node: '>=12.4'}
     hasBin: true
@@ -6512,13 +6512,13 @@ packages:
       '@types/graphql-fields': 1.3.9
       '@types/node': 20.11.29
       graphql-fields: 2.0.3
-      graphql-scalars: 1.22.5(graphql@16.8.1)
+      graphql-scalars: 1.23.0(graphql@16.8.1)
       pluralize: 8.0.0
       prisma: 5.11.0
       semver: 7.6.0
       ts-morph: 20.0.0
       tslib: 2.6.2
-      type-graphql: 2.0.0-beta.6(graphql-scalars@1.22.5)(graphql@16.8.1)
+      type-graphql: 2.0.0-beta.6(graphql-scalars@1.23.0)(graphql@16.8.1)
     dev: true
 
   /typescript@5.4.2:
