@@ -19,7 +19,7 @@ importers:
         version: 4.10.1(graphql@16.8.1)
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.535.0
+        version: 3.538.0
       '@aws-sdk/client-dynamodb-streams':
         specifier: ^3.413.0
         version: 3.535.0
@@ -168,7 +168,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.535.0
+        version: 3.538.0
       aws-sdk:
         specifier: ^2.1459.0
         version: 2.1581.0
@@ -229,7 +229,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.535.0
+        version: 3.538.0
       aws-sdk:
         specifier: ^2.1459.0
         version: 2.1581.0
@@ -427,7 +427,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.535.0
+        version: 3.538.0
       '@prisma/client':
         specifier: ^5.10.2
         version: 5.11.0(prisma@5.11.0)
@@ -515,7 +515,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.535.0
+        version: 3.538.0
       '@prisma/client':
         specifier: ^5.10.2
         version: 5.11.0(prisma@5.11.0)
@@ -886,8 +886,8 @@ packages:
       - aws-crt
     dev: false
 
-  /@aws-sdk/client-dynamodb@3.535.0:
-    resolution: {integrity: sha512-Z4xP7uryereaLm2Q6oAZLOb6uK7IcQfsJhIm5ZGNT5bWX2W8gRf+A+J9whBYMeuTB5pDUGK3SbFi+TXZjlEmgg==}
+  /@aws-sdk/client-dynamodb@3.538.0:
+    resolution: {integrity: sha512-5OAc3AdcAlfzWLOJtIc0vBm2o9VHUyrmOayN+/OcQVvaOWCcGHwqanYVoEmqNaMKiAc5DKV1uARBj5MDLHyhqA==}
     engines: {node: '>=14.0.0'}
     dependencies:
       '@aws-crypto/sha256-browser': 3.0.0
@@ -4179,7 +4179,7 @@ packages:
   /event-store-adapter-js@2.1.20:
     resolution: {integrity: sha512-Nan/q3SyhvopHz71cZcVUUUy2cTLqUCDit2iE0EYSHHt5X8kNlH1RFLCrob7FhO/dWCu6n8ZBWN0mBg0DQv0uQ==}
     dependencies:
-      '@aws-sdk/client-dynamodb': 3.535.0
+      '@aws-sdk/client-dynamodb': 3.538.0
       aws-sdk: 2.1581.0
       moment: 2.30.1
       ulid: 2.3.0
