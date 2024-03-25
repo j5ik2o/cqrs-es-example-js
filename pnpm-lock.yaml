@@ -52,7 +52,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -119,7 +119,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       ulidx:
         specifier: ^2.3.0
         version: 2.3.0
@@ -180,7 +180,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -247,7 +247,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       graphql:
         specifier: ^16.8.1
         version: 16.8.1
@@ -323,7 +323,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       tslog:
         specifier: ^4.9.2
         version: 4.9.2
@@ -375,7 +375,7 @@ importers:
     dependencies:
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -442,7 +442,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       graphql:
         specifier: ^16.8.1
         version: 16.8.1
@@ -533,7 +533,7 @@ importers:
         version: 2.1.23
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.4
+        version: 2.16.5
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -4401,8 +4401,8 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /fp-ts@2.16.4:
-    resolution: {integrity: sha512-EkV/l6oHaf/w/DlVc5UiqLibqTV1S+idiDdcWQ+UjnLLflL9pZG28ebJfPLor8ifoL8NgEFDIo9fOvHyiSCrJQ==}
+  /fp-ts@2.16.5:
+    resolution: {integrity: sha512-N8T8PwMSeTKKtkm9lkj/zSTAnPC/aJIIrQhnHxxkL0KLsRCNUPANksJOlMXxcKKCo7H1ORP3No9EMD+fP0tsdA==}
     dev: false
 
   /fresh@0.5.2:
