@@ -42,9 +42,9 @@ COPY --from=builder --chown=nodejs:nodejs /app/packages/command/interface-adapto
 COPY --from=builder --chown=nodejs:nodejs /app/packages/command/interface-adaptor-impl/dist /app/packages/command/interface-adaptor-impl/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/command/interface-adaptor-impl/package.json /app/packages/command/interface-adaptor-impl/package.json
 
-COPY --from=builder --chown=nodejs:nodejs /app/packages/command/processor/node_modules /app/packages/command/use-case/node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/packages/command/processor/dist /app/packages/command/use-case/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/command/processor/package.json /app/packages/command/use-case/package.json
+COPY --from=builder --chown=nodejs:nodejs /app/packages/command/processor/node_modules /app/packages/command/processor/node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/packages/command/processor/dist /app/packages/command/processor/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/command/processor/package.json /app/packages/command/processor/package.json
 
 COPY --from=builder --chown=nodejs:nodejs /app/packages/rmu/node_modules /app/packages/rmu/node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/packages/rmu/dist /app/packages/rmu/dist
