@@ -7,7 +7,7 @@ services:
     ports:
       - 38080:3000
     environment:
-      AWS_REGION: ${AWS_REGION}
+      AWS_REGION: ap-northeast-1
       API_HOST: "0.0.0.0"
       API_PORT: 3000
       API_ALLOW_ORIGINS: "http://localhost:38080,http://localhost:38082,http://localhost:8888"
@@ -32,10 +32,10 @@ services:
     ports:
       - 38081:8080
     environment:
-      AWS_REGION: ${AWS_REGION}
+      AWS_REGION: ap-northeast-1
       API_HOST: "0.0.0.0"
       API_PORT: 8080
-      AWS_REGION_NAME: ${AWS_REGION}
+      AWS_REGION_NAME: ap-northeast-1
       AWS_DYNAMODB_ENDPOINT_URL: http://localstack:4566
       AWS_DYNAMODB_ACCESS_KEY_ID: x
       AWS_DYNAMODB_SECRET_ACCESS_KEY: x
@@ -54,7 +54,7 @@ services:
     ports:
       - 38082:3000
     environment:
-      AWS_REGION: ${AWS_REGION}
+      AWS_REGION: ap-northeast-1
       API_HOST: "0.0.0.0"
       API_PORT: 3000
       API_ALLOW_ORIGINS: "http://localhost:38080,http://localhost:38082,http://localhost:8888"
