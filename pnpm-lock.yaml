@@ -153,7 +153,7 @@ importers:
         version: 5.0.5
       testcontainers:
         specifier: ^10.2.1
-        version: 10.8.2
+        version: 10.9.0
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.2(@babel/core@7.24.4)(jest@29.7.0)(typescript@5.4.5)
@@ -214,7 +214,7 @@ importers:
         version: 5.0.5
       testcontainers:
         specifier: ^10.2.1
-        version: 10.8.2
+        version: 10.9.0
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.2(@babel/core@7.24.4)(jest@29.7.0)(typescript@5.4.5)
@@ -299,7 +299,7 @@ importers:
         version: 5.0.5
       testcontainers:
         specifier: ^10.2.1
-        version: 10.8.2
+        version: 10.9.0
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.2(@babel/core@7.24.4)(jest@29.7.0)(typescript@5.4.5)
@@ -360,7 +360,7 @@ importers:
         version: 5.0.5
       testcontainers:
         specifier: ^10.2.1
-        version: 10.8.2
+        version: 10.9.0
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.2(@babel/core@7.24.4)(jest@29.7.0)(typescript@5.4.5)
@@ -497,7 +497,7 @@ importers:
         version: 5.0.5
       testcontainers:
         specifier: ^10.2.1
-        version: 10.8.2
+        version: 10.9.0
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.2(@babel/core@7.24.4)(jest@29.7.0)(typescript@5.4.5)
@@ -576,7 +576,7 @@ importers:
         version: 5.0.5
       testcontainers:
         specifier: ^10.2.1
-        version: 10.8.2
+        version: 10.9.0
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.2(@babel/core@7.24.4)(jest@29.7.0)(typescript@5.4.5)
@@ -3466,8 +3466,8 @@ packages:
     dev: true
     optional: true
 
-  /bare-os@2.2.1:
-    resolution: {integrity: sha512-OwPyHgBBMkhC29Hl3O4/YfxW9n7mdTr2+SsO29XBWKKJsbgj3mnorDB80r5TiCQgQstgE5ga1qNYrpes6NvX2w==}
+  /bare-os@2.3.0:
+    resolution: {integrity: sha512-oPb8oMM1xZbhRQBngTgpcQ5gXw6kjOaRsSWsIeNyRxGed2w/ARyP7ScBYpWR1qfX2E5rS3gBw6OWcSQo+s+kUg==}
     requiresBuild: true
     dev: true
     optional: true
@@ -3476,7 +3476,7 @@ packages:
     resolution: {integrity: sha512-o7KSt4prEphWUHa3QUwCxUI00R86VdjiuxmJK0iNVDHYPGo+HsDaVCnqCmPbf/MiW1ok8F4p3m8RTHlWk8K2ig==}
     requiresBuild: true
     dependencies:
-      bare-os: 2.2.1
+      bare-os: 2.3.0
     dev: true
     optional: true
 
@@ -6342,8 +6342,8 @@ packages:
       minimatch: 3.1.2
     dev: true
 
-  /testcontainers@10.8.2:
-    resolution: {integrity: sha512-9Ink7NUyYZwOjQhk0C6R6basWy2WADNly+md3D9YDap0pcDr3C+vrO8Ah1bkYco/9Zg8VoYTHO+blkLeebBYkA==}
+  /testcontainers@10.9.0:
+    resolution: {integrity: sha512-LN+cKAOd61Up9SVMJW+3VFVGeVQG8JBqZhEQo2U0HBfIsAynyAXcsLBSo+KZrOfy9SBz7pGHctWN/KabLDbNFA==}
     dependencies:
       '@balena/dockerignore': 1.0.2
       '@types/dockerode': 3.3.28
