@@ -19,7 +19,7 @@ importers:
         version: 4.10.4(graphql@16.8.1)
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.583.0
+        version: 3.584.0
       '@aws-sdk/client-dynamodb-streams':
         specifier: ^3.413.0
         version: 3.583.0
@@ -168,7 +168,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.583.0
+        version: 3.584.0
       aws-sdk:
         specifier: ^2.1459.0
         version: 2.1628.0
@@ -229,7 +229,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.583.0
+        version: 3.584.0
       aws-sdk:
         specifier: ^2.1459.0
         version: 2.1628.0
@@ -427,7 +427,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.583.0
+        version: 3.584.0
       '@prisma/client':
         specifier: ^5.10.2
         version: 5.14.0(prisma@5.14.0)
@@ -515,7 +515,7 @@ importers:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.413.0
-        version: 3.583.0
+        version: 3.584.0
       '@prisma/client':
         specifier: ^5.10.2
         version: 5.14.0(prisma@5.14.0)
@@ -699,8 +699,8 @@ packages:
     resolution: {integrity: sha512-uHpKkoLeVbSdks2qkEgViTvl5B/4GIVVLqZLxOgRv45RNcWpBJNyd+1Jkd+dJvd1TJnS9RuZy/41yjmAcKxYBg==}
     engines: {node: '>=16.0.0'}
 
-  '@aws-sdk/client-dynamodb@3.583.0':
-    resolution: {integrity: sha512-0UCpW3MLnL/z8w/dI8+ODUJR9jEza4iJVb6Wn0DLQ3NYUXQAVzgF857+h8FVP36U+jzyOYpAqoxcG0BRedPNyg==}
+  '@aws-sdk/client-dynamodb@3.584.0':
+    resolution: {integrity: sha512-LgldN5hbx+cQzzVCr54Rc9jxhB40a5gcnQmGs+qdW5l8vQ89CVW2lWMoLDj/QzcHl27NLI7Kkr0ee++xquU9sg==}
     engines: {node: '>=16.0.0'}
 
   '@aws-sdk/client-sso-oidc@3.583.0':
@@ -3878,7 +3878,7 @@ snapshots:
     transitivePeerDependencies:
       - aws-crt
 
-  '@aws-sdk/client-dynamodb@3.583.0':
+  '@aws-sdk/client-dynamodb@3.584.0':
     dependencies:
       '@aws-crypto/sha256-browser': 3.0.0
       '@aws-crypto/sha256-js': 3.0.0
@@ -5976,7 +5976,7 @@ snapshots:
 
   event-store-adapter-js@2.1.32:
     dependencies:
-      '@aws-sdk/client-dynamodb': 3.583.0
+      '@aws-sdk/client-dynamodb': 3.584.0
       aws-sdk: 2.1628.0
       moment: 2.30.1
       ulid: 2.3.0
