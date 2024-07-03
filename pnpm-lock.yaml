@@ -153,7 +153,7 @@ importers:
         version: 5.0.7
       testcontainers:
         specifier: ^10.2.1
-        version: 10.10.0
+        version: 10.10.1
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.5(@babel/core@7.24.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.24.0))(jest@29.7.0(@types/node@20.14.9)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.3)))(typescript@5.5.3)
@@ -214,7 +214,7 @@ importers:
         version: 5.0.7
       testcontainers:
         specifier: ^10.2.1
-        version: 10.10.0
+        version: 10.10.1
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.5(@babel/core@7.24.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.24.0))(jest@29.7.0(@types/node@20.14.9)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.3)))(typescript@5.5.3)
@@ -299,7 +299,7 @@ importers:
         version: 5.0.7
       testcontainers:
         specifier: ^10.2.1
-        version: 10.10.0
+        version: 10.10.1
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.5(@babel/core@7.24.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.24.0))(jest@29.7.0(@types/node@20.14.9)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.3)))(typescript@5.5.3)
@@ -360,7 +360,7 @@ importers:
         version: 5.0.7
       testcontainers:
         specifier: ^10.2.1
-        version: 10.10.0
+        version: 10.10.1
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.5(@babel/core@7.24.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.24.0))(jest@29.7.0(@types/node@20.14.9)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.3)))(typescript@5.5.3)
@@ -497,7 +497,7 @@ importers:
         version: 5.0.7
       testcontainers:
         specifier: ^10.2.1
-        version: 10.10.0
+        version: 10.10.1
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.5(@babel/core@7.24.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.24.0))(jest@29.7.0(@types/node@20.14.9)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.3)))(typescript@5.5.3)
@@ -576,7 +576,7 @@ importers:
         version: 5.0.7
       testcontainers:
         specifier: ^10.2.1
-        version: 10.10.0
+        version: 10.10.1
       ts-jest:
         specifier: ^29.1.1
         version: 29.1.5(@babel/core@7.24.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.24.0))(jest@29.7.0(@types/node@20.14.9)(ts-node@10.9.2(@types/node@20.14.9)(typescript@5.5.3)))(typescript@5.5.3)
@@ -3379,8 +3379,8 @@ packages:
     resolution: {integrity: sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w==}
     engines: {node: '>=8'}
 
-  testcontainers@10.10.0:
-    resolution: {integrity: sha512-XlAdr6XzxM9ywTc5D6xA97Ug8dCotDnrOgOqmy3vYnAwUYrzhzAwrp791g97QAMvDOYp2pxkJl/P4WxuUbGShw==}
+  testcontainers@10.10.1:
+    resolution: {integrity: sha512-bw86BLq2/ljJ/gLg3PBsyhYOoDBkyo87/MnpWLavYTAyWR7feGFnAA87qRLq2SSCOSFLHsgCA8+u7Eg+opSmTQ==}
 
   text-decoder@1.1.0:
     resolution: {integrity: sha512-TmLJNj6UgX8xcUZo4UDStGQtDiTzF7BzWlzn9g7UWrjkpHr5uJTK1ld16wZ3LXb2vb6jH8qU89dW5whuMdXYdw==}
@@ -7372,7 +7372,7 @@ snapshots:
       glob: 7.2.3
       minimatch: 3.1.2
 
-  testcontainers@10.10.0:
+  testcontainers@10.10.1:
     dependencies:
       '@balena/dockerignore': 1.0.2
       '@types/dockerode': 3.3.29
