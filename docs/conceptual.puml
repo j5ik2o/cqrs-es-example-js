@@ -1,0 +1,34 @@
+@startuml
+
+class GroupChat<Aggregate> {
+  id
+  name
+  create()
+  rename()
+  delete()
+}
+
+class Member<Local Entity> {
+  id
+  name
+  role
+}
+
+class Message<Local Entity> {
+  id
+  content
+  timestamp
+}
+
+class User<Local Entity> {
+  id
+  name
+}
+
+GroupChat "1" *-- "many" Member : contains >
+GroupChat "1" *-r- "many" Message : contains >
+Member "1" -r- "1" User : represents >
+Message "1" -- "1" Member : sent by >
+
+
+@enduml

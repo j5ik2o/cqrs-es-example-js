@@ -1,0 +1,104 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+interface Event<GroupChatId> {
+}
+
+interface GroupChatEvent {
+  +symbol: GroupChatEventTypeSymbol
+  +executorId: UserAccountId
+  +toString(): string
+}
+
+abstract class Aggregate<GroupChat, GroupChatId>
+
+class GroupChat {
+  -id: GroupChatId
+  -deleted: boolean
+  -name: GroupChatName
+  -members: Members
+  -messages: Messages
+  -sequenceNumber: number
+  -version: number
+  +rename(name: GroupChatName, executorId: UserAccountId): Either<Error, [GroupChat, GroupChatRenamed]>
+  +addMember(userAccountId: UserAccountId, memberRole: MemberRole, executorId: UserAccountId): Either<Error, [GroupChat, GroupChatMemberAdded]>
+  +removeMemberById(userAccountId: UserAccountId, executorId: UserAccountId): Either<Error, [GroupChat, GroupChatMemberRemoved]>
+  +postMessage(message: Message, executorId: UserAccountId): Either<Error, [GroupChat, GroupChatMessagePosted]>
+  +deleteMessage(messageId: MessageId, executorId: UserAccountId): Either<Error, [GroupChat, GroupChatMessageDeleted]>
+  +delete(executorId: UserAccountId): Either<Error, [GroupChat, GroupChatDeleted]>
+  +applyEvent(event: GroupChatEvent): GroupChat
+  {static} +create(id: GroupChatId, name: GroupChatName, executorId: UserAccountId): [GroupChat, GroupChatCreated]
+  {static} +replay(events: GroupChatEvent[], snapshot: GroupChat): GroupChat
+}
+
+class GroupChatId {
+  +toString(): string
+  +toJSON(): any
+  +equals(other: GroupChatId): boolean
+}
+
+class GroupChatName {
+  +toString(): string
+  +toJSON(): any
+  +equals(other: GroupChatName): boolean
+}
+
+class Members {
+  +isAdministrator(userAccountId: UserAccountId): boolean
+  +isMember(userAccountId: UserAccountId): boolean
+  +addMember(member: Member): Members
+  +removeMemberById(userAccountId: UserAccountId): Option<[Members, Member]>
+  +toJSON(): any
+  +equals(other: Members): boolean
+}
+
+class Member {
+  +id: MemberId
+  +userAccountId: UserAccountId
+  +memberRole: MemberRole
+}
+
+class Message {
+  +id: MessageId
+  +senderId: UserAccountId
+  +content: string
+  +createdAt: Date
+}
+
+class UserAccountId {
+  +toString(): string
+  +toJSON(): any
+  +equals(other: UserAccountId): boolean
+}
+
+enum MemberRole {
+  ADMINISTRATOR
+  MEMBER
+}
+
+class GroupChatEventFactory {
+  {static} +ofGroupChatCreated(aggregateId: GroupChatId, name: GroupChatName, members: Members, executorId: UserAccountId, sequenceNumber: number): GroupChatCreated
+  {static} +ofGroupChatRenamed(aggregateId: GroupChatId, name: GroupChatName, executorId: UserAccountId, sequenceNumber: number): GroupChatRenamed
+  {static} +ofGroupChatMemberAdded(aggregateId: GroupChatId, member: Member, executorId: UserAccountId, sequenceNumber: number): GroupChatMemberAdded
+  {static} +ofGroupChatMemberRemoved(aggregateId: GroupChatId, member: Member, executorId: UserAccountId, sequenceNumber: number): GroupChatMemberRemoved
+  {static} +ofGroupChatMessagePosted(aggregateId: GroupChatId, message: Message, executorId: UserAccountId, sequenceNumber: number): GroupChatMessagePosted
+  {static} +ofGroupChatMessageDeleted(aggregateId: GroupChatId, message: Message, executorId: UserAccountId, sequenceNumber: number): GroupChatMessageDeleted
+  {static} +ofGroupChatDeleted(aggregateId: GroupChatId, executorId: UserAccountId, sequenceNumber: number): GroupChatDeleted
+}
+
+GroupChatEvent --|> Event
+GroupChat --|> Aggregate
+GroupChat "1" *-- "1" GroupChatId
+GroupChat "1" *-- "1" GroupChatName
+GroupChat "1" *-- "1" Members
+Members "1" *-- "*" Member
+Member "1" -- "1" UserAccountId
+Message "1" -- "1" UserAccountId
+GroupChatEvent ..> GroupChatId : uses
+GroupChatEvent ..> UserAccountId : uses
+GroupChat ..> GroupChatEvent : applies
+
+note right of GroupChat : Aggregate Root
+
+@enduml
