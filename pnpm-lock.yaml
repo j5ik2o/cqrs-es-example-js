@@ -122,7 +122,7 @@ importers:
         version: 2.16.9
       ulidx:
         specifier: ^2.3.0
-        version: 2.3.0
+        version: 2.4.0
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -329,7 +329,7 @@ importers:
         version: 4.9.3
       ulidx:
         specifier: ^2.3.0
-        version: 2.3.0
+        version: 2.4.0
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -384,7 +384,7 @@ importers:
         version: 4.9.3
       ulidx:
         specifier: ^2.3.0
-        version: 2.3.0
+        version: 2.4.0
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -2757,8 +2757,8 @@ packages:
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
 
-  layerr@2.0.1:
-    resolution: {integrity: sha512-z0730CwG/JO24evdORnyDkwG1Q7b7mF2Tp1qRQ0YvrMMARbt1DFG694SOv439Gm7hYKolyZyaB49YIrYIfZBdg==}
+  layerr@3.0.0:
+    resolution: {integrity: sha512-tv754Ki2dXpPVApOrjTyRo4/QegVb9eVFq4mjqp4+NM5NaX7syQvN5BBNfV/ZpAHCEHV24XdUVrBAoka4jt3pA==}
 
   lazystream@1.0.1:
     resolution: {integrity: sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw==}
@@ -3606,8 +3606,8 @@ packages:
     resolution: {integrity: sha512-keqHubrlpvT6G2wH0OEfSW4mquYRcbe/J8NMmveoQOjUqmo+hXtO+ORCpWhdbZ7k72UtY61BL7haGxW6enBnjw==}
     hasBin: true
 
-  ulidx@2.3.0:
-    resolution: {integrity: sha512-36piWNqcdp9hKlQewyeehCaALy4lyx3FodsCxHuV6i0YdexSkjDOubwxEVr2yi4kh62L/0MgyrxqG4K+qtovnw==}
+  ulidx@2.4.0:
+    resolution: {integrity: sha512-iTZHiSCrIZeXvbJ34qCSBO4fmwf4GRzkv3hb7adB+00nyJKCwVFK0xw2gXGNfJsIFfET7Av+OP8/rsxxJHRSVQ==}
     engines: {node: '>=16'}
 
   undici-types@5.26.5:
@@ -6845,7 +6845,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  layerr@2.0.1: {}
+  layerr@3.0.0: {}
 
   lazystream@1.0.1:
     dependencies:
@@ -7634,9 +7634,9 @@ snapshots:
 
   ulid@2.3.0: {}
 
-  ulidx@2.3.0:
+  ulidx@2.4.0:
     dependencies:
-      layerr: 2.0.1
+      layerr: 3.0.0
 
   undici-types@5.26.5: {}
 
