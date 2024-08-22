@@ -8,7 +8,7 @@
 
 ## Overview
 
-This is an example of CQRS/Event Sourcing and GraphQL implemented in TypeScript.
+This is an example of CQRS/Event Sourcing and GraphQL implemented in TypeScript. This example is class-based, not actor-model based.
 
 This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) for Event Sourcing.
 
