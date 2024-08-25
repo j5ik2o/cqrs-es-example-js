@@ -122,7 +122,7 @@ importers:
         version: 2.16.9
       ulidx:
         specifier: ^2.3.0
-        version: 2.4.0
+        version: 2.4.1
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -329,7 +329,7 @@ importers:
         version: 4.9.3
       ulidx:
         specifier: ^2.3.0
-        version: 2.4.0
+        version: 2.4.1
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -384,7 +384,7 @@ importers:
         version: 4.9.3
       ulidx:
         specifier: ^2.3.0
-        version: 2.4.0
+        version: 2.4.1
     devDependencies:
       '@types/jest':
         specifier: ^29.5.5
@@ -3602,8 +3602,8 @@ packages:
     resolution: {integrity: sha512-keqHubrlpvT6G2wH0OEfSW4mquYRcbe/J8NMmveoQOjUqmo+hXtO+ORCpWhdbZ7k72UtY61BL7haGxW6enBnjw==}
     hasBin: true
 
-  ulidx@2.4.0:
-    resolution: {integrity: sha512-iTZHiSCrIZeXvbJ34qCSBO4fmwf4GRzkv3hb7adB+00nyJKCwVFK0xw2gXGNfJsIFfET7Av+OP8/rsxxJHRSVQ==}
+  ulidx@2.4.1:
+    resolution: {integrity: sha512-xY7c8LPyzvhvew0Fn+Ek3wBC9STZAuDI/Y5andCKi9AX6/jvfaX45PhsDX8oxgPL0YFp0Jhr8qWMbS/p9375Xg==}
     engines: {node: '>=16'}
 
   undici-types@5.26.5:
@@ -7633,7 +7633,7 @@ snapshots:
 
   ulid@2.3.0: {}
 
-  ulidx@2.4.0:
+  ulidx@2.4.1:
     dependencies:
       layerr: 3.0.0
 
