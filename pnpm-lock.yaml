@@ -68,7 +68,7 @@ importers:
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.134
-        version: 8.10.143
+        version: 8.10.144
       '@types/jest':
         specifier: ^29.5.5
         version: 29.5.12
@@ -543,7 +543,7 @@ importers:
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.134
-        version: 8.10.143
+        version: 8.10.144
       '@types/jest':
         specifier: ^29.5.5
         version: 29.5.12
@@ -1457,8 +1457,8 @@ packages:
   '@tsconfig/node16@1.0.4':
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
 
-  '@types/aws-lambda@8.10.143':
-    resolution: {integrity: sha512-u5vzlcR14ge/4pMTTMDQr3MF0wEe38B2F9o84uC4F43vN5DGTy63npRrB6jQhyt+C0lGv4ZfiRcRkqJoZuPnmg==}
+  '@types/aws-lambda@8.10.144':
+    resolution: {integrity: sha512-zRN25EUlALZsDlFfFCFEkQYXWj2WWu69pDBTycrsoFE+cS0XEs8vpFlSrq/L8OoJsrMW12LZtpvDHIGwGkQ2yg==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -5227,7 +5227,7 @@ snapshots:
 
   '@tsconfig/node16@1.0.4': {}
 
-  '@types/aws-lambda@8.10.143': {}
+  '@types/aws-lambda@8.10.144': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
