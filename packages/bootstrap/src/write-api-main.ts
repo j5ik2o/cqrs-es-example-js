@@ -1,27 +1,29 @@
-import {
-  CommandContext,
-  createCommandSchema,
-  GroupChatRepositoryImpl,
-} from "cqrs-es-example-js-command-interface-adaptor-impl";
-import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-processor";
-import { EventStoreFactory } from "event-store-adapter-js";
-import {
-  convertJSONToGroupChat,
-  convertJSONToGroupChatEvent,
+import { ApolloServer } from "@apollo/server";
+import { startStandaloneServer } from "@apollo/server/standalone";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import type {
   GroupChat,
   GroupChatEvent,
   GroupChatId,
+  convertJSONToGroupChat,
+  convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import type {
+  CommandContext,
+  GroupChatRepositoryImpl,
+  createCommandSchema,
+} from "cqrs-es-example-js-command-interface-adaptor-impl";
+import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-processor";
+import { EventStoreFactory } from "event-store-adapter-js";
 import { logger } from "./index";
-import { ApolloServer } from "@apollo/server";
-import { startStandaloneServer } from "@apollo/server/standalone";
 
 async function writeApiMain() {
   const apiHost =
     process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
   const apiPort =
-    process.env.API_PORT !== undefined ? parseInt(process.env.API_PORT) : 3000;
+    process.env.API_PORT !== undefined
+      ? Number.parseInt(process.env.API_PORT)
+      : 3000;
 
   const journalTableName =
     process.env.PERSISTENCE_JOURNAL_TABLE_NAME !== undefined
@@ -41,7 +43,7 @@ async function writeApiMain() {
       : "snapshots-aid-index";
   const shardCount =
     process.env.PERSISTENCE_SHARD_COUNT !== undefined
-      ? parseInt(process.env.PERSISTENCE_SHARD_COUNT)
+      ? Number.parseInt(process.env.PERSISTENCE_SHARD_COUNT)
       : 32;
 
   const awsRegion = process.env.AWS_REGION;

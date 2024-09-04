@@ -1,6 +1,6 @@
-import * as U from "ulidx";
-import * as E from "fp-ts/lib/Either";
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+import * as E from "fp-ts/lib/Either";
+import * as U from "ulidx";
 
 const MessageIdTypeSymbol = Symbol("MessageId");
 
@@ -35,9 +35,8 @@ class MessageId {
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
-      } else {
-        throw error;
       }
+      throw error;
     }
   }
 
@@ -50,7 +49,7 @@ class MessageId {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToMessageId(json: any): MessageId {
   return MessageId.of(json.value);
 }

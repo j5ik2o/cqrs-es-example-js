@@ -1,6 +1,6 @@
-import { convertJSONToMessage, Message } from "./message";
-import { MessageId } from "./message-id";
 import * as O from "fp-ts/Option";
+import { type Message, convertJSONToMessage } from "./message";
+import { MessageId } from "./message-id";
 
 const MessagesTypeSymbol = Symbol("Messages");
 
@@ -89,11 +89,11 @@ class Messages {
     );
   }
 }
-// eslint-disable-next-line  @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToMessages(json: any): Messages {
   // console.log("convertJSONToMessages = ", obj);
   return Messages.fromArray(
-    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny:
     json.values.map((v: any) => convertJSONToMessage(v)),
   );
 }

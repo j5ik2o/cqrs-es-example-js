@@ -1,7 +1,6 @@
-import { DynamoDBStreamEvent } from "aws-lambda";
-import { GroupChatDao } from "./group-chat-dao";
-import {
-  convertJSONToGroupChatEvent,
+import { TextDecoder } from "node:util";
+import type { DynamoDBStreamEvent } from "aws-lambda";
+import type {
   GroupChatCreated,
   GroupChatCreatedTypeSymbol,
   GroupChatDeleted,
@@ -16,9 +15,10 @@ import {
   GroupChatMessagePostedTypeSymbol,
   GroupChatRenamed,
   GroupChatRenamedTypeSymbol,
+  convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
-import { ILogObj, Logger } from "tslog";
-import { TextDecoder } from "node:util";
+import type { ILogObj, Logger } from "tslog";
+import type { GroupChatDao } from "./group-chat-dao";
 
 // import {Callback} from "aws-lambda/handler";
 
@@ -33,8 +33,8 @@ class ReadModelUpdater {
   private constructor(private readonly groupChatDao: GroupChatDao) {}
 
   async updateReadModel(event: DynamoDBStreamEvent): Promise<void> {
-    this.logger.info("EVENT: \n" + JSON.stringify(event, null, 2));
-    event.Records.forEach((record) => {
+    this.logger.info(`EVENT: \n${JSON.stringify(event, null, 2)}`);
+    for (const record of event.Records) {
       if (!record.dynamodb) {
         this.logger.warn("No DynamoDB record");
         return;
@@ -127,7 +127,7 @@ class ReadModelUpdater {
           break;
         }
       }
-    });
+    }
   }
 
   static of(groupChatDao: GroupChatDao): ReadModelUpdater {

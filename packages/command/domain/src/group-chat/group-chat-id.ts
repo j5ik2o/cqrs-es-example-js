@@ -1,7 +1,7 @@
-import * as U from "ulidx";
-import * as E from "fp-ts/lib/Either";
-import { AggregateId } from "event-store-adapter-js";
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+import type { AggregateId } from "event-store-adapter-js";
+import * as E from "fp-ts/lib/Either";
+import * as U from "ulidx";
 
 const GROUP_CHAT_PREFIX: string = "GroupChat";
 const GroupChatIdTypeSymbol = Symbol("GroupChatId");
@@ -34,21 +34,19 @@ class GroupChatId implements AggregateId {
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
-      } else {
-        throw error;
       }
+      throw error;
     }
   }
 
   static of(value: string): GroupChatId {
-    const ulid = value.startsWith(GROUP_CHAT_PREFIX + "-")
+    const ulid = value.startsWith(`${GROUP_CHAT_PREFIX}-`)
       ? value.substring(GROUP_CHAT_PREFIX.length + 1)
       : value;
     if (U.isValid(ulid)) {
       return new GroupChatId(ulid);
-    } else {
-      throw new Error("Invalid group chat id");
     }
+    throw new Error("Invalid group chat id");
   }
 
   static generate(): GroupChatId {
@@ -56,7 +54,7 @@ class GroupChatId implements AggregateId {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToGroupChatId(json: any): GroupChatId {
   return GroupChatId.of(json.value);
 }

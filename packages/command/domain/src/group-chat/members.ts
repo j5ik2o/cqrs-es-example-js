@@ -1,6 +1,6 @@
-import { convertJSONToMember, Member } from "./member";
-import { UserAccountId } from "../user-account";
 import * as O from "fp-ts/lib/Option";
+import { UserAccountId } from "../user-account";
+import { Member, convertJSONToMember } from "./member";
 import { MemberId } from "./member-id";
 
 const MembersTypeSymbol = Symbol("Members");
@@ -42,12 +42,12 @@ class Members {
 
   isMember(userAccountId: UserAccountId): boolean {
     const member = this.values.get(userAccountId.value);
-    return member !== undefined && member.isMember();
+    return member?.isMember();
   }
 
   isAdministrator(userAccountId: UserAccountId): boolean {
     const member = this.values.get(userAccountId.value);
-    return member !== undefined && member.isAdministrator();
+    return member?.isAdministrator();
   }
 
   findById(userAccountId: UserAccountId): Member | undefined {
@@ -109,11 +109,11 @@ class Members {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToMembers(json: any): Members {
   // console.log("convertJSONToMembers = ", obj);
   return Members.fromArray(
-    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny:
     json.values.map((v: any) => convertJSONToMember(v)),
   );
 }

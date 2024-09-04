@@ -1,5 +1,8 @@
-import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
-import { convertJSONToMemberId, MemberId } from "./member-id";
+import type {
+  UserAccountId,
+  convertJSONToUserAccountId,
+} from "../user-account";
+import type { MemberId, convertJSONToMemberId } from "./member-id";
 
 type MemberRole = "administrator" | "member";
 
@@ -61,11 +64,11 @@ class Member {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToMember(json: any): Member {
   const id = convertJSONToMemberId(json.id);
   const userAccountId = convertJSONToUserAccountId(json.userAccountId);
   return Member.of(id, userAccountId, json.memberRole);
 }
 
-export { MemberRole, Member, MemberTypeSymbol, convertJSONToMember };
+export { type MemberRole, Member, MemberTypeSymbol, convertJSONToMember };

@@ -1,4 +1,4 @@
-import {
+import type {
   GroupChat,
   GroupChatDeleteError,
   GroupChatEvent,
@@ -9,7 +9,7 @@ import {
   MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import {
+import type {
   GroupChatRepository,
   RepositoryError,
 } from "cqrs-es-example-js-command-interface-adaptor-if";
@@ -188,9 +188,11 @@ class GroupChatCommandProcessor {
   private convertToProcessError(e: unknown): ProcessError {
     if (e instanceof ProcessError) {
       return e;
-    } else if (e instanceof RepositoryError) {
+    }
+    if (e instanceof RepositoryError) {
       return new ProcessInternalError("Failed to delete group chat", e);
-    } else if (e instanceof GroupChatDeleteError) {
+    }
+    if (e instanceof GroupChatDeleteError) {
       return new ProcessInternalError("Failed to delete group chat", e);
     }
     throw e;

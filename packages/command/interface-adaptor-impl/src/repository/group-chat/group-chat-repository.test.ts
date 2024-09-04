@@ -1,35 +1,37 @@
 import { describe } from "node:test";
-import { GroupChatRepositoryImpl } from "./group-chat-repository";
-import * as E from "fp-ts/lib/Either";
+import type { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  GroupChatId,
   GroupChat,
+  type GroupChatEvent,
+  GroupChatId,
   GroupChatName,
   UserAccountId,
-  GroupChatEvent,
-  convertJSONToGroupChatEvent,
   convertJSONToGroupChat,
+  convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
+import { type EventStore, EventStoreFactory } from "event-store-adapter-js";
+import * as E from "fp-ts/lib/Either";
 import {
   GenericContainer,
-  StartedTestContainer,
-  TestContainer,
+  type StartedTestContainer,
+  type TestContainer,
   Wait,
 } from "testcontainers";
-import { EventStore, EventStoreFactory } from "event-store-adapter-js";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   createDynamoDBClient,
   createJournalTable,
   createSnapshotTable,
 } from "../../test/dynamodb-utils";
+import { GroupChatRepositoryImpl } from "./group-chat-repository";
 
 afterEach(() => {
   jest.useRealTimers();
 });
 
 describe("GroupChatRepository", () => {
-  const TEST_TIME_FACTOR = parseFloat(process.env.TEST_TIME_FACTOR ?? "1.0");
+  const TEST_TIME_FACTOR = Number.parseFloat(
+    process.env.TEST_TIME_FACTOR ?? "1.0",
+  );
   const TIMEOUT: number = 10 * 1000 * TEST_TIME_FACTOR;
 
   let container: TestContainer;
@@ -152,23 +154,26 @@ describe("GroupChatRepository", () => {
     if (E.isLeft(groupChat2Either)) {
       throw new Error(groupChat2Either.left.message);
     }
-    const groupChat2 = groupChat2Either.right!;
-    expect(groupChat2.version).toEqual(1);
+    const groupChat2 = groupChat2Either.right;
+    expect(groupChat2?.version).toEqual(1);
 
     const name2 = GroupChatName.of("name2");
-    const rename2Either = groupChat2.rename(name2, adminId);
-    if (E.isLeft(rename2Either)) {
+    const rename2Either = groupChat2?.rename(name2, adminId);
+    if (rename2Either && E.isLeft(rename2Either)) {
       throw new Error(
         `groupChat3Either is left: ${rename2Either.left.stack?.toString()}`,
       );
     }
+    if (!rename2Either) {
+      return;
+    }
     const [groupChat3, groupChatRenamed] = rename2Either.right;
     expect(groupChat3.version).toEqual(1);
-
     const result2Either = await repository.store(
       groupChatRenamed,
       groupChat3,
     )();
+
     if (E.isLeft(result2Either)) {
       throw new Error(result2Either.left.message);
     }
@@ -179,17 +184,20 @@ describe("GroupChatRepository", () => {
         `groupChat3Either is left: ${groupChat3Either.left.stack?.toString()}`,
       );
     }
-    const groupChat4 = groupChat3Either.right!;
-    expect(groupChat4.id.equals(id)).toEqual(true);
-    expect(groupChat4.name.equals(name2)).toEqual(true);
-    expect(groupChat4.version).toEqual(2);
+    const groupChat4 = groupChat3Either.right;
+    expect(groupChat4?.id.equals(id)).toEqual(true);
+    expect(groupChat4?.name.equals(name2)).toEqual(true);
+    expect(groupChat4?.version).toEqual(2);
 
     const name3 = GroupChatName.of("name3");
-    const rename3Either = groupChat4.rename(name3, adminId);
-    if (E.isLeft(rename3Either)) {
+    const rename3Either = groupChat4?.rename(name3, adminId);
+    if (rename3Either && E.isLeft(rename3Either)) {
       throw new Error(
         `groupChat3Either is left: ${rename3Either.left.stack?.toString()}`,
       );
+    }
+    if (!rename3Either) {
+      return;
     }
     const [GroupChat5, groupChatRenamed2] = rename3Either.right;
 

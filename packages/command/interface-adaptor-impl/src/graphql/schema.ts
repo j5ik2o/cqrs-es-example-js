@@ -1,4 +1,4 @@
-import { GraphQLSchema } from "graphql/type";
+import type { GraphQLSchema } from "graphql/type";
 import { buildSchema } from "type-graphql";
 import { GroupChatCommandResolver } from "./resolvers";
 

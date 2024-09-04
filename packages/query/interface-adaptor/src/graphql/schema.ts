@@ -1,5 +1,5 @@
+import type { GraphQLSchema } from "graphql/type";
 import { buildSchema } from "type-graphql";
-import { GraphQLSchema } from "graphql/type";
 import { GroupChatQueryResolver } from "./resolvers";
 
 async function createQuerySchema(): Promise<GraphQLSchema> {

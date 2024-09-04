@@ -1,6 +1,6 @@
-import * as U from "ulidx";
+import type { AggregateId } from "event-store-adapter-js";
 import * as E from "fp-ts/Either";
-import { AggregateId } from "event-store-adapter-js";
+import * as U from "ulidx";
 
 const USER_ACCOUNT_PREFIX: string = "UserAccount";
 
@@ -40,14 +40,13 @@ class UserAccountId implements AggregateId {
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
-      } else {
-        throw error;
       }
+      throw error;
     }
   }
 
   static of(value: string): UserAccountId {
-    const ulid = value.startsWith(USER_ACCOUNT_PREFIX + "-")
+    const ulid = value.startsWith(`${USER_ACCOUNT_PREFIX}-`)
       ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
       : value;
     return new UserAccountId(ulid);
@@ -58,7 +57,7 @@ class UserAccountId implements AggregateId {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToUserAccountId(json: any): UserAccountId {
   return UserAccountId.of(json.value);
 }
