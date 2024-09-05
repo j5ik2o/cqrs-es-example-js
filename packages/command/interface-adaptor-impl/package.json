@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tsc && rm -f dist/internal/*.test.d.ts && rm -f dist/internal/*.test.js && rm -fr dist/internal/test",
+    "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/repository/group-chat/*.test.*",
     "test": "jest --no-cache",
     "lint": "biome check ./src",
     "lint:fix": "biome check --write ./src",
