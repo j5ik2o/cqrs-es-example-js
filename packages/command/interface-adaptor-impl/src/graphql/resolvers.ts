@@ -1,15 +1,15 @@
-import type {
+import {
   GroupChatError,
   GroupChatId,
   GroupChatName,
-  MemberRole,
+  type MemberRole,
   Message,
   MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import { RepositoryError } from "cqrs-es-example-js-command-interface-adaptor-if";
-import type {
-  GroupChatCommandProcessor,
+import {
+  type GroupChatCommandProcessor,
   ProcessNotFoundError,
 } from "cqrs-es-example-js-command-processor";
 import type { ProcessError } from "cqrs-es-example-js-command-processor";

@@ -42,12 +42,12 @@ class Members {
 
   isMember(userAccountId: UserAccountId): boolean {
     const member = this.values.get(userAccountId.value);
-    return member?.isMember();
+    return member?.isMember() || false;
   }
 
   isAdministrator(userAccountId: UserAccountId): boolean {
     const member = this.values.get(userAccountId.value);
-    return member?.isAdministrator();
+    return member?.isAdministrator() || false;
   }
 
   findById(userAccountId: UserAccountId): Member | undefined {

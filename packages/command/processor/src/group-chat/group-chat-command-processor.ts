@@ -1,16 +1,16 @@
-import type {
+import {
   GroupChat,
   GroupChatDeleteError,
-  GroupChatEvent,
+  type GroupChatEvent,
   GroupChatId,
-  GroupChatName,
-  MemberRole,
-  Message,
-  MessageId,
-  UserAccountId,
+  type GroupChatName,
+  type MemberRole,
+  type Message,
+  type MessageId,
+  type UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import type {
-  GroupChatRepository,
+import {
+  type GroupChatRepository,
   RepositoryError,
 } from "cqrs-es-example-js-command-interface-adaptor-if";
 import * as TE from "fp-ts/TaskEither";

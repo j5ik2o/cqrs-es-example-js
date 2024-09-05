@@ -1,9 +1,9 @@
 import * as E from "fp-ts/lib/Either";
-import type {
-  UserAccountId,
+import {
+  type UserAccountId,
   convertJSONToUserAccountId,
 } from "../user-account";
-import type { MessageId, convertJSONToMessageId } from "./message-id";
+import { type MessageId, convertJSONToMessageId } from "./message-id";
 
 const MessageTypeSymbol = Symbol("Message");
 interface MessageParams {

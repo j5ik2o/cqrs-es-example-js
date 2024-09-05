@@ -1,4 +1,4 @@
-import type { ULID, monotonicFactory } from "ulidx";
+import { type ULID, monotonicFactory } from "ulidx";
 
 const ulidGenerator = monotonicFactory();
 

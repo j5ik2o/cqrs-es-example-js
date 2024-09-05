@@ -1,8 +1,8 @@
-import type {
-  UserAccountId,
+import {
+  type UserAccountId,
   convertJSONToUserAccountId,
 } from "../user-account";
-import type { MemberId, convertJSONToMemberId } from "./member-id";
+import { type MemberId, convertJSONToMemberId } from "./member-id";
 
 type MemberRole = "administrator" | "member";
 

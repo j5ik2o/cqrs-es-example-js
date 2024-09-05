@@ -1,12 +1,12 @@
 import { DescribeTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import type {
+import {
   DescribeStreamCommand,
   DynamoDBStreamsClient,
   GetRecordsCommand,
-  GetRecordsCommandOutput,
+  type GetRecordsCommandOutput,
   GetShardIteratorCommand,
-  AttributeValue as SDKStreamsAttributeValue,
-  _Record,
+  type AttributeValue as SDKStreamsAttributeValue,
+  type _Record,
 } from "@aws-sdk/client-dynamodb-streams";
 import { PrismaClient } from "@prisma/client";
 import type {

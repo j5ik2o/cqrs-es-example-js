@@ -10,11 +10,11 @@ import {
   GroupChatRemoveMemberError,
   GroupChatRenameError,
 } from "./group-chat-errors";
-import type {
+import {
   GroupChatCreated,
   GroupChatDeleted,
   GroupChatDeletedTypeSymbol,
-  GroupChatEvent,
+  type GroupChatEvent,
   GroupChatMemberAdded,
   GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
@@ -26,12 +26,12 @@ import type {
   GroupChatRenamed,
   GroupChatRenamedTypeSymbol,
 } from "./group-chat-events";
-import type { GroupChatId, convertJSONToGroupChatId } from "./group-chat-id";
-import type {
-  GroupChatName,
+import { type GroupChatId, convertJSONToGroupChatId } from "./group-chat-id";
+import {
+  type GroupChatName,
   convertJSONToGroupChatName,
 } from "./group-chat-name";
-import type { Member, MemberRole } from "./member";
+import { Member, type MemberRole } from "./member";
 import { MemberId } from "./member-id";
 import { Members, convertJSONToMembers } from "./members";
 import type { Message } from "./message";

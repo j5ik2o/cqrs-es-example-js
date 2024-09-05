@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import type { ILogObj, Logger } from "tslog";
+import { type ILogObj, Logger } from "tslog";
 import * as yargs from "yargs";
 import { localRmuMain } from "./local-rmu-main";
 import { readApiMain } from "./read-api-main";

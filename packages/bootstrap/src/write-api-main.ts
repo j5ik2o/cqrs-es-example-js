@@ -1,15 +1,15 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import type {
-  GroupChat,
-  GroupChatEvent,
-  GroupChatId,
+import {
+  type GroupChat,
+  type GroupChatEvent,
+  type GroupChatId,
   convertJSONToGroupChat,
   convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
-import type {
-  CommandContext,
+import {
+  type CommandContext,
   GroupChatRepositoryImpl,
   createCommandSchema,
 } from "cqrs-es-example-js-command-interface-adaptor-impl";
