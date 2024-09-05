@@ -32,7 +32,7 @@ describe("GroupChatRepository", () => {
   const TEST_TIME_FACTOR = Number.parseFloat(
     process.env.TEST_TIME_FACTOR ?? "1.0",
   );
-  const TIMEOUT: number = 10 * 1000 * TEST_TIME_FACTOR;
+  const TIMEOUT: number = 30 * 1000 * TEST_TIME_FACTOR;
 
   let container: TestContainer;
   let startedContainer: StartedTestContainer;
