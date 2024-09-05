@@ -37,9 +37,8 @@ class GroupChatName {
     } catch (error) {
       if (error instanceof Error) {
         return E.left(error.message);
-      } else {
-        throw error;
       }
+      throw error;
     }
   }
 
@@ -48,7 +47,7 @@ class GroupChatName {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToGroupChatName(json: any): GroupChatName {
   return GroupChatName.of(json.value);
 }

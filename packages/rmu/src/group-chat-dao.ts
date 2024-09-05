@@ -1,13 +1,13 @@
+import type { PrismaClient } from "@prisma/client";
 import {
-  GroupChatId,
-  GroupChatName,
+  type GroupChatId,
+  type GroupChatName,
   MemberId,
-  MemberRole,
-  Message,
-  MessageId,
-  UserAccountId,
+  type MemberRole,
+  type Message,
+  type MessageId,
+  type UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import { PrismaClient } from "@prisma/client";
 
 class GroupChatDao {
   private constructor(private readonly prismaClient: PrismaClient) {}
@@ -43,7 +43,7 @@ class GroupChatDao {
   }
 
   async deleteGroupChat(aggregateId: GroupChatId, createdAt: Date) {
-    return await this.prismaClient.groupChats.update({
+    return this.prismaClient.groupChats.update({
       where: { id: aggregateId.asString() },
       data: { disabled: true, updatedAt: createdAt },
     });
@@ -54,7 +54,7 @@ class GroupChatDao {
     name: GroupChatName,
     updatedAt: Date,
   ) {
-    return await this.prismaClient.groupChats.update({
+    return this.prismaClient.groupChats.update({
       where: { id: aggregateId.asString() },
       data: { name: name.asString(), updatedAt: updatedAt },
     });
@@ -67,7 +67,7 @@ class GroupChatDao {
     role: MemberRole,
     createdAt: Date,
   ) {
-    return await this.prismaClient.members.create({
+    return this.prismaClient.members.create({
       data: {
         id: id.asString(),
         groupChatId: aggregateId.asString(),
@@ -80,7 +80,7 @@ class GroupChatDao {
   }
 
   async deleteMember(aggregateId: GroupChatId, userAccountId: UserAccountId) {
-    return await this.prismaClient.members.delete({
+    return this.prismaClient.members.delete({
       where: {
         groupChatId_userAccountId: {
           groupChatId: aggregateId.asString(),
@@ -95,7 +95,7 @@ class GroupChatDao {
     message: Message,
     createdAt: Date,
   ) {
-    return await this.prismaClient.messages.create({
+    return this.prismaClient.messages.create({
       data: {
         id: message.id.asString(),
         disabled: false,
@@ -109,7 +109,7 @@ class GroupChatDao {
   }
 
   async deleteMessage(id: MessageId, updatedAt: Date) {
-    return await this.prismaClient.messages.update({
+    return this.prismaClient.messages.update({
       where: { id: id.asString() },
       data: { disabled: true, updatedAt: updatedAt },
     });

@@ -1,19 +1,19 @@
-import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
 import { DescribeTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  _Record,
-  AttributeValue as SDKStreamsAttributeValue,
   DescribeStreamCommand,
   DynamoDBStreamsClient,
   GetRecordsCommand,
-  GetRecordsCommandOutput,
+  type GetRecordsCommandOutput,
   GetShardIteratorCommand,
+  type AttributeValue as SDKStreamsAttributeValue,
+  type _Record,
 } from "@aws-sdk/client-dynamodb-streams";
 import { PrismaClient } from "@prisma/client";
-import {
-  AttributeValue as LambdaAttributeValue,
+import type {
   DynamoDBStreamEvent,
+  AttributeValue as LambdaAttributeValue,
 } from "aws-lambda";
+import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
 import { logger } from "./index";
 
 async function localRmuMain() {
@@ -22,7 +22,9 @@ async function localRmuMain() {
   const apiHost =
     process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
   const apiPort =
-    process.env.API_PORT !== undefined ? parseInt(process.env.API_PORT) : 3000;
+    process.env.API_PORT !== undefined
+      ? Number.parseInt(process.env.API_PORT)
+      : 3000;
 
   const awsRegion = process.env.AWS_REGION;
   const awsDynamodbEndpointUrl = process.env.AWS_DYNAMODB_ENDPOINT_URL;
@@ -35,7 +37,7 @@ async function localRmuMain() {
       : "journal";
   const streamMaxItemCount =
     process.env.STREAM_MAX_ITEM_COUNT !== undefined
-      ? parseInt(process.env.STREAM_MAX_ITEM_COUNT)
+      ? Number.parseInt(process.env.STREAM_MAX_ITEM_COUNT)
       : 100;
 
   const databaseUrl = process.env.DATABASE_URL;
@@ -91,9 +93,9 @@ async function localRmuMain() {
     log: [{ level: "query", emit: "event" }],
   });
   prisma.$on("query", async (e) => {
-    logger.info("Query: " + e.query);
-    logger.info("Params: " + e.params);
-    logger.info("Duration: " + e.duration + "ms");
+    logger.info(`Query: ${e.query}`);
+    logger.info(`Params: ${e.params}`);
+    logger.info(`Duration: ${e.duration}ms`);
   });
   const dao = GroupChatDao.of(prisma);
   const readModelUpdater = ReadModelUpdater.of(dao);
@@ -134,7 +136,7 @@ async function streamDriver(
   for (;;) {
     logger.info(`streamArn = ${streamArn}`);
     logger.info(`maxItemCount = ${streamMaxItemCount}`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny:
     let req: any = { StreamArn: streamArn };
     if (lastEvaluatedShardId) {
       req = { ...req, ExclusiveStartShardId: lastEvaluatedShardId };

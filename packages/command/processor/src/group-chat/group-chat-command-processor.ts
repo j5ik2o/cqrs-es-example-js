@@ -1,16 +1,16 @@
 import {
   GroupChat,
   GroupChatDeleteError,
-  GroupChatEvent,
+  type GroupChatEvent,
   GroupChatId,
-  GroupChatName,
-  MemberRole,
-  Message,
-  MessageId,
-  UserAccountId,
+  type GroupChatName,
+  type MemberRole,
+  type Message,
+  type MessageId,
+  type UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import {
-  GroupChatRepository,
+  type GroupChatRepository,
   RepositoryError,
 } from "cqrs-es-example-js-command-interface-adaptor-if";
 import * as TE from "fp-ts/TaskEither";
@@ -188,9 +188,11 @@ class GroupChatCommandProcessor {
   private convertToProcessError(e: unknown): ProcessError {
     if (e instanceof ProcessError) {
       return e;
-    } else if (e instanceof RepositoryError) {
+    }
+    if (e instanceof RepositoryError) {
       return new ProcessInternalError("Failed to delete group chat", e);
-    } else if (e instanceof GroupChatDeleteError) {
+    }
+    if (e instanceof GroupChatDeleteError) {
       return new ProcessInternalError("Failed to delete group chat", e);
     }
     throw e;

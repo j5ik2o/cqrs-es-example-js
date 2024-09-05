@@ -1,6 +1,9 @@
-import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
-import { convertJSONToMessageId, MessageId } from "./message-id";
 import * as E from "fp-ts/lib/Either";
+import {
+  type UserAccountId,
+  convertJSONToUserAccountId,
+} from "../user-account";
+import { type MessageId, convertJSONToMessageId } from "./message-id";
 
 const MessageTypeSymbol = Symbol("Message");
 interface MessageParams {
@@ -56,9 +59,8 @@ class Message {
     } catch (e) {
       if (e instanceof Error) {
         return E.left(e.message);
-      } else {
-        throw e;
       }
+      throw e;
     }
   }
 
@@ -72,7 +74,7 @@ class Message {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToMessage(json: any): Message {
   const id = convertJSONToMessageId(json.id);
   const senderId = convertJSONToUserAccountId(json.senderId);

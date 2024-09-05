@@ -1,14 +1,14 @@
 import { describe } from "node:test";
-import { GroupChat } from "./group-chat";
-import { GroupChatId } from "./group-chat-id";
-import { GroupChatName } from "./group-chat-name";
-import { UserAccountId } from "../user-account";
 import * as E from "fp-ts/lib/Either";
+import { UserAccountId } from "../user-account";
+import { GroupChat } from "./group-chat";
+import type { GroupChatError } from "./group-chat-errors";
 import {
   GroupChatDeletedTypeSymbol,
-  GroupChatEvent,
+  type GroupChatEvent,
 } from "./group-chat-events";
-import { GroupChatError } from "./group-chat-errors";
+import { GroupChatId } from "./group-chat-id";
+import { GroupChatName } from "./group-chat-name";
 import { Message } from "./message";
 import { MessageId } from "./message-id";
 

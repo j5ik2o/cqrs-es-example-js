@@ -1,9 +1,9 @@
-import {
+import type {
   GroupChat,
   GroupChatEvent,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-import * as TE from "fp-ts/TaskEither";
+import type * as TE from "fp-ts/TaskEither";
 
 class RepositoryError extends Error {
   constructor(message: string, cause?: Error) {
@@ -36,4 +36,4 @@ interface GroupChatRepository {
   ): TE.TaskEither<RepositoryError, GroupChat | undefined>;
 }
 
-export { GroupChatRepository, RepositoryError };
+export { type GroupChatRepository, RepositoryError };

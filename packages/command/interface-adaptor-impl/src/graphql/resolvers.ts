@@ -1,5 +1,26 @@
-import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
 import {
+  GroupChatError,
+  GroupChatId,
+  GroupChatName,
+  type MemberRole,
+  Message,
+  MessageId,
+  UserAccountId,
+} from "cqrs-es-example-js-command-domain";
+import { RepositoryError } from "cqrs-es-example-js-command-interface-adaptor-if";
+import {
+  type GroupChatCommandProcessor,
+  ProcessNotFoundError,
+} from "cqrs-es-example-js-command-processor";
+import type { ProcessError } from "cqrs-es-example-js-command-processor";
+import { OptimisticLockError } from "event-store-adapter-js";
+import type { Task } from "fp-ts/Task";
+import * as TE from "fp-ts/TaskEither";
+import type { TaskEither } from "fp-ts/TaskEither";
+import { pipe } from "fp-ts/function";
+import { GraphQLError } from "graphql/error";
+import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
+import type {
   AddMemberInput,
   CreateGroupChatInput,
   DeleteGroupChatInput,
@@ -8,28 +29,7 @@ import {
   RemoveMemberInput,
   RenameGroupChatInput,
 } from "./inputs";
-import {
-  GroupChatCommandProcessor,
-  ProcessNotFoundError,
-} from "cqrs-es-example-js-command-processor";
-import {
-  GroupChatError,
-  GroupChatId,
-  GroupChatName,
-  MemberRole,
-  Message,
-  MessageId,
-  UserAccountId,
-} from "cqrs-es-example-js-command-domain";
-import * as TE from "fp-ts/TaskEither";
 import { GroupChatOutput, HealthCheckOutput, MessageOutput } from "./outputs";
-import { GraphQLError } from "graphql/error";
-import { pipe } from "fp-ts/function";
-import { ProcessError } from "cqrs-es-example-js-command-processor";
-import { RepositoryError } from "cqrs-es-example-js-command-interface-adaptor-if";
-import { OptimisticLockError } from "event-store-adapter-js";
-import { TaskEither } from "fp-ts/TaskEither";
-import { Task } from "fp-ts/Task";
 
 interface CommandContext {
   groupChatCommandProcessor: GroupChatCommandProcessor;
@@ -350,31 +350,32 @@ class GroupChatCommandResolver {
   private convertToError(error: string | ProcessError): Error {
     if (typeof error === "string") {
       return new ValidationGraphQLError(error);
-    } else {
-      if (
-        error.cause instanceof RepositoryError &&
-        error.cause.cause instanceof OptimisticLockError
-      ) {
-        return new OptimisticLockingGraphQLError(
-          "A conflict occurred while attempting to save your changes. Please try again.",
-          error,
-        );
-      } else if (error.cause instanceof GroupChatError) {
-        return new DomainLogicGraphQLError(
-          "The request could not be processed due to a domain logic error. Please verify your data and try again.",
-          error,
-        );
-      } else if (error instanceof ProcessNotFoundError) {
-        return new NotFoundGraphQLError(
-          "The requested resource could not be found.",
-          error,
-        );
-      }
-      return new InternalServerGraphQLError(
-        "An unexpected error occurred. Please try again later.",
+    }
+    if (
+      error.cause instanceof RepositoryError &&
+      error.cause.cause instanceof OptimisticLockError
+    ) {
+      return new OptimisticLockingGraphQLError(
+        "A conflict occurred while attempting to save your changes. Please try again.",
         error,
       );
     }
+    if (error.cause instanceof GroupChatError) {
+      return new DomainLogicGraphQLError(
+        "The request could not be processed due to a domain logic error. Please verify your data and try again.",
+        error,
+      );
+    }
+    if (error instanceof ProcessNotFoundError) {
+      return new NotFoundGraphQLError(
+        "The requested resource could not be found.",
+        error,
+      );
+    }
+    return new InternalServerGraphQLError(
+      "An unexpected error occurred. Please try again later.",
+      error,
+    );
   }
 
   private toTask<A, B>(): (_: TaskEither<A, B>) => Task<B> {
@@ -465,7 +466,7 @@ class InternalServerGraphQLError extends GraphQLError {
 }
 
 export {
-  CommandContext,
+  type CommandContext,
   GroupChatCommandResolver,
   ValidationGraphQLError,
   OptimisticLockingGraphQLError,

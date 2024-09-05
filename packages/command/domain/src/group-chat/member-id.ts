@@ -1,5 +1,5 @@
-import * as U from "ulidx";
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+import * as U from "ulidx";
 
 const MemberIdTypeSymbol = Symbol("MemberId");
 
@@ -38,7 +38,7 @@ class MemberId {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToMemberId(json: any): MemberId {
   return MemberId.of(json.value);
 }

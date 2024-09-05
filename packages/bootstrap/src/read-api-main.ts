@@ -1,9 +1,9 @@
-import { createQuerySchema } from "cqrs-es-example-js-query-interface-adaptor";
-import { PrismaClient } from "@prisma/client";
-import { logger } from "./index";
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
-import { QueryContext } from "cqrs-es-example-js-query-interface-adaptor";
+import { PrismaClient } from "@prisma/client";
+import { createQuerySchema } from "cqrs-es-example-js-query-interface-adaptor";
+import type { QueryContext } from "cqrs-es-example-js-query-interface-adaptor";
+import { logger } from "./index";
 
 interface MyContext {
   prisma: PrismaClient;
@@ -13,7 +13,9 @@ async function readApiMain() {
   const apiHost =
     process.env.API_HOST !== undefined ? process.env.API_HOST : "localhost";
   const apiPort =
-    process.env.API_PORT !== undefined ? parseInt(process.env.API_PORT) : 3000;
+    process.env.API_PORT !== undefined
+      ? Number.parseInt(process.env.API_PORT)
+      : 3000;
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -33,9 +35,9 @@ async function readApiMain() {
     log: [{ level: "query", emit: "event" }],
   });
   prisma.$on("query", async (e) => {
-    logger.info("Query: " + e.query);
-    logger.info("Params: " + e.params);
-    logger.info("Duration: " + e.duration + "ms");
+    logger.info(`Query: ${e.query}`);
+    logger.info(`Params: ${e.params}`);
+    logger.info(`Duration: ${e.duration}ms`);
   });
 
   const schema = await createQuerySchema();

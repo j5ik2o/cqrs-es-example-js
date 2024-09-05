@@ -1,11 +1,20 @@
-import { convertJSONToGroupChatId, GroupChatId } from "./group-chat-id";
-import { convertJSONToGroupChatName, GroupChatName } from "./group-chat-name";
-import { convertJSONToMembers, Members } from "./members";
+import type { Aggregate } from "event-store-adapter-js";
+import * as E from "fp-ts/lib/Either";
+import * as O from "fp-ts/lib/Option";
+import type { UserAccountId } from "../user-account";
+import {
+  GroupChatAddMemberError,
+  GroupChatDeleteError,
+  GroupChatDeleteMessageError,
+  GroupChatPostMessageError,
+  GroupChatRemoveMemberError,
+  GroupChatRenameError,
+} from "./group-chat-errors";
 import {
   GroupChatCreated,
   GroupChatDeleted,
   GroupChatDeletedTypeSymbol,
-  GroupChatEvent,
+  type GroupChatEvent,
   GroupChatMemberAdded,
   GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
@@ -17,23 +26,17 @@ import {
   GroupChatRenamed,
   GroupChatRenamedTypeSymbol,
 } from "./group-chat-events";
-import { UserAccountId } from "../user-account";
-import { Member, MemberRole } from "./member";
-import * as E from "fp-ts/lib/Either";
-import * as O from "fp-ts/lib/Option";
+import { type GroupChatId, convertJSONToGroupChatId } from "./group-chat-id";
 import {
-  GroupChatAddMemberError,
-  GroupChatDeleteError,
-  GroupChatDeleteMessageError,
-  GroupChatPostMessageError,
-  GroupChatRemoveMemberError,
-  GroupChatRenameError,
-} from "./group-chat-errors";
-import { Message } from "./message";
-import { convertJSONToMessages, Messages } from "./messages";
-import { MessageId } from "./message-id";
-import { Aggregate } from "event-store-adapter-js";
+  type GroupChatName,
+  convertJSONToGroupChatName,
+} from "./group-chat-name";
+import { Member, type MemberRole } from "./member";
 import { MemberId } from "./member-id";
+import { Members, convertJSONToMembers } from "./members";
+import type { Message } from "./message";
+import type { MessageId } from "./message-id";
+import { Messages, convertJSONToMessages } from "./messages";
 
 const GroupChatTypeSymbol = Symbol("GroupChat");
 
@@ -425,7 +428,7 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToGroupChat(json: any): GroupChat {
   const id = convertJSONToGroupChatId(json.data.id);
   const name = convertJSONToGroupChatName(json.data.name);

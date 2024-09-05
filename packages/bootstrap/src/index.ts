@@ -1,9 +1,9 @@
 import "reflect-metadata";
+import { type ILogObj, Logger } from "tslog";
 import * as yargs from "yargs";
-import { writeApiMain } from "./write-api-main";
 import { localRmuMain } from "./local-rmu-main";
-import { ILogObj, Logger } from "tslog";
 import { readApiMain } from "./read-api-main";
+import { writeApiMain } from "./write-api-main";
 export const logger: Logger<ILogObj> = new Logger();
 async function main() {
   const argv = yargs

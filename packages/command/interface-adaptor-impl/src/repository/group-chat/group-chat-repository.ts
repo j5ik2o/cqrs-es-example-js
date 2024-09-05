@@ -1,13 +1,13 @@
-import { EventStore, OptimisticLockError } from "event-store-adapter-js";
 import {
   GroupChat,
-  GroupChatEvent,
-  GroupChatId,
+  type GroupChatEvent,
+  type GroupChatId,
 } from "cqrs-es-example-js-command-domain";
 import {
-  GroupChatRepository,
+  type GroupChatRepository,
   RepositoryError,
 } from "cqrs-es-example-js-command-interface-adaptor-if";
+import { type EventStore, OptimisticLockError } from "event-store-adapter-js";
 import * as TE from "fp-ts/TaskEither";
 
 type SnapshotDecider = (event: GroupChatEvent, snapshot: GroupChat) => boolean;
@@ -26,15 +26,10 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
     event: GroupChatEvent,
     snapshot: GroupChat,
   ): TE.TaskEither<RepositoryError, void> {
-    if (
-      event.isCreated ||
-      (this.snapshotDecider !== undefined &&
-        this.snapshotDecider(event, snapshot))
-    ) {
+    if (event.isCreated || this.snapshotDecider?.(event, snapshot)) {
       return this.storeEventAndSnapshot(event, snapshot);
-    } else {
-      return this.storeEvent(event, snapshot.version);
     }
+    return this.storeEvent(event, snapshot.version);
   }
 
   storeEvent(
@@ -49,7 +44,8 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
             "Failed to store event and snapshot due to optimistic lock error",
             reason,
           );
-        } else if (reason instanceof Error) {
+        }
+        if (reason instanceof Error) {
           return new RepositoryError(
             "Failed to store event and snapshot due to error",
             reason,
@@ -72,7 +68,8 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
             "Failed to store event and snapshot due to optimistic lock error",
             reason,
           );
-        } else if (reason instanceof Error) {
+        }
+        if (reason instanceof Error) {
           return new RepositoryError(
             "Failed to store event and snapshot due to error",
             reason,
@@ -91,13 +88,12 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
         const snapshot = await this.eventStore.getLatestSnapshotById(id);
         if (snapshot === undefined) {
           return undefined;
-        } else {
-          const events = await this.eventStore.getEventsByIdSinceSequenceNumber(
-            id,
-            snapshot.sequenceNumber + 1,
-          );
-          return GroupChat.replay(events, snapshot);
         }
+        const events = await this.eventStore.getEventsByIdSinceSequenceNumber(
+          id,
+          snapshot.sequenceNumber + 1,
+        );
+        return GroupChat.replay(events, snapshot);
       },
       (reason) => {
         if (reason instanceof Error) {
@@ -124,9 +120,9 @@ class GroupChatRepositoryImpl implements GroupChatRepository {
 
   static retentionCriteriaOf(numberOfEvents: number): SnapshotDecider {
     return (event: GroupChatEvent, _: GroupChat) => {
-      return event.sequenceNumber % numberOfEvents == 0;
+      return event.sequenceNumber % numberOfEvents === 0;
     };
   }
 }
 
-export { GroupChatRepositoryImpl, RepositoryError };
+export { GroupChatRepositoryImpl, type RepositoryError };

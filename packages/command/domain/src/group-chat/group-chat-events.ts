@@ -1,11 +1,17 @@
-import { Event } from "event-store-adapter-js";
-import { convertJSONToGroupChatId, GroupChatId } from "./group-chat-id";
-import { convertJSONToUserAccountId, UserAccountId } from "../user-account";
-import { convertJSONToGroupChatName, GroupChatName } from "./group-chat-name";
-import { convertJSONToMembers, Members } from "./members";
-import { convertJSONToMember, Member } from "./member";
-import { convertJSONToMessage, Message } from "./message";
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+import type { Event } from "event-store-adapter-js";
+import {
+  type UserAccountId,
+  convertJSONToUserAccountId,
+} from "../user-account";
+import { type GroupChatId, convertJSONToGroupChatId } from "./group-chat-id";
+import {
+  type GroupChatName,
+  convertJSONToGroupChatName,
+} from "./group-chat-name";
+import { type Member, convertJSONToMember } from "./member";
+import { type Members, convertJSONToMembers } from "./members";
+import { type Message, convertJSONToMessage } from "./message";
 
 type GroupChatEventTypeSymbol =
   | typeof GroupChatCreatedTypeSymbol
@@ -39,7 +45,7 @@ class GroupChatCreated implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = true;
+  isCreated = true;
 
   toString() {
     return `GroupChatCreated(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.members.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -80,7 +86,7 @@ class GroupChatRenamed implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = false;
+  isCreated = false;
 
   toString() {
     return `GroupChatRenamed(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -119,7 +125,7 @@ class GroupChatMemberAdded implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = false;
+  isCreated = false;
 
   toString() {
     return `GroupChatMemberAdded(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -158,7 +164,7 @@ class GroupChatMemberRemoved implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = false;
+  isCreated = false;
 
   toString() {
     return `GroupChatMemberRemoved(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -196,7 +202,7 @@ class GroupChatDeleted implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = false;
+  isCreated = false;
 
   toString() {
     return `GroupChatDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -233,7 +239,7 @@ class GroupChatMessagePosted implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = false;
+  isCreated = false;
 
   toString() {
     return `GroupChatMessagePosted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -272,7 +278,7 @@ class GroupChatMessageDeleted implements GroupChatEvent {
     public readonly occurredAt: Date,
   ) {}
 
-  isCreated: boolean = false;
+  isCreated = false;
 
   toString() {
     return `GroupChatMessageDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
@@ -386,7 +392,7 @@ class GroupChatEventFactory {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny:
 function convertJSONToGroupChatEvent(json: any): GroupChatEvent {
   const id = convertJSONToGroupChatId(json.data.aggregateId);
   const executorId = convertJSONToUserAccountId(json.data.executorId);
@@ -456,8 +462,8 @@ function convertJSONToGroupChatEvent(json: any): GroupChatEvent {
 }
 
 export {
-  GroupChatEvent,
-  GroupChatEventTypeSymbol,
+  type GroupChatEvent,
+  type GroupChatEventTypeSymbol,
   GroupChatCreated,
   GroupChatCreatedTypeSymbol,
   GroupChatRenamed,

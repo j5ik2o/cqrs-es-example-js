@@ -1,24 +1,24 @@
-import { DynamoDBStreamEvent } from "aws-lambda";
-import { GroupChatDao } from "./group-chat-dao";
-import {
-  convertJSONToGroupChatEvent,
-  GroupChatCreated,
-  GroupChatCreatedTypeSymbol,
-  GroupChatDeleted,
-  GroupChatDeletedTypeSymbol,
-  GroupChatMemberAdded,
-  GroupChatMemberAddedTypeSymbol,
-  GroupChatMemberRemoved,
-  GroupChatMemberRemovedTypeSymbol,
-  GroupChatMessageDeleted,
-  GroupChatMessageDeletedTypeSymbol,
-  GroupChatMessagePosted,
-  GroupChatMessagePostedTypeSymbol,
-  GroupChatRenamed,
-  GroupChatRenamedTypeSymbol,
-} from "cqrs-es-example-js-command-domain";
-import { ILogObj, Logger } from "tslog";
 import { TextDecoder } from "node:util";
+import type { DynamoDBStreamEvent } from "aws-lambda";
+import {
+  type GroupChatCreated,
+  GroupChatCreatedTypeSymbol,
+  type GroupChatDeleted,
+  GroupChatDeletedTypeSymbol,
+  type GroupChatMemberAdded,
+  GroupChatMemberAddedTypeSymbol,
+  type GroupChatMemberRemoved,
+  GroupChatMemberRemovedTypeSymbol,
+  type GroupChatMessageDeleted,
+  GroupChatMessageDeletedTypeSymbol,
+  type GroupChatMessagePosted,
+  GroupChatMessagePostedTypeSymbol,
+  type GroupChatRenamed,
+  GroupChatRenamedTypeSymbol,
+  convertJSONToGroupChatEvent,
+} from "cqrs-es-example-js-command-domain";
+import { type ILogObj, Logger } from "tslog";
+import type { GroupChatDao } from "./group-chat-dao";
 
 // import {Callback} from "aws-lambda/handler";
 
@@ -33,8 +33,8 @@ class ReadModelUpdater {
   private constructor(private readonly groupChatDao: GroupChatDao) {}
 
   async updateReadModel(event: DynamoDBStreamEvent): Promise<void> {
-    this.logger.info("EVENT: \n" + JSON.stringify(event, null, 2));
-    event.Records.forEach((record) => {
+    this.logger.info(`EVENT: \n${JSON.stringify(event, null, 2)}`);
+    for (const record of event.Records) {
       if (!record.dynamodb) {
         this.logger.warn("No DynamoDB record");
         return;
@@ -58,7 +58,7 @@ class ReadModelUpdater {
         case GroupChatCreatedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatCreated;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.insertGroupChat(
+          await this.groupChatDao.insertGroupChat(
             typedEvent.aggregateId,
             typedEvent.name,
             typedEvent.members.toArray()[0].userAccountId,
@@ -70,14 +70,17 @@ class ReadModelUpdater {
         case GroupChatDeletedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatDeleted;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.deleteGroupChat(typedEvent.aggregateId, new Date());
+          await this.groupChatDao.deleteGroupChat(
+            typedEvent.aggregateId,
+            new Date(),
+          );
           this.logger.debug("deleted group chat");
           break;
         }
         case GroupChatRenamedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatRenamed;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.updateGroupChatName(
+          await this.groupChatDao.updateGroupChatName(
             typedEvent.aggregateId,
             typedEvent.name,
             new Date(),
@@ -88,7 +91,7 @@ class ReadModelUpdater {
         case GroupChatMemberAddedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatMemberAdded;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.insertGroupChatMember(
+          await this.groupChatDao.insertGroupChatMember(
             typedEvent.member.id,
             typedEvent.aggregateId,
             typedEvent.member.userAccountId,
@@ -101,7 +104,7 @@ class ReadModelUpdater {
         case GroupChatMemberRemovedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatMemberRemoved;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.deleteMember(
+          await this.groupChatDao.deleteMember(
             typedEvent.aggregateId,
             typedEvent.member.userAccountId,
           );
@@ -111,7 +114,7 @@ class ReadModelUpdater {
         case GroupChatMessagePostedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatMessagePosted;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.insertMessage(
+          await this.groupChatDao.insertMessage(
             typedEvent.aggregateId,
             typedEvent.message,
             new Date(),
@@ -122,12 +125,15 @@ class ReadModelUpdater {
         case GroupChatMessageDeletedTypeSymbol: {
           const typedEvent = groupChatEvent as GroupChatMessageDeleted;
           this.logger.debug(`event = ${typedEvent.toString()}`);
-          this.groupChatDao.deleteMessage(typedEvent.message.id, new Date());
+          await this.groupChatDao.deleteMessage(
+            typedEvent.message.id,
+            new Date(),
+          );
           this.logger.debug("deleted message");
           break;
         }
       }
-    });
+    }
   }
 
   static of(groupChatDao: GroupChatDao): ReadModelUpdater {
