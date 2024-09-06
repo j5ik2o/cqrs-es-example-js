@@ -31,7 +31,7 @@ importers:
         version: 1.0.7
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1689.0
+        version: 2.1690.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../command/domain
@@ -165,7 +165,7 @@ importers:
         version: 3.637.0
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1689.0
+        version: 2.1690.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../domain
@@ -223,7 +223,7 @@ importers:
         version: 3.637.0
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1689.0
+        version: 2.1690.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../domain
@@ -418,7 +418,7 @@ importers:
         version: 1.3.9
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1689.0
+        version: 2.1690.0
       event-store-adapter-js:
         specifier: 2.2.5
         version: 2.2.5
@@ -503,7 +503,7 @@ importers:
         version: 1.0.7
       aws-sdk:
         specifier: ^2.1459.0
-        version: 2.1689.0
+        version: 2.1690.0
       cqrs-es-example-js-command-domain:
         specifier: workspace:*
         version: link:../command/domain
@@ -1753,8 +1753,8 @@ packages:
     resolution: {integrity: sha512-9GNFMRrEMG5y3Jvv+V4azWvc+qNWdWLTjDdhf/zgMlz8haaaLWv0xeAIWxz9PuWUBawsVxy0zZotjCdR3Xq+2w==}
     hasBin: true
 
-  aws-sdk@2.1689.0:
-    resolution: {integrity: sha512-+HjbDRzkMrqgQ78BplI7enfO84gSX0wXWnpalzrG7vjH6jFUjuWmRuki6GQhNzrSPQZu1zUi3gPud+3xUxXp3Q==}
+  aws-sdk@2.1690.0:
+    resolution: {integrity: sha512-R8iaPaJzqmkw2vXVIDLrVsc9YDEdsqVjPBBbnoaxb4CgtmoDuSAPH9G3E2ttpYMX4pdwXNapzUvQUu3YNuhKvw==}
     engines: {node: '>= 10.0.0'}
 
   b4a@1.6.6:
@@ -2024,6 +2024,15 @@ packages:
 
   debug@4.3.6:
     resolution: {integrity: sha512-O/09Bd4Z1fBrU4VzkhFqVgpPzaGbw6Sm9FEkBT1A/YBXQFGuuSxa1dN2nxgxS34JmKXqYx8CZAwEVoJFImUXIg==}
+    engines: {node: '>=6.0'}
+    peerDependencies:
+      supports-color: '*'
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
+
+  debug@4.3.7:
+    resolution: {integrity: sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ==}
     engines: {node: '>=6.0'}
     peerDependencies:
       supports-color: '*'
@@ -4578,7 +4587,7 @@ snapshots:
   '@eslint/eslintrc@2.1.4':
     dependencies:
       ajv: 6.12.6
-      debug: 4.3.6
+      debug: 4.3.7
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.3.2
@@ -4632,7 +4641,7 @@ snapshots:
   '@humanwhocodes/config-array@0.11.14':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
-      debug: 4.3.6
+      debug: 4.3.7
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -5584,12 +5593,12 @@ snapshots:
 
   aws-lambda@1.0.7:
     dependencies:
-      aws-sdk: 2.1689.0
+      aws-sdk: 2.1690.0
       commander: 3.0.2
       js-yaml: 3.14.1
       watchpack: 2.4.0
 
-  aws-sdk@2.1689.0:
+  aws-sdk@2.1690.0:
     dependencies:
       buffer: 4.9.2
       events: 1.1.1
@@ -5924,6 +5933,10 @@ snapshots:
     dependencies:
       ms: 2.1.2
 
+  debug@4.3.7:
+    dependencies:
+      ms: 2.1.3
+
   dedent@1.5.1: {}
 
   deep-is@0.1.4: {}
@@ -6037,7 +6050,7 @@ snapshots:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.3
-      debug: 4.3.6
+      debug: 4.3.7
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0
       eslint-scope: 7.2.2
@@ -6092,7 +6105,7 @@ snapshots:
   event-store-adapter-js@2.2.5:
     dependencies:
       '@aws-sdk/client-dynamodb': 3.637.0
-      aws-sdk: 2.1689.0
+      aws-sdk: 2.1690.0
       moment: 2.30.1
       ulid: 2.3.0
       winston: 3.11.0
