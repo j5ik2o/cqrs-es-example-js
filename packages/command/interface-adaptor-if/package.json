@@ -28,7 +28,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "event-store-adapter-js": "2.2.7",
+    "event-store-adapter-js": "2.2.8",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "aws-sdk": "^2.1459.0",
