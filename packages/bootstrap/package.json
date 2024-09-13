@@ -18,7 +18,7 @@
   "author": "Junichi Kato <j5ik2o@gmail.com> (https://j5ik2o.me/)",
   "license": "MIT",
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
+    "@biomejs/biome": "1.9.0",
     "@types/aws-lambda": "^8.10.134",
     "@types/jest": "^29.5.5",
     "@types/node": "^20.6.0",
