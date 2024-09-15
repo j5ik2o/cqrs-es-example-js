@@ -44,7 +44,7 @@
     "cqrs-es-example-js-command-processor": "workspace:*",
     "cqrs-es-example-js-query-interface-adaptor": "workspace:*",
     "cqrs-es-example-js-rmu": "workspace:*",
-    "event-store-adapter-js": "2.2.8",
+    "event-store-adapter-js": "2.2.10",
     "fp-ts": "^2.16.2",
     "moment": "^2.29.4",
     "reflect-metadata": "^0.2.1",
