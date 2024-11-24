@@ -30,7 +30,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "event-store-adapter-js": "2.2.55",
+    "event-store-adapter-js": "2.2.56",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "fp-ts": "^2.16.2",
