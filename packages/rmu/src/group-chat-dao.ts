@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import {
   type GroupChatId,
   type GroupChatName,
@@ -18,28 +19,30 @@ class GroupChatDao {
     administratorId: UserAccountId,
     createdAt: Date,
   ) {
-    return await this.prismaClient.$transaction(async (_prismaClient) => {
-      await _prismaClient.groupChats.create({
-        data: {
-          id: aggregateId.asString(),
-          disabled: false,
-          name: name.asString(),
-          ownerId: administratorId.asString(),
-          createdAt: createdAt,
-          updatedAt: createdAt,
-        },
-      });
-      await _prismaClient.members.create({
-        data: {
-          id: MemberId.generate().asString(),
-          groupChatId: aggregateId.asString(),
-          userAccountId: administratorId.asString(),
-          role: "administrator",
-          createdAt: createdAt,
-          updatedAt: createdAt,
-        },
-      });
-    });
+    return await this.prismaClient.$transaction(
+      async (_prismaClient: Prisma.TransactionClient) => {
+        await _prismaClient.groupChats.create({
+          data: {
+            id: aggregateId.asString(),
+            disabled: false,
+            name: name.asString(),
+            ownerId: administratorId.asString(),
+            createdAt: createdAt,
+            updatedAt: createdAt,
+          },
+        });
+        await _prismaClient.members.create({
+          data: {
+            id: MemberId.generate().asString(),
+            groupChatId: aggregateId.asString(),
+            userAccountId: administratorId.asString(),
+            role: "administrator",
+            createdAt: createdAt,
+            updatedAt: createdAt,
+          },
+        });
+      },
+    );
   }
 
   async deleteGroupChat(aggregateId: GroupChatId, createdAt: Date) {

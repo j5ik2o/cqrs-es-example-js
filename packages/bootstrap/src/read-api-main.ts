@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { createQuerySchema } from "cqrs-es-example-js-query-interface-adaptor";
 import type { QueryContext } from "cqrs-es-example-js-query-interface-adaptor";
 import { logger } from "./index";
+import type { PrismaQueryEvent } from "./types";
 
 interface MyContext {
   prisma: PrismaClient;
@@ -34,7 +35,7 @@ async function readApiMain() {
     },
     log: [{ level: "query", emit: "event" }],
   });
-  prisma.$on("query", async (e) => {
+  prisma.$on("query", async (e: PrismaQueryEvent) => {
     logger.info(`Query: ${e.query}`);
     logger.info(`Params: ${e.params}`);
     logger.info(`Duration: ${e.duration}ms`);
