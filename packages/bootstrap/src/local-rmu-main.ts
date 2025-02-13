@@ -15,6 +15,7 @@ import type {
 } from "aws-lambda";
 import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
 import { logger } from "./index";
+import type { PrismaQueryEvent } from "./types";
 
 async function localRmuMain() {
   logger.info("Starting local read model updater");
@@ -92,7 +93,7 @@ async function localRmuMain() {
     },
     log: [{ level: "query", emit: "event" }],
   });
-  prisma.$on("query", async (e) => {
+  prisma.$on("query", async (e: PrismaQueryEvent) => {
     logger.info(`Query: ${e.query}`);
     logger.info(`Params: ${e.params}`);
     logger.info(`Duration: ${e.duration}ms`);

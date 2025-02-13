@@ -6,7 +6,7 @@ on:
     branches: [ "main" ]
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "Run lint"
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
           pnpm prisma:generate
           pnpm run lint
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint
     env:
       TEST_TIME_FACTOR: 10.0
@@ -46,7 +46,7 @@ jobs:
           pnpm prisma:generate
           pnpm run test
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     env:
       TEST_TIME_FACTOR: 10.0
