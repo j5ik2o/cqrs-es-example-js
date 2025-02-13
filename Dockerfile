@@ -3,14 +3,14 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat openssl3
 
 RUN corepack disable
-RUN npm uninstall -g pnpm || true
-RUN npm install -g --force pnpm
+RUN rm -f /usr/local/bin/pnpm /usr/local/bin/yarn /usr/local/bin/pnpm.js /usr/local/bin/yarn.js
+RUN npm install -g --force pnpm@8
+RUN which pnpm && pnpm --version
 
 FROM base AS builder
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
 
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
