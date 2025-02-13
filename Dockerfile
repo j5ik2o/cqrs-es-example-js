@@ -1,5 +1,11 @@
 FROM node:20-alpine AS base
 
+RUN apk add --no-cache libc6-compat openssl3
+
+RUN corepack disable
+RUN npm uninstall -g pnpm || true
+RUN npm install -g --force pnpm
+
 FROM base AS builder
 
 ENV PNPM_HOME="/pnpm"
@@ -11,7 +17,10 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pnpm install -g turbo && pnpm install && pnpm prisma:generate && pnpm build
+RUN pnpm install -g turbo
+RUN pnpm install
+RUN pnpm prisma:generate
+RUN pnpm build
 
 FROM base AS runner
 WORKDIR /app/packages/bootstrap
