@@ -83,7 +83,7 @@ importers:
         version: 2.4.4
       '@types/yargs':
         specifier: ^17.0.32
-        version: 17.0.33
+        version: 17.0.34
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.0.0
         version: 8.27.0(@typescript-eslint/parser@8.27.0(eslint@8.57.0)(typescript@5.8.2))(eslint@8.57.0)(typescript@5.8.2)
@@ -1742,8 +1742,8 @@ packages:
   '@types/yargs-parser@21.0.3':
     resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}
 
-  '@types/yargs@17.0.33':
-    resolution: {integrity: sha512-WpxBCKWPLr4xSsHgz511rFJAM+wS28w2zEO1QDNY5zM/S8ok70NNfztH0xwhqKyaK0OHCbN98LDAZuy1ctxDkA==}
+  '@types/yargs@17.0.34':
+    resolution: {integrity: sha512-KExbHVa92aJpw9WDQvzBaGVE2/Pz+pLZQloT2hjL8IqsZnV62rlPOYvNnLmf/L2dyllfVUOVBj64M0z/46eR2A==}
 
   '@typescript-eslint/eslint-plugin@8.27.0':
     resolution: {integrity: sha512-4henw4zkePi5p252c8ncBLzLce52SEUz2Ebj8faDnuUXz2UuHEONYcJ+G0oaCF+bYCWVZtrGzq3FD7YXetmnSA==}
@@ -5102,7 +5102,7 @@ snapshots:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
       '@types/node': 22.13.14
-      '@types/yargs': 17.0.33
+      '@types/yargs': 17.0.34
       chalk: 4.1.2
 
   '@jridgewell/gen-mapping@0.3.3':
@@ -5683,7 +5683,7 @@ snapshots:
 
   '@types/yargs-parser@21.0.3': {}
 
-  '@types/yargs@17.0.33':
+  '@types/yargs@17.0.34':
     dependencies:
       '@types/yargs-parser': 21.0.3
 
