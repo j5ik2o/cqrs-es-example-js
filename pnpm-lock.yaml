@@ -52,7 +52,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -116,7 +116,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       ulidx:
         specifier: ^2.3.0
         version: 2.4.1
@@ -174,7 +174,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -238,7 +238,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       graphql:
         specifier: ^16.8.1
         version: 16.10.0
@@ -311,7 +311,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       tslog:
         specifier: ^4.9.2
         version: 4.9.3
@@ -360,7 +360,7 @@ importers:
     dependencies:
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -424,7 +424,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       graphql:
         specifier: ^16.8.1
         version: 16.10.0
@@ -512,7 +512,7 @@ importers:
         version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
-        version: 2.16.9
+        version: 2.16.11
       moment:
         specifier: ^2.29.4
         version: 2.30.1
@@ -2520,8 +2520,8 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
-  fp-ts@2.16.9:
-    resolution: {integrity: sha512-+I2+FnVB+tVaxcYyQkHUq7ZdKScaBlX53A41mxQtpIccsfyv8PzdzP7fzp2AY832T4aoK6UZ5WRX/ebGd8uZuQ==}
+  fp-ts@2.16.11:
+    resolution: {integrity: sha512-LaI+KaX2NFkfn1ZGHoKCmcfv7yrZsC3b8NtWsTVQeHkq4F27vI5igUuO53sxqDEa2gNQMHFPmpojDw/1zmUK7w==}
 
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
@@ -6614,7 +6614,7 @@ snapshots:
 
   forwarded@0.2.0: {}
 
-  fp-ts@2.16.9: {}
+  fp-ts@2.16.11: {}
 
   fresh@0.5.2: {}
 
