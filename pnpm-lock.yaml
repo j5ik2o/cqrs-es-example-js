@@ -48,8 +48,8 @@ importers:
         specifier: workspace:*
         version: link:../rmu
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -112,8 +112,8 @@ importers:
         specifier: workspace:*
         version: link:../../infrastructure
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -170,8 +170,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -234,8 +234,8 @@ importers:
         specifier: workspace:*
         version: link:../processor
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -307,8 +307,8 @@ importers:
         specifier: workspace:*
         version: link:../interface-adaptor-if
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -420,8 +420,8 @@ importers:
         specifier: ^2.1459.0
         version: 2.1692.0
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -508,8 +508,8 @@ importers:
         specifier: workspace:*
         version: link:../command/domain
       event-store-adapter-js:
-        specifier: 2.2.147
-        version: 2.2.147
+        specifier: 2.2.160
+        version: 2.2.160
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.9
@@ -2407,8 +2407,8 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  event-store-adapter-js@2.2.147:
-    resolution: {integrity: sha512-KlsulVMQmlajbtCOQ0RhFOuGfBgLUwoic8KrnMs0b0hegEerWglrY0yVEM4q2HiYekb4BQMOaaBaodGaEg1HKA==}
+  event-store-adapter-js@2.2.160:
+    resolution: {integrity: sha512-RcCrpHt0B7KtrakFKvnMUmGubxGsVEnGltz8XgNWxJpQ9M+C2uzi5inGxQgZ+OBh6bEo2mbI2PZCXVuYUpAdaA==}
 
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
@@ -3834,8 +3834,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  ulid@2.3.0:
-    resolution: {integrity: sha512-keqHubrlpvT6G2wH0OEfSW4mquYRcbe/J8NMmveoQOjUqmo+hXtO+ORCpWhdbZ7k72UtY61BL7haGxW6enBnjw==}
+  ulid@3.0.1:
+    resolution: {integrity: sha512-dPJyqPzx8preQhqq24bBG1YNkvigm87K8kVEHCD+ruZg24t6IFEFv00xMWfxcC4djmFtiTLdFuADn4+DOz6R7Q==}
     hasBin: true
 
   ulidx@2.4.1:
@@ -6444,12 +6444,12 @@ snapshots:
 
   etag@1.8.1: {}
 
-  event-store-adapter-js@2.2.147:
+  event-store-adapter-js@2.2.160:
     dependencies:
       '@aws-sdk/client-dynamodb': 3.777.0
       aws-sdk: 2.1692.0
       moment: 2.30.1
-      ulid: 2.3.0
+      ulid: 3.0.1
       winston: 3.11.0
     transitivePeerDependencies:
       - aws-crt
@@ -8052,7 +8052,7 @@ snapshots:
 
   typescript@5.8.2: {}
 
-  ulid@2.3.0: {}
+  ulid@3.0.1: {}
 
   ulidx@2.4.1:
     dependencies:
