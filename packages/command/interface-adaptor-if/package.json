@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc && rm -f dist/internal/*.test.d.ts && rm -f dist/internal/*.test.js && rm -fr dist/internal/test",
-    "test": "jest --no-cache",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-cache",
     "lint": "biome check ./src",
     "fix": "biome format --write ./src",
     "clean": "rimraf ./dist"
