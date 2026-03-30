@@ -5,7 +5,11 @@ services:
     hostname: mysql-local
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --ngram_token_size=2
     healthcheck:
-      test: MYSQL_PWD=passwd mysql -h127.0.0.1 -P3306 -uroot -e "quit"
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-ppasswd"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     ports:
       - 33306:3306
     environment:

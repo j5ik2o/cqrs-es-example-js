@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/group-chat/*.test.*",
-    "test": "jest --no-cache",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --no-cache",
     "lint": "biome check ./src",
     "lint:fix": "biome check --write ./src",
     "format": "biome format ./src",
