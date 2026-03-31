@@ -1,7 +1,13 @@
 version: '3.6'
 services:
   e2e-test:
+    profiles:
+      - e2e
     image: e2e-test-js:latest
+    # イメージ内の焼き込みではなく、常にリポジトリ上のスクリプトを使う（待機ロジック等の変更が即反映される）
+    volumes:
+      - ../e2e-test/verify-group-chat.sh:/verify-group-chat.sh:ro
+    entrypoint: ["bash", "/verify-group-chat.sh"]
     environment:
       WRITE_API_SERVER_BASE_URL: http://write-api-server-1:3000
       READ_API_SERVER_BASE_URL: http://read-api-server-1:3000

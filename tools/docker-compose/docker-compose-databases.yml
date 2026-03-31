@@ -47,32 +47,25 @@ services:
       - mysql
   localstack:
     image: localstack/localstack:2.3.2
+    container_name: localstack-main
     hostname: localstack-local
     ports:
       - "34566:4566"
       - "34571:4571"
-      - "${PORT_WEB_UI-38083}:${PORT_WEB_UI-8080}"
     environment:
       DEBUG: 1
       LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY- }
-      PORT_WEB_UI: ${PORT_WEB_UI- }
-      PARITY_AWS_ACCESS_KEY_ID: 1
       EAGER_SERVICE_LOADING: 1
-      SERVICES: cloudwatch,dynamodb,dynamodbstreams
-      # SERVICES: cloudwatch,dynamodb,dynamodbstreams,lambda
+      SERVICES: cloudwatch,dynamodb,dynamodbstreams,lambda,iam
+      LAMBDA_DOCKER_NETWORK: ${LAMBDA_DOCKER_NETWORK:-cqrs-es-example-js_default}
+      MAIN_CONTAINER_NAME: localstack-main
       HOSTNAME_EXTERNAL: localstack-local
       DEFAULT_REGION: ap-northeast-1
       DYNAMODB_SHARE_DB: 1
       DYNAMODB_IN_MEMORY: 1
-      # LAMBDA_PREBUILD_IMAGES: 1
-      # LAMBDA_EXECUTOR: docker
-      # LAMBDA_RUNTIME_EXECUTOR: docker
-      # LAMBDA_REMOTE_DOCKER: true
-      # LAMBDA_REMOVE_CONTAINERS: true
-      # DATA_DIR: /tmp/localstack/data
-      # DOCKER_HOST: unix:///var/run/docker.sock
-      # LAMBDA_DOCKER_FLAGS: --platform linux/amd64
-    # privileged: true
+      LAMBDA_EXECUTOR: docker
+      LAMBDA_REMOVE_CONTAINERS: 1
+      LAMBDA_DOCKER_FLAGS: --platform linux/amd64
     volumes:
       - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
@@ -81,6 +74,7 @@ services:
     environment:
       AWS_ACCESS_KEY_ID: x
       AWS_SECRET_ACCESS_KEY: x
+      AWS_REGION: ap-northeast-1
       AWS_DEFAULT_REGION: ap-northeast-1
       DYNAMODB_ENDPOINT: localstack:4566
       JOURNAL_TABLE_NAME: journal
