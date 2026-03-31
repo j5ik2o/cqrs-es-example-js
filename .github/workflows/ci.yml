@@ -58,6 +58,9 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 8
+      - uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: "2"
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
