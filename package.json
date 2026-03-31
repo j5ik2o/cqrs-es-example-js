@@ -11,6 +11,8 @@
     "docker-compose-up": "./tools/scripts/docker-compose-up.sh",
     "docker-compose-up-db": "./tools/scripts/docker-compose-up.sh -d",
     "docker-compose-down": "./tools/scripts/docker-compose-down.sh",
+    "build-read-model-updater-lambda": "./tools/scripts/build-read-model-updater-lambda.sh",
+    "deploy-read-model-updater-localstack": "./tools/scripts/deploy-read-model-updater-localstack.sh",
     "create-group-chat": "./tools/scripts/curl-create-group-chat.sh",
     "verify-group-chat": "./tools/e2e-test/verify-group-chat.sh",
     "build": "turbo build",

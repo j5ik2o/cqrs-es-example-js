@@ -2,7 +2,8 @@
   "name": "cqrs-es-example-js-bootstrap",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "start": "ts-node src/index.ts",
     "start-write-api": "node dist/index.js writeApi",
