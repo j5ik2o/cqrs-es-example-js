@@ -19,3 +19,6 @@ yarn-error.log
 .turbo/
 .turbo/*
 
+# Local developer overrides (see common.env.default)
+common.env
+

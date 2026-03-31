@@ -44,15 +44,22 @@ class ReadModelUpdater {
         this.logger.warn("No NewImage");
         return;
       }
-      const base64EncodedPayload = attributeValues.payload.B;
-      if (!base64EncodedPayload) {
+      const rawPayload = attributeValues.payload.B;
+      if (!rawPayload) {
         this.logger.warn("No payload");
         return;
       }
-      const payload = this.decoder.decode(
-        new Uint8Array(base64EncodedPayload.split(",").map(Number)),
-      );
-      const payloadJson = JSON.parse(payload);
+      let payloadJson: unknown;
+      try {
+        // LocalStack: B フィールドに生 JSON 文字列が入る
+        payloadJson = JSON.parse(rawPayload);
+      } catch {
+        // AWS Lambda: Base64, ローカル RMU: カンマ区切り数値文字列
+        const payloadBytes = /^\d+(,\d+)*$/.test(rawPayload)
+          ? new Uint8Array(rawPayload.split(",").map(Number))
+          : new Uint8Array(Buffer.from(rawPayload, "base64"));
+        payloadJson = JSON.parse(this.decoder.decode(payloadBytes));
+      }
       const groupChatEvent = convertJSONToGroupChatEvent(payloadJson);
       switch (groupChatEvent.symbol) {
         case GroupChatCreatedTypeSymbol: {

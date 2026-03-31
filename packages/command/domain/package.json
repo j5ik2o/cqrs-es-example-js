@@ -2,7 +2,8 @@
   "name": "cqrs-es-example-js-command-domain",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/group-chat/*.test.*",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --no-cache",
