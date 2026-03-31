@@ -19,7 +19,7 @@
 - [x] Read API Server(GraphQL)
 - [x] Read Model Updater on Local
 - [x] Docker Compose Support
-- [ ] Read Model Updater on AWS Lambda
+- [x] Read Model Updater on AWS Lambda（LocalStack 向けビルド／デプロイと `common.env`。詳細は [ビルドとテスト](./docs/BUILD_AND_TEST.ja.md)）
 - [ ] Deployment to AWS
 
 ## 概要
