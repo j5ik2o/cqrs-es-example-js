@@ -19,7 +19,9 @@
 - [ ] 3.2 Keep the AWS Lambda/DynamoDB stream handler as a thin adapter.
 - [ ] 3.3 Add a Pub/Sub/CloudEvent handler for the GCP RMU path using Functions Framework.
 - [ ] 3.4 Add verifiable duplicate-delivery handling with either explicit idempotent projection logic or an automated verification artifact that proves existing guarantees tolerate duplicate event delivery.
-- [ ] 3.5 Add shared adapter contract tests or fixtures proving AWS and GCP RMU adapters produce the same internal RMU input shape for equivalent domain events.
+- [ ] 3.5 Define a provider-neutral `ReadModelUpdaterInput` or equivalent wrapper that carries decoded `GroupChatEvent` plus ordering/idempotency/diagnostic metadata.
+- [ ] 3.6 Change the shared RMU application service to accept the provider-neutral wrapper instead of `DynamoDBStreamEvent`.
+- [ ] 3.7 Add shared adapter contract tests or fixtures proving AWS and GCP RMU adapters produce the same wrapper shape for equivalent domain events.
 
 ## 4. Local Spanner Pipeline
 

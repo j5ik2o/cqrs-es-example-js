@@ -26,14 +26,21 @@ The RMU SHALL apply decoded domain events through shared projection logic indepe
 #### Scenario: DynamoDB stream event is received
 - **WHEN** the AWS adapter receives a DynamoDB stream event
 - **THEN** it SHALL decode the stream record into one or more domain events
-- **AND** it SHALL normalize the provider payload into the same internal RMU input shape used by other adapters
+- **AND** it SHALL normalize each provider payload into a provider-neutral `ReadModelUpdaterInput` or equivalent wrapper
+- **AND** the wrapper SHALL include a decoded `GroupChatEvent` plus metadata needed for ordering, idempotency, and diagnostics
 - **AND** it SHALL delegate projection to the shared RMU application service.
 
 #### Scenario: Pub/Sub event is received
 - **WHEN** the GCP adapter receives a Pub/Sub-triggered CloudEvent
 - **THEN** it SHALL decode the Pub/Sub message into one or more domain events
-- **AND** it SHALL normalize the provider payload into the same internal RMU input shape used by other adapters
+- **AND** it SHALL normalize each provider payload into the same provider-neutral `ReadModelUpdaterInput` or equivalent wrapper used by the AWS adapter
+- **AND** the wrapper SHALL include a decoded `GroupChatEvent` plus metadata needed for ordering, idempotency, and diagnostics
 - **AND** it SHALL delegate projection to the shared RMU application service.
+
+#### Scenario: Shared RMU service is invoked
+- **WHEN** provider-specific adapters invoke the shared RMU application service
+- **THEN** the service SHALL accept the provider-neutral wrapper rather than an AWS `DynamoDBStreamEvent` or GCP Pub/Sub payload
+- **AND** provider-native payload types SHALL remain outside the shared projection service.
 
 #### Scenario: Provider handler contains projection logic
 - **WHEN** an AWS Lambda handler or GCP Functions Framework handler receives a provider event

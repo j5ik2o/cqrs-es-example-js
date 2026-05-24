@@ -67,11 +67,12 @@ Split RMU into:
   - DynamoDB Stream event adapter
   - Pub/Sub/CloudEvent adapter
 - shared event application service:
-  - accepts decoded `GroupChatEvent` values
+  - accepts provider-neutral `ReadModelUpdaterInput` values
   - applies them through `GroupChatDao`
 
 This avoids duplicating projection rules and makes retries/idempotency behavior easier to reason about.
-The adapters should normalize provider payloads into the same internal RMU input shape before invoking the shared service. Lambda and Functions Framework handlers should stay limited to trigger decoding, acknowledgement/error semantics, and dependency composition.
+The target internal RMU input shape is a provider-neutral wrapper, not `DynamoDBStreamEvent`. Name it `ReadModelUpdaterInput` or equivalent. It should carry the decoded `GroupChatEvent` plus metadata required for ordering, idempotency, and diagnostics, such as aggregate id, sequence number, source provider, observed timestamp, and provider position or retry information when available.
+The current `ReadModelUpdater.updateReadModel(DynamoDBStreamEvent)` shape should move behind the DynamoDB adapter. AWS and GCP adapters should normalize provider payloads into `ReadModelUpdaterInput` before invoking the shared service. Lambda and Functions Framework handlers should stay limited to trigger decoding, acknowledgement/error semantics, and dependency composition.
 
 ### Local Verification
 
