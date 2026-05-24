@@ -11,6 +11,7 @@
 - [ ] 2.2 Replace deprecated `EventStoreFactory.ofDynamoDB(...)` calls with `EventStore.ofDynamoDB({ ... })`.
 - [ ] 2.3 Add Spanner client/database construction and `EventStore.ofSpanner({ ... })` wiring.
 - [ ] 2.4 Update repository integration tests to cover both DynamoDB and Spanner event-store construction.
+- [ ] 2.5 Keep backend selection inside interface-adapter/composition wiring so command handlers and domain services remain backend-agnostic.
 
 ## 3. RMU Refactoring
 
@@ -18,6 +19,7 @@
 - [ ] 3.2 Keep the AWS Lambda/DynamoDB stream handler as a thin adapter.
 - [ ] 3.3 Add a Pub/Sub/CloudEvent handler for the GCP RMU path using Functions Framework.
 - [ ] 3.4 Add verifiable duplicate-delivery handling with either explicit idempotent projection logic or an automated verification artifact that proves existing guarantees tolerate duplicate event delivery.
+- [ ] 3.5 Add shared adapter contract tests or fixtures proving AWS and GCP RMU adapters produce the same internal RMU input shape for equivalent domain events.
 
 ## 4. Local Spanner Pipeline
 

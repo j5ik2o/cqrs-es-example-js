@@ -13,6 +13,7 @@ The current application is wired around DynamoDB as the event-store backend. The
 - Add a Spanner backend that reaches the MySQL read model through an asynchronous event stream.
 - Make the Spanner local path realistic enough to verify the same integration contract as production.
 - Keep RMU business logic provider-neutral.
+- Isolate AWS/GCP differences in interface adapters and composition wiring, not in domain or application services.
 
 **Non-Goals:**
 
@@ -29,9 +30,10 @@ Use a runtime environment variable such as `PERSISTENCE_BACKEND=dynamodb|spanner
 
 - `dynamodb` constructs `EventStore.ofDynamoDB({ ... })`.
 - `spanner` constructs `EventStore.ofSpanner({ ... })`.
-- Existing domain, command processor, repository, and GraphQL wiring remain shared.
+- Existing domain, command processor, repository contracts, and GraphQL behavior remain shared.
 
 This keeps the example focused on backend substitution rather than duplicate application layouts.
+Provider-specific event-store construction belongs at the interface-adapter/composition boundary, so backend selection does not leak into command handlers or domain services.
 
 ### DynamoDB RMU Path
 
@@ -61,7 +63,7 @@ The local bridge is the replacement for managed Dataflow in development. It must
 
 Split RMU into:
 
-- provider-specific input adapters:
+- provider-specific interface adapters:
   - DynamoDB Stream event adapter
   - Pub/Sub/CloudEvent adapter
 - shared event application service:
@@ -69,6 +71,7 @@ Split RMU into:
   - applies them through `GroupChatDao`
 
 This avoids duplicating projection rules and makes retries/idempotency behavior easier to reason about.
+The adapters should normalize provider payloads into the same internal RMU input shape before invoking the shared service. Lambda and Functions Framework handlers should stay limited to trigger decoding, acknowledgement/error semantics, and dependency composition.
 
 ### Local Verification
 

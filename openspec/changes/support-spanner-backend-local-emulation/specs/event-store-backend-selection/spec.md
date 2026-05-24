@@ -25,7 +25,8 @@ The system SHALL keep command-domain, command-processor, repository, and GraphQL
 #### Scenario: Same command flow across backends
 - **WHEN** a group chat command is executed against either supported backend
 - **THEN** the command processor SHALL use the same domain model and repository interface
-- **AND** only the event-store infrastructure SHALL vary by backend.
+- **AND** backend-specific event-store construction SHALL be isolated to interface adapters and composition wiring.
+- **AND** backend selection SHALL NOT leak into domain services or command handlers.
 
 ### Requirement: DynamoDB compatibility preservation
 The system SHALL preserve the existing DynamoDB local verification path while adding Spanner support.

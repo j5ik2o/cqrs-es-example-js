@@ -26,12 +26,19 @@ The RMU SHALL apply decoded domain events through shared projection logic indepe
 #### Scenario: DynamoDB stream event is received
 - **WHEN** the AWS adapter receives a DynamoDB stream event
 - **THEN** it SHALL decode the stream record into one or more domain events
+- **AND** it SHALL normalize the provider payload into the same internal RMU input shape used by other adapters
 - **AND** it SHALL delegate projection to the shared RMU application service.
 
 #### Scenario: Pub/Sub event is received
 - **WHEN** the GCP adapter receives a Pub/Sub-triggered CloudEvent
 - **THEN** it SHALL decode the Pub/Sub message into one or more domain events
+- **AND** it SHALL normalize the provider payload into the same internal RMU input shape used by other adapters
 - **AND** it SHALL delegate projection to the shared RMU application service.
+
+#### Scenario: Provider handler contains projection logic
+- **WHEN** an AWS Lambda handler or GCP Functions Framework handler receives a provider event
+- **THEN** the handler SHALL limit itself to trigger decoding, acknowledgement/error semantics, and dependency composition
+- **AND** it SHALL NOT implement provider-specific projection rules outside the shared RMU application service.
 
 ### Requirement: Duplicate delivery tolerance
 The Spanner RMU path SHALL tolerate at-least-once delivery from Pub/Sub and function retries.
