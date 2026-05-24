@@ -1,35 +1,39 @@
-## 1. Validate Platform Assumptions
+## 1. Platform Assumptions の検証
 
-- [ ] 1.1 Verify `event-store-adapter-js` 3.0.0 API usage for DynamoDB and Spanner.
-- [ ] 1.2 Verify Cloud Spanner emulator can create the event-store tables needed by the adapter.
-- [ ] 1.3 Verify whether Cloud Spanner emulator supports `CREATE CHANGE STREAM` and `READ_<stream>` for the local bridge.
-- [ ] 1.4 Verify Pub/Sub emulator push subscriptions can deliver to a Functions Framework endpoint inside Docker Compose.
+- [ ] 1.1 DynamoDB と Spanner での `event-store-adapter-js` 3.0.0 API usage を検証する。
+- [ ] 1.2 Cloud Spanner emulator が adapter に必要な event-store tables を作成できることを検証する。
+- [ ] 1.3 local bridge のために、Cloud Spanner emulator が `CREATE CHANGE STREAM` と `READ_<stream>` を support するか検証する。
+- [ ] 1.4 Pub/Sub emulator の push subscriptions が Docker Compose 内の Functions Framework endpoint に deliver できることを検証する。
 
 ## 2. Event Store Backend Selection
 
-- [ ] 2.1 Add runtime configuration for `PERSISTENCE_BACKEND=dynamodb|spanner`.
-- [ ] 2.2 Replace deprecated `EventStoreFactory.ofDynamoDB(...)` calls with `EventStore.ofDynamoDB({ ... })`.
-- [ ] 2.3 Add Spanner client/database construction and `EventStore.ofSpanner({ ... })` wiring.
-- [ ] 2.4 Update repository integration tests to cover both DynamoDB and Spanner event-store construction.
+- [ ] 2.1 `PERSISTENCE_BACKEND=dynamodb|spanner` の runtime configuration を追加する。
+- [ ] 2.2 deprecated な `EventStoreFactory.ofDynamoDB(...)` calls を `EventStore.ofDynamoDB({ ... })` に置き換える。
+- [ ] 2.3 Spanner client/database construction と `EventStore.ofSpanner({ ... })` wiring を追加する。
+- [ ] 2.4 repository integration tests を更新し、DynamoDB と Spanner の event-store construction の両方を cover する。
+- [ ] 2.5 backend selection は interface-adapter/composition wiring の内側に保ち、command handlers と domain services を backend-agnostic のままにする。
 
 ## 3. RMU Refactoring
 
-- [ ] 3.1 Extract provider-neutral event application logic from DynamoDB stream parsing.
-- [ ] 3.2 Keep the AWS Lambda/DynamoDB stream handler as a thin adapter.
-- [ ] 3.3 Add a Pub/Sub/CloudEvent handler for the GCP RMU path using Functions Framework.
-- [ ] 3.4 Add verifiable duplicate-delivery handling with either explicit idempotent projection logic or an automated verification artifact that proves existing guarantees tolerate duplicate event delivery.
+- [ ] 3.1 DynamoDB stream parsing から provider-neutral event application logic を抽出する。
+- [ ] 3.2 AWS Lambda/DynamoDB stream handler は thin adapter として維持する。
+- [ ] 3.3 Functions Framework を使い、GCP RMU path 用の Pub/Sub/CloudEvent handler を追加する。
+- [ ] 3.4 explicit idempotent projection logic、または existing guarantees が duplicate event delivery に耐えることを証明する automated verification artifact により、検証可能な duplicate-delivery handling を追加する。
+- [ ] 3.5 decoded `GroupChatEvent` と ordering/idempotency/diagnostic metadata を持つ provider-neutral な `ReadModelUpdaterInput` または同等の wrapper を定義する。
+- [ ] 3.6 shared RMU application service を変更し、`DynamoDBStreamEvent` ではなく provider-neutral wrapper を受け取るようにする。
+- [ ] 3.7 equivalent domain events に対して AWS/GCP RMU adapters が同じ wrapper shape を生成することを証明する shared adapter contract tests または fixtures を追加する。
 
 ## 4. Local Spanner Pipeline
 
-- [ ] 4.1 Add Spanner emulator service and schema setup for `journal`, `snapshot`, and the `journal` change stream.
-- [ ] 4.2 Add Pub/Sub emulator topic and push subscription setup.
-- [ ] 4.3 Add a local Change Stream bridge or Beam DirectRunner process that publishes journal changes to Pub/Sub.
-- [ ] 4.4 Add a Functions Framework RMU service that consumes Pub/Sub push messages and updates MySQL.
-- [ ] 4.5 Add Docker Compose scripts for starting the Spanner backend path.
+- [ ] 4.1 Spanner emulator service と、`journal`, `snapshot`, `journal` change stream の schema setup を追加する。
+- [ ] 4.2 Pub/Sub emulator topic と push subscription setup を追加する。
+- [ ] 4.3 journal changes を Pub/Sub に publish する local Change Stream bridge または Beam DirectRunner process を追加する。
+- [ ] 4.4 Pub/Sub push messages を consume して MySQL を更新する Functions Framework RMU service を追加する。
+- [ ] 4.5 Spanner backend path を起動する Docker Compose scripts を追加する。
 
 ## 5. Verification And Documentation
 
-- [ ] 5.1 Add a Spanner backend end-to-end verification command equivalent to the DynamoDB `verify-group-chat` flow.
-- [ ] 5.2 Document DynamoDB and Spanner local startup commands.
-- [ ] 5.3 Document the production GCP topology: Spanner Change Streams, Dataflow, Pub/Sub, and Cloud Run functions / Cloud Functions.
-- [ ] 5.4 Document fallback guidance if native Change Streams are unavailable in the emulator.
+- [ ] 5.1 DynamoDB の `verify-group-chat` flow と同等の Spanner backend end-to-end verification command を追加する。
+- [ ] 5.2 DynamoDB と Spanner の local startup commands を文書化する。
+- [ ] 5.3 production GCP topology として、Spanner Change Streams, Dataflow, Pub/Sub, Cloud Run functions / Cloud Functions を文書化する。
+- [ ] 5.4 emulator で native Change Streams が利用できない場合の fallback guidance を文書化する。
