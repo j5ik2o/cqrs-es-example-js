@@ -1,3 +1,3 @@
 # support-spanner-backend-local-emulation
 
-Plan event-store-adapter-js 3.0.0 upgrade with DynamoDB and Spanner backend parity, including local emulation for Spanner Change Streams to Pub/Sub to RMU.
+`event-store-adapter-js` 3.0.0 への更新にあわせて、DynamoDB と Spanner の backend parity を実現する計画です。Spanner Change Streams から Pub/Sub、RMU までのローカルエミュレーションも対象にします。

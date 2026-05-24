@@ -1,56 +1,56 @@
 ## ADDED Requirements
 
 ### Requirement: Spanner production RMU topology
-The system SHALL define the Spanner production read-model update topology as Spanner Change Streams to Dataflow to Pub/Sub to Cloud Run functions or Cloud Functions.
+system SHALL Spanner production read-model update topology を Spanner Change Streams から Dataflow、Pub/Sub、Cloud Run functions または Cloud Functions への flow として定義しなければなりません。
 
 #### Scenario: Journal event is written in production
-- **WHEN** the Spanner event store inserts a domain event into the `journal` table
-- **THEN** the Spanner Change Stream over `journal` SHALL be the source of the downstream event
-- **AND** the downstream path SHALL deliver the event through Pub/Sub to the RMU function.
+- **WHEN** Spanner event store が domain event を `journal` table に insert する
+- **THEN** `journal` に対する Spanner Change Stream SHALL downstream event の source でなければならない
+- **AND** downstream path SHALL Pub/Sub 経由で RMU function に event を deliver しなければならない。
 
 ### Requirement: Spanner local RMU emulation
-The system SHALL provide a local Spanner verification path that preserves the same integration contract as the production topology.
+system SHALL production topology と同じ integration contract を維持する local Spanner verification path を提供しなければなりません。
 
 #### Scenario: Journal event is written locally
-- **WHEN** the Spanner backend runs in local Docker Compose
-- **THEN** the flow SHALL pass through Spanner emulator, a local Change Stream bridge or Beam DirectRunner, Pub/Sub emulator, Functions Framework RMU, and MySQL
-- **AND** the read API SHALL observe the projected read model after the asynchronous flow completes.
+- **WHEN** Spanner backend が local Docker Compose で動作する
+- **THEN** flow SHALL Spanner emulator, local Change Stream bridge または Beam DirectRunner, Pub/Sub emulator, Functions Framework RMU, MySQL を通過しなければならない
+- **AND** asynchronous flow の完了後、read API SHALL projected read model を観測できなければならない。
 
 #### Scenario: Local flow bypasses Pub/Sub
-- **WHEN** a local implementation reads Spanner journal rows and calls the DAO directly
-- **THEN** it SHALL NOT be considered equivalent to the required Spanner local verification path.
+- **WHEN** local implementation が Spanner journal rows を読み、DAO を直接呼び出す
+- **THEN** required Spanner local verification path と同等とはみなす SHALL NOT。
 
 ### Requirement: Provider-neutral RMU event application
-The RMU SHALL apply decoded domain events through shared projection logic independent of the source provider.
+RMU SHALL source provider に依存しない shared projection logic を通じて decoded domain events を apply しなければなりません。
 
 #### Scenario: DynamoDB stream event is received
-- **WHEN** the AWS adapter receives a DynamoDB stream event
-- **THEN** it SHALL decode the stream record into one or more domain events
-- **AND** it SHALL normalize each provider payload into a provider-neutral `ReadModelUpdaterInput` or equivalent wrapper
-- **AND** the wrapper SHALL include a decoded `GroupChatEvent` plus metadata needed for ordering, idempotency, and diagnostics
-- **AND** it SHALL delegate projection to the shared RMU application service.
+- **WHEN** AWS adapter が DynamoDB stream event を受信する
+- **THEN** stream record を 1 つ以上の domain events に decode SHALL しなければならない
+- **AND** 各 provider payload を provider-neutral な `ReadModelUpdaterInput` または同等の wrapper に normalize SHALL しなければならない
+- **AND** wrapper SHALL decoded `GroupChatEvent` に加え、ordering, idempotency, diagnostics に必要な metadata を含まなければならない
+- **AND** projection を shared RMU application service に委譲 SHALL しなければならない。
 
 #### Scenario: Pub/Sub event is received
-- **WHEN** the GCP adapter receives a Pub/Sub-triggered CloudEvent
-- **THEN** it SHALL decode the Pub/Sub message into one or more domain events
-- **AND** it SHALL normalize each provider payload into the same provider-neutral `ReadModelUpdaterInput` or equivalent wrapper used by the AWS adapter
-- **AND** the wrapper SHALL include a decoded `GroupChatEvent` plus metadata needed for ordering, idempotency, and diagnostics
-- **AND** it SHALL delegate projection to the shared RMU application service.
+- **WHEN** GCP adapter が Pub/Sub-triggered CloudEvent を受信する
+- **THEN** Pub/Sub message を 1 つ以上の domain events に decode SHALL しなければならない
+- **AND** 各 provider payload を AWS adapter と同じ provider-neutral な `ReadModelUpdaterInput` または同等の wrapper に normalize SHALL しなければならない
+- **AND** wrapper SHALL decoded `GroupChatEvent` に加え、ordering, idempotency, diagnostics に必要な metadata を含まなければならない
+- **AND** projection を shared RMU application service に委譲 SHALL しなければならない。
 
 #### Scenario: Shared RMU service is invoked
-- **WHEN** provider-specific adapters invoke the shared RMU application service
-- **THEN** the service SHALL accept the provider-neutral wrapper rather than an AWS `DynamoDBStreamEvent` or GCP Pub/Sub payload
-- **AND** provider-native payload types SHALL remain outside the shared projection service.
+- **WHEN** provider-specific adapters が shared RMU application service を呼び出す
+- **THEN** service SHALL AWS `DynamoDBStreamEvent` や GCP Pub/Sub payload ではなく provider-neutral wrapper を受け取らなければならない
+- **AND** provider-native payload types SHALL shared projection service の外側に留めなければならない。
 
 #### Scenario: Provider handler contains projection logic
-- **WHEN** an AWS Lambda handler or GCP Functions Framework handler receives a provider event
-- **THEN** the handler SHALL limit itself to trigger decoding, acknowledgement/error semantics, and dependency composition
-- **AND** it SHALL NOT implement provider-specific projection rules outside the shared RMU application service.
+- **WHEN** AWS Lambda handler または GCP Functions Framework handler が provider event を受信する
+- **THEN** handler SHALL trigger decoding, acknowledgement/error semantics, dependency composition に責務を限定しなければならない
+- **AND** shared RMU application service の外側で provider-specific projection rules を実装 SHALL NOT してはならない。
 
 ### Requirement: Duplicate delivery tolerance
-The Spanner RMU path SHALL tolerate at-least-once delivery from Pub/Sub and function retries.
+Spanner RMU path SHALL Pub/Sub と function retries による at-least-once delivery に耐えなければなりません。
 
 #### Scenario: Same event is delivered more than once
-- **WHEN** the RMU receives a duplicate event for the same aggregate id and sequence number
-- **THEN** the read-model update SHALL remain consistent
-- **AND** the verification flow SHALL not depend on exactly-once delivery.
+- **WHEN** RMU が同じ aggregate id と sequence number の duplicate event を受信する
+- **THEN** read-model update SHALL consistent なままでなければならない
+- **AND** verification flow SHALL NOT exactly-once delivery に依存してはならない。

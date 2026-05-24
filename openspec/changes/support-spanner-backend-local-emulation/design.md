@@ -1,88 +1,88 @@
 ## Context
 
-The current application is wired around DynamoDB as the event-store backend. The write API creates an `EventStoreFactory.ofDynamoDB(...)` instance, the RMU consumes DynamoDB stream records, and local end-to-end verification relies on LocalStack Lambda or a local RMU process to update the MySQL read model.
+現在の application は event-store backend として DynamoDB を中心に配線されています。write API は `EventStoreFactory.ofDynamoDB(...)` instance を作成し、RMU は DynamoDB stream records を消費します。local end-to-end verification は、MySQL read model を更新するために LocalStack Lambda または local RMU process に依存しています。
 
-`event-store-adapter-js` 3.0.0 changes the public API to `EventStore.ofDynamoDB(input)` and adds `EventStore.ofSpanner(input)`. Spanner support is only meaningful for this example if it demonstrates the same write-model to read-model flow as the DynamoDB version.
+`event-store-adapter-js` 3.0.0 では public API が `EventStore.ofDynamoDB(input)` に変わり、`EventStore.ofSpanner(input)` が追加されます。この example における Spanner support は、DynamoDB 版と同じ write-model から read-model までの flow を示せる場合にだけ意味があります。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Keep a single application/package layout and select the event-store backend at runtime.
-- Maintain DynamoDB behavior and local verification.
-- Add a Spanner backend that reaches the MySQL read model through an asynchronous event stream.
-- Make the Spanner local path realistic enough to verify the same integration contract as production.
-- Keep RMU business logic provider-neutral.
-- Isolate AWS/GCP differences in interface adapters and composition wiring, not in domain or application services.
+- application/package layout は 1 つに保ち、event-store backend を runtime に選択します。
+- DynamoDB behavior と local verification を維持します。
+- asynchronous event stream を通じて MySQL read model に到達する Spanner backend を追加します。
+- Spanner local path は、production と同じ integration contract を検証できる程度に現実的なものにします。
+- RMU business logic は provider-neutral に保ちます。
+- AWS/GCP の差分は domain や application services ではなく、interface adapters と composition wiring に隔離します。
 
 **Non-Goals:**
 
-- Do not split the application into backend-specific packages.
-- Do not use a poller as the accepted Spanner architecture if it bypasses the Change Streams/Pub/Sub contract.
-- Do not require managed Dataflow for local development.
-- Do not adopt Spanner Queue for this change; it requires adapter-level queue send support and is not the selected path.
+- application を backend-specific packages に分割しません。
+- Change Streams/Pub/Sub contract を迂回する poller は、Spanner architecture として採用しません。
+- local development で managed Dataflow を必須にしません。
+- この change では Spanner Queue を採用しません。adapter-level の queue send support が必要であり、選択した path ではありません。
 
 ## Decisions
 
 ### Backend Selection
 
-Use a runtime environment variable such as `PERSISTENCE_BACKEND=dynamodb|spanner`.
+`PERSISTENCE_BACKEND=dynamodb|spanner` のような runtime environment variable を使います。
 
-- `dynamodb` constructs `EventStore.ofDynamoDB({ ... })`.
-- `spanner` constructs `EventStore.ofSpanner({ ... })`.
-- Existing domain, command processor, repository contracts, and GraphQL behavior remain shared.
+- `dynamodb` は `EventStore.ofDynamoDB({ ... })` を構築します。
+- `spanner` は `EventStore.ofSpanner({ ... })` を構築します。
+- 既存の domain, command processor, repository contracts, GraphQL behavior は共有したままにします。
 
-This keeps the example focused on backend substitution rather than duplicate application layouts.
-Provider-specific event-store construction belongs at the interface-adapter/composition boundary, so backend selection does not leak into command handlers or domain services.
+これにより、example の焦点を application layout の重複ではなく backend substitution に置けます。
+provider-specific な event-store construction は interface-adapter/composition boundary に置き、backend selection が command handlers や domain services に漏れないようにします。
 
 ### DynamoDB RMU Path
 
-Keep the current AWS-compatible path:
+現在の AWS-compatible path を維持します。
 
 `LocalStack DynamoDB -> DynamoDB Streams -> LocalStack Lambda/localRmu -> MySQL`
 
-The current Lambda-style handler remains useful, but its event decoding should delegate to a shared RMU application service.
+現在の Lambda-style handler は引き続き有用ですが、event decoding 後の処理は shared RMU application service に委譲します。
 
 ### Spanner Production RMU Path
 
-Use the GCP path:
+GCP path は次の構成にします。
 
 `Spanner journal -> Spanner Change Streams -> Dataflow -> Pub/Sub -> Cloud Run functions / Cloud Functions -> MySQL`
 
-The Change Stream must watch `journal`, not `snapshot`, so only domain event inserts drive read-model updates.
+Change Stream は `snapshot` ではなく `journal` を watch します。これにより、domain event inserts だけが read-model updates を駆動します。
 
 ### Spanner Local RMU Path
 
-Use local emulators and a local bridge:
+local emulators と local bridge を使います。
 
 `Spanner emulator -> local Change Stream bridge or Beam DirectRunner -> Pub/Sub emulator -> Functions Framework RMU -> MySQL`
 
-The local bridge is the replacement for managed Dataflow in development. It must preserve the Pub/Sub message contract consumed by the Functions Framework RMU. Pub/Sub emulator push subscriptions can deliver messages to an HTTP endpoint, which is the local equivalent of a Pub/Sub-triggered function.
+local bridge は development における managed Dataflow の代替です。Functions Framework RMU が消費する Pub/Sub message contract を維持しなければなりません。Pub/Sub emulator の push subscriptions は HTTP endpoint に message を配信できるため、これは Pub/Sub-triggered function の local equivalent になります。
 
 ### RMU Core Shape
 
-Split RMU into:
+RMU は次のように分割します。
 
 - provider-specific interface adapters:
   - DynamoDB Stream event adapter
   - Pub/Sub/CloudEvent adapter
 - shared event application service:
-  - accepts provider-neutral `ReadModelUpdaterInput` values
-  - applies them through `GroupChatDao`
+  - provider-neutral な `ReadModelUpdaterInput` values を受け取る
+  - `GroupChatDao` を通じて適用する
 
-This avoids duplicating projection rules and makes retries/idempotency behavior easier to reason about.
-The target internal RMU input shape is a provider-neutral wrapper, not `DynamoDBStreamEvent`. Name it `ReadModelUpdaterInput` or equivalent. It should carry the decoded `GroupChatEvent` plus metadata required for ordering, idempotency, and diagnostics, such as aggregate id, sequence number, source provider, observed timestamp, and provider position or retry information when available.
-The current `ReadModelUpdater.updateReadModel(DynamoDBStreamEvent)` shape should move behind the DynamoDB adapter. AWS and GCP adapters should normalize provider payloads into `ReadModelUpdaterInput` before invoking the shared service. Lambda and Functions Framework handlers should stay limited to trigger decoding, acknowledgement/error semantics, and dependency composition.
+これにより projection rules の重複を避け、retries/idempotency behavior を推論しやすくします。
+target となる internal RMU input shape は `DynamoDBStreamEvent` ではなく provider-neutral wrapper です。名前は `ReadModelUpdaterInput` または同等のものにします。decoded `GroupChatEvent` に加えて、ordering, idempotency, diagnostics に必要な metadata を持たせます。例えば aggregate id, sequence number, source provider, observed timestamp, 利用可能な場合は provider position や retry information です。
+現在の `ReadModelUpdater.updateReadModel(DynamoDBStreamEvent)` shape は DynamoDB adapter の背後に移します。AWS/GCP adapters は shared service を呼び出す前に provider payloads を `ReadModelUpdaterInput` に normalize します。Lambda と Functions Framework handlers は trigger decoding, acknowledgement/error semantics, dependency composition に限定します。
 
 ### Local Verification
 
-Both backend paths must support an end-to-end verification command that creates a group chat through the write API and confirms the read API observes the projected read model.
+両 backend path は、write API で group chat を作成し、read API が projected read model を観測できることを確認する end-to-end verification command を持たなければなりません。
 
-For Spanner, the verification is valid only when the flow crosses the Pub/Sub/function boundary; a direct journal poller calling the DAO is not sufficient.
+Spanner では、flow が Pub/Sub/function boundary を通過した場合にだけ verification として有効です。journal を直接 poll して DAO を呼び出す実装では不十分です。
 
 ## Risks / Trade-offs
 
-- Spanner emulator support for Change Streams must be validated early. If the emulator cannot execute the required `CREATE CHANGE STREAM` and `READ_<stream>` workflow, the local bridge cannot faithfully consume native Change Streams.
-- Managed Dataflow has no LocalStack-style emulator. A local Beam DirectRunner or bridge process is necessary, and it becomes part of the example's development infrastructure.
-- Pub/Sub and function delivery are at-least-once. The RMU must tolerate duplicate deliveries, using event identity such as aggregate id and sequence number where the read model needs idempotency.
-- Dataflow template payloads may not match the ideal RMU payload shape. The bridge/function adapter must define and document the accepted Pub/Sub message schema.
+- Spanner emulator の Change Streams support は早期に検証する必要があります。emulator が必要な `CREATE CHANGE STREAM` と `READ_<stream>` workflow を実行できない場合、local bridge は native Change Streams を忠実に consume できません。
+- Managed Dataflow には LocalStack-style emulator がありません。local Beam DirectRunner または bridge process が必要であり、それは example の development infrastructure の一部になります。
+- Pub/Sub と function delivery は at-least-once です。RMU は duplicate deliveries に耐える必要があります。read model が idempotency を必要とする箇所では、aggregate id や sequence number などの event identity を使います。
+- Dataflow template payloads は理想的な RMU payload shape と一致しない可能性があります。bridge/function adapter は、受け付ける Pub/Sub message schema を定義し文書化する必要があります。
