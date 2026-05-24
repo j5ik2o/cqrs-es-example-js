@@ -13,6 +13,12 @@ The system SHALL allow the write API to select either the DynamoDB event-store b
 - **THEN** it SHALL construct a Spanner event store using the `event-store-adapter-js` 3.0.0 object-input API
 - **AND** it SHALL use caller-managed Spanner database configuration.
 
+#### Scenario: Unsupported backend selected
+- **WHEN** the write API starts with an empty or unknown `PERSISTENCE_BACKEND` value
+- **THEN** startup SHALL fail fast with a clear error message that identifies the invalid value and lists `dynamodb` and `spanner` as supported backends
+- **AND** it SHALL fail before constructing any DynamoDB or Spanner event store through the `event-store-adapter-js` 3.0.0 object-input API
+- **AND** it SHALL NOT fall back implicitly to either supported backend.
+
 ### Requirement: Shared command application
 The system SHALL keep command-domain, command-processor, repository, and GraphQL behavior shared across DynamoDB and Spanner backends.
 

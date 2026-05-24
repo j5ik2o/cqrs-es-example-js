@@ -17,7 +17,7 @@
 - [ ] 3.1 Extract provider-neutral event application logic from DynamoDB stream parsing.
 - [ ] 3.2 Keep the AWS Lambda/DynamoDB stream handler as a thin adapter.
 - [ ] 3.3 Add a Pub/Sub/CloudEvent handler for the GCP RMU path using Functions Framework.
-- [ ] 3.4 Add idempotency handling or document existing idempotency guarantees for duplicate event delivery.
+- [ ] 3.4 Add verifiable duplicate-delivery handling with either explicit idempotent projection logic or an automated verification artifact that proves existing guarantees tolerate duplicate event delivery.
 
 ## 4. Local Spanner Pipeline
 
