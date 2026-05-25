@@ -53,6 +53,9 @@ importers:
       fp-ts:
         specifier: ^2.16.2
         version: 2.16.11
+      graphql:
+        specifier: ^16.14.0
+        version: 16.14.0
       moment:
         specifier: ^2.29.4
         version: 2.30.1
