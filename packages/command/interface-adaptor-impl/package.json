@@ -36,7 +36,7 @@
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "cqrs-es-example-js-command-processor": "workspace:*",
-    "event-store-adapter-js": "2.2.166",
+    "event-store-adapter-js": "3.1.0",
     "fp-ts": "^2.16.2",
     "moment": "^2.29.4",
     "graphql": "^16.8.1",
