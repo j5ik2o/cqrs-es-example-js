@@ -1,46 +1,63 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
 import * as U from "ulidx";
 
-const MemberIdTypeSymbol = Symbol("MemberId");
+const MEMBER_ID_BRAND: unique symbol = Symbol("MemberId");
 
-class MemberId {
-  readonly symbol: typeof MemberIdTypeSymbol = MemberIdTypeSymbol;
-  private constructor(public readonly value: string) {
-    if (!U.isValid(this.value)) {
+export type MemberIdJson = {
+  value: string;
+};
+
+export type MemberId = {
+  value: string;
+  asString: () => string;
+  readonly [MEMBER_ID_BRAND]: true;
+};
+
+export namespace MemberId {
+  export function of(value: string): MemberId {
+    if (!U.isValid(value)) {
       throw new Error("Invalid member id");
     }
+    return Object.freeze({
+      [MEMBER_ID_BRAND]: true as const,
+      value,
+      asString: () => value,
+    });
   }
 
-  toJSON() {
-    return {
-      value: this.value,
-    };
+  export function generate(): MemberId {
+    return of(Infrastructure.generateULID());
   }
 
-  asString() {
-    return this.value;
+  export function equals(a: MemberId, b: MemberId): boolean {
+    return a.value === b.value;
   }
 
-  toString() {
-    return `MemberId(${this.value})`;
+  export function is(value: unknown): value is MemberId {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    const candidate = value as Partial<MemberId>;
+    return (
+      candidate[MEMBER_ID_BRAND] === true && typeof candidate.value === "string"
+    );
   }
 
-  equals(anotherId: MemberId): boolean {
-    return this.value === anotherId.value;
+  export function toJSON(value: MemberId): MemberIdJson {
+    return { value: value.value };
   }
 
-  static of(value: string): MemberId {
-    return new MemberId(value);
-  }
-
-  static generate(): MemberId {
-    return new MemberId(Infrastructure.generateULID());
+  export function fromJSON(json: unknown): MemberId {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("value" in json) ||
+      typeof json.value !== "string"
+    ) {
+      throw new Error("Invalid MemberId JSON");
+    }
+    return of(json.value);
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToMemberId(json: any): MemberId {
-  return MemberId.of(json.value);
-}
-
-export { MemberId, MemberIdTypeSymbol, convertJSONToMemberId };
+export const convertJSONToMemberId = MemberId.fromJSON;

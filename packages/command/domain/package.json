@@ -32,8 +32,7 @@
   },
   "dependencies": {
     "cqrs-es-example-js-infrastructure": "workspace:*",
-    "event-store-adapter-js": "2.2.166",
-    "fp-ts": "^2.16.2",
+    "event-store-adapter-js": "3.1.0",
     "ulidx": "^2.3.0"
   },
   "engines": {

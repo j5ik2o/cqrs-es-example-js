@@ -29,7 +29,7 @@ class GroupChatQueryResolver {
         FROM
             group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id 
         WHERE
-            gc.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
+            gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
     this.logger.debug("getGroupChats:", groupChats);
     if (!groupChats.length) {
       throw new Error("not found");
@@ -55,7 +55,7 @@ class GroupChatQueryResolver {
 	FROM
 	    group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
-            gc.disabled = 'false' AND m.user_account_id = ${userAccountId}`;
+            gc.disabled = 'false' AND m.disabled = 'false' AND m.user_account_id = ${userAccountId}`;
     this.logger.debug("getGroupChats:", groupChats);
     return groupChats;
   }
@@ -77,7 +77,7 @@ class GroupChatQueryResolver {
 	FROM
 	    group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
 	WHERE
-	    gc.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
+	    gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
     if (!members.length) {
       throw new Error("not found");
     }
@@ -102,13 +102,13 @@ class GroupChatQueryResolver {
         FROM
             group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
-            gc.disabled = 'false' AND m.group_chat_id = ${groupChatId}
+            gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId}
 		    AND EXISTS (
 		        SELECT 1 
 		        FROM
 		            members AS m2
 		        WHERE
-		            m2.group_chat_id = m.group_chat_id AND m2.user_account_id = ${userAccountId})`;
+		            m2.disabled = 'false' AND m2.group_chat_id = m.group_chat_id AND m2.user_account_id = ${userAccountId})`;
     this.logger.debug("members:", members);
     return members;
   }
@@ -136,7 +136,7 @@ class GroupChatQueryResolver {
                 FROM
                     members AS mem
                 WHERE
-                    mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`;
+                    mem.disabled = 'false' AND mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`;
     if (!messages.length) {
       throw new Error("not found");
     }
@@ -167,7 +167,7 @@ class GroupChatQueryResolver {
                 FROM
                     members AS mem
                 WHERE
-                    mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`;
+                    mem.disabled = 'false' AND mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`;
     this.logger.debug("messages:", messages);
     return messages;
   }

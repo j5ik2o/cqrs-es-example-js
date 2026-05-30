@@ -8,9 +8,9 @@
 
 ## Overview
 
-This is an example of CQRS/Event Sourcing and GraphQL implemented in TypeScript. This example is class-based, not actor-model based.
+This is an example of CQRS/Event Sourcing and GraphQL implemented in TypeScript. The domain and application layers use a **functional, non-class / no-interface (Go-like) style** — plain frozen objects with `namespace` companions and free functions, modeled after the [event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) v3.1.0 example domain. (type-graphql classes remain only at the GraphQL boundary, where decorators are structurally required.)
 
-This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) for Event Sourcing.
+This project uses [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) **v3.1.0** for Event Sourcing, and the write API can persist to either **DynamoDB** or **Cloud Spanner** (`PERSISTENCE_BACKEND=dynamodb|spanner`). See [Persistence backends & the Spanner read-model pipeline](./docs/spanner-local-pipeline.md).
 
 Please refer to [here](https://github.com/j5ik2o/cqrs-es-example) for implementation examples in other languages.
 
@@ -23,6 +23,8 @@ Please refer to [here](https://github.com/j5ik2o/cqrs-es-example) for implementa
 - [x] Read Model Updater on Local
 - [x] Docker Compose Support
 - [x] Read Model Updater on AWS Lambda (LocalStack: build/deploy scripts and `common.env`; see [Build and Test](./docs/BUILD_AND_TEST.md))
+- [x] Pluggable persistence backend: DynamoDB or Cloud Spanner (`PERSISTENCE_BACKEND`)
+- [x] Spanner read-model pipeline (change-stream bridge → Pub/Sub → Functions Framework RMU; see [docs](./docs/spanner-local-pipeline.md))
 - [ ] Deployment to AWS
 
 ## Component Composition

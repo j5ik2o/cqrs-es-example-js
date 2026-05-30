@@ -1,62 +1,80 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { AggregateId } from "event-store-adapter-js";
-import * as E from "fp-ts/lib/Either";
+import type { AggregateId } from "event-store-adapter-js/dist/aggregate-id";
+import { Result } from "event-store-adapter-js/dist/result";
 import * as U from "ulidx";
 
-const GROUP_CHAT_PREFIX: string = "GroupChat";
-const GroupChatIdTypeSymbol = Symbol("GroupChatId");
+const GROUP_CHAT_PREFIX = "GroupChat";
+const GROUP_CHAT_ID_BRAND: unique symbol = Symbol("GroupChatId");
 
-class GroupChatId implements AggregateId {
-  readonly symbol: typeof GroupChatIdTypeSymbol = GroupChatIdTypeSymbol;
-  readonly typeName = GROUP_CHAT_PREFIX;
+export type GroupChatIdJson = {
+  value: string;
+};
 
-  private constructor(public readonly value: string) {}
+export type GroupChatId = AggregateId & {
+  typeName: typeof GROUP_CHAT_PREFIX;
+  readonly [GROUP_CHAT_ID_BRAND]: true;
+};
 
-  toJSON() {
-    return {
-      value: this.value,
-    };
-  }
-
-  equals(anotherId: GroupChatId): boolean {
-    return this.value === anotherId.value;
-  }
-  asString() {
-    return `${GROUP_CHAT_PREFIX}-${this.value}`;
-  }
-  toString() {
-    return `GroupChatId(${this.value})`;
-  }
-
-  static validate(value: string): E.Either<string, GroupChatId> {
-    try {
-      return E.right(GroupChatId.of(value));
-    } catch (error) {
-      if (error instanceof Error) {
-        return E.left(error.message);
-      }
-      throw error;
-    }
-  }
-
-  static of(value: string): GroupChatId {
+export namespace GroupChatId {
+  export function of(value: string): GroupChatId {
     const ulid = value.startsWith(`${GROUP_CHAT_PREFIX}-`)
       ? value.substring(GROUP_CHAT_PREFIX.length + 1)
       : value;
-    if (U.isValid(ulid)) {
-      return new GroupChatId(ulid);
+    if (!U.isValid(ulid)) {
+      throw new Error("Invalid group chat id");
     }
-    throw new Error("Invalid group chat id");
+    return Object.freeze({
+      [GROUP_CHAT_ID_BRAND]: true as const,
+      typeName: GROUP_CHAT_PREFIX,
+      value: ulid,
+      asString: () => `${GROUP_CHAT_PREFIX}-${ulid}`,
+    });
   }
 
-  static generate(): GroupChatId {
-    return new GroupChatId(Infrastructure.generateULID());
+  export function generate(): GroupChatId {
+    return of(Infrastructure.generateULID());
+  }
+
+  export function validate(value: string): Result<GroupChatId, string> {
+    try {
+      return Result.ok(of(value));
+    } catch (error) {
+      return Result.err(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  export function equals(a: GroupChatId, b: GroupChatId): boolean {
+    return a.value === b.value;
+  }
+
+  export function is(value: unknown): value is GroupChatId {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    const candidate = value as Partial<GroupChatId>;
+    return (
+      candidate[GROUP_CHAT_ID_BRAND] === true &&
+      candidate.typeName === GROUP_CHAT_PREFIX &&
+      typeof candidate.value === "string" &&
+      typeof candidate.asString === "function"
+    );
+  }
+
+  export function toJSON(value: GroupChatId): GroupChatIdJson {
+    return { value: value.value };
+  }
+
+  export function fromJSON(json: unknown): GroupChatId {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("value" in json) ||
+      typeof json.value !== "string"
+    ) {
+      throw new Error("Invalid GroupChatId JSON");
+    }
+    return of(json.value);
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToGroupChatId(json: any): GroupChatId {
-  return GroupChatId.of(json.value);
-}
-
-export { GroupChatId, GroupChatIdTypeSymbol, convertJSONToGroupChatId };
+export const convertJSONToGroupChatId = GroupChatId.fromJSON;

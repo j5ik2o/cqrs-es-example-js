@@ -1,0 +1,179 @@
+import { PubSub } from "@google-cloud/pubsub";
+import { Spanner } from "@google-cloud/spanner";
+import { logger } from "./index";
+import {
+  type ChangeStreamReader,
+  createChangeStreamReader,
+} from "./spanner-change-stream-reader";
+
+/**
+ * Local Spanner Change Stream bridge.
+ *
+ * Production topology (documented):
+ *   Spanner journal -> Change Streams -> Dataflow -> Pub/Sub -> Cloud Run /
+ *   Cloud Functions (RMU) -> MySQL.
+ *
+ * This process is the local development stand-in for the managed Dataflow stage:
+ * it reads the `journal` change stream and republishes each domain-event payload
+ * to a Pub/Sub topic, preserving the Pub/Sub message contract the Functions
+ * Framework RMU consumes. It watches `journal` only, so snapshot writes never
+ * drive read-model updates.
+ *
+ * Change-stream reads use low-level single-use ExecuteStreamingSql
+ * (`spanner-change-stream-reader.ts`), which works on both the Spanner emulator
+ * and real Spanner — the high-level run/runStream cannot read change streams on
+ * the emulator. At-least-once publishing is fine: the read-model DAO is
+ * idempotent.
+ */
+
+const POLL_WINDOW_MILLIS = 2_000;
+const POLL_INTERVAL_MILLIS = 1_000;
+const POLL_READ_LAG_MILLIS = 5_000;
+
+async function spannerChangeStreamBridgeMain(): Promise<void> {
+  const projectId = env("PERSISTENCE_SPANNER_PROJECT_ID", "local-project");
+  const instanceId = env("PERSISTENCE_SPANNER_INSTANCE_ID", "local-instance");
+  const databaseId = env("PERSISTENCE_SPANNER_DATABASE_ID", "local-database");
+  const changeStreamName = env("SPANNER_CHANGE_STREAM_NAME", "journal_stream");
+  const journalTableName = env("PERSISTENCE_JOURNAL_TABLE_NAME", "journal");
+  const topicName = env("PUBSUB_TOPIC", "group-chat-journal");
+
+  logger.info("Starting Spanner change stream bridge");
+  logger.info(`PERSISTENCE_SPANNER_PROJECT_ID: ${projectId}`);
+  logger.info(`PERSISTENCE_SPANNER_INSTANCE_ID: ${instanceId}`);
+  logger.info(`PERSISTENCE_SPANNER_DATABASE_ID: ${databaseId}`);
+  logger.info(`SPANNER_CHANGE_STREAM_NAME: ${changeStreamName}`);
+  logger.info(`PERSISTENCE_JOURNAL_TABLE_NAME: ${journalTableName}`);
+  logger.info(`PUBSUB_TOPIC: ${topicName}`);
+  logger.info(`SPANNER_EMULATOR_HOST: ${process.env.SPANNER_EMULATOR_HOST}`);
+  logger.info(`PUBSUB_EMULATOR_HOST: ${process.env.PUBSUB_EMULATOR_HOST}`);
+
+  const spanner = new Spanner({ projectId });
+  const pubsub = new PubSub({ projectId });
+  const topic = pubsub.topic(topicName);
+  const reader = createChangeStreamReader(spanner, {
+    projectId,
+    instanceId,
+    databaseId,
+    streamName: changeStreamName,
+  });
+
+  // The cursor starts at SPANNER_BRIDGE_START_TIMESTAMP (if set) so events
+  // committed before this process starts — or during a restart — can be picked
+  // up. With the default (now), events committed while the bridge is down are
+  // skipped; a production bridge should persist the last-read position and
+  // resume from it (the managed Dataflow stage does this).
+  let watermark = parseStartTimestamp(
+    process.env.SPANNER_BRIDGE_START_TIMESTAMP,
+  );
+  try {
+    for (;;) {
+      const safeNow = Date.now() - POLL_READ_LAG_MILLIS;
+      const end = new Date(
+        Math.min(safeNow, watermark.getTime() + POLL_WINDOW_MILLIS),
+      );
+      if (end.getTime() <= watermark.getTime()) {
+        await sleep(POLL_INTERVAL_MILLIS);
+        continue;
+      }
+      const succeeded = await pollOnce(
+        reader,
+        topic,
+        journalTableName,
+        watermark.toISOString(),
+        end.toISOString(),
+      );
+      // Only advance the watermark on a successful read; otherwise retry the
+      // same window so a transient read failure never permanently skips the
+      // journal inserts in that interval.
+      if (succeeded) {
+        watermark = end;
+      }
+      await sleep(POLL_INTERVAL_MILLIS);
+    }
+  } finally {
+    await reader.close();
+    await topic.flush().catch(() => undefined);
+    await pubsub.close().catch(() => undefined);
+    spanner.close();
+  }
+}
+
+/** Returns true when the window was read successfully (so the caller may advance). */
+async function pollOnce(
+  reader: ChangeStreamReader,
+  // biome-ignore lint/suspicious/noExplicitAny: PubSub Topic type
+  topic: any,
+  journalTableName: string,
+  start: string,
+  end: string,
+): Promise<boolean> {
+  let records: Awaited<ReturnType<ChangeStreamReader["readWindow"]>>;
+  try {
+    records = await reader.readWindow(start, end);
+  } catch (error) {
+    logger.warn(`change-stream read failed for [${start}, ${end}]`, error);
+    return false;
+  }
+  for (const record of records) {
+    if (record.tableName !== journalTableName || record.modType !== "INSERT") {
+      continue;
+    }
+    // `payload` is the BYTES journal payload. The low-level decoder yields it as
+    // a base64 string (JSON mode), but tolerate Buffer/Uint8Array too.
+    const data = toBytes(record.newValues.payload);
+    if (data === undefined) {
+      logger.warn(
+        `retrying journal window because payload type is unrecognized (aggregateId=${String(
+          record.keys.aggregate_id ?? "",
+        )}, sequenceNumber=${String(record.keys.sequence_number ?? "")})`,
+      );
+      return false;
+    }
+    await topic.publishMessage({
+      data,
+      attributes: {
+        aggregateId: String(record.keys.aggregate_id ?? ""),
+        sequenceNumber: String(record.keys.sequence_number ?? ""),
+        commitTimestamp: record.commitTimestamp,
+        sourceProvider: "spanner",
+      },
+    });
+  }
+  return true;
+}
+
+function toBytes(payload: unknown): Buffer | undefined {
+  if (typeof payload === "string") {
+    return Buffer.from(payload, "base64");
+  }
+  if (Buffer.isBuffer(payload)) {
+    return payload;
+  }
+  if (payload instanceof Uint8Array) {
+    return Buffer.from(payload);
+  }
+  return undefined;
+}
+
+function env(name: string, defaultValue: string): string {
+  const value = process.env[name];
+  return value !== undefined && value !== "" ? value : defaultValue;
+}
+
+function parseStartTimestamp(value: string | undefined): Date {
+  if (value === undefined || value === "") {
+    return new Date();
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid SPANNER_BRIDGE_START_TIMESTAMP: ${value}`);
+  }
+  return parsed;
+}
+
+function sleep(millis: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, millis));
+}
+
+export { spannerChangeStreamBridgeMain };

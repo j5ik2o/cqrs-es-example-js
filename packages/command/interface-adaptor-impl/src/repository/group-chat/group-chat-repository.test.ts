@@ -1,4 +1,3 @@
-import { describe } from "node:test";
 import type { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   GroupChat,
@@ -9,8 +8,7 @@ import {
   convertJSONToGroupChat,
   convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
-import { type EventStore, EventStoreFactory } from "event-store-adapter-js";
-import * as E from "fp-ts/lib/Either";
+import { EventStore, type Result } from "event-store-adapter-js";
 import {
   GenericContainer,
   type StartedTestContainer,
@@ -22,11 +20,14 @@ import {
   createJournalTable,
   createSnapshotTable,
 } from "../../test/dynamodb-utils";
-import { GroupChatRepositoryImpl } from "./group-chat-repository";
+import { GroupChatRepository } from "./group-chat-repository";
 
-afterEach(() => {
-  jest.useRealTimers();
-});
+function ok<T>(result: Result<T, { message: string }>): T {
+  if (result.type === "err") {
+    throw new Error(result.error.message);
+  }
+  return result.value;
+}
 
 describe("GroupChatRepository", () => {
   const TEST_TIME_FACTOR = Number.parseFloat(
@@ -41,21 +42,23 @@ describe("GroupChatRepository", () => {
   const JOURNAL_TABLE_NAME = "journal";
   const SNAPSHOT_TABLE_NAME = "snapshot";
   const JOURNAL_AID_INDEX_NAME = "journal-aid-index";
-  const SNAPSHOTS_AID_INDEX_NAME = "snapshots-aid-index";
+  const SNAPSHOT_AID_INDEX_NAME = "snapshot-aid-index";
+  const SNAPSHOT_ACTIVE_TTL_INDEX_NAME = "snapshot-active-ttl-index";
 
   function createEventStore(
     dynamodbClient: DynamoDBClient,
   ): EventStore<GroupChatId, GroupChat, GroupChatEvent> {
-    return EventStoreFactory.ofDynamoDB<GroupChatId, GroupChat, GroupChatEvent>(
-      dynamodbClient,
-      JOURNAL_TABLE_NAME,
-      SNAPSHOT_TABLE_NAME,
-      JOURNAL_AID_INDEX_NAME,
-      SNAPSHOTS_AID_INDEX_NAME,
-      32,
-      convertJSONToGroupChatEvent,
-      convertJSONToGroupChat,
-    );
+    return EventStore.createDynamoDB<GroupChatId, GroupChat, GroupChatEvent>({
+      client: dynamodbClient,
+      journalTableName: JOURNAL_TABLE_NAME,
+      snapshotTableName: SNAPSHOT_TABLE_NAME,
+      journalAidIndexName: JOURNAL_AID_INDEX_NAME,
+      snapshotAidIndexName: SNAPSHOT_AID_INDEX_NAME,
+      snapshotActiveTtlIndexName: SNAPSHOT_ACTIVE_TTL_INDEX_NAME,
+      shardCount: 32,
+      eventConverter: convertJSONToGroupChatEvent,
+      snapshotConverter: convertJSONToGroupChat,
+    });
   }
 
   beforeAll(async () => {
@@ -79,7 +82,8 @@ describe("GroupChatRepository", () => {
     await createSnapshotTable(
       dynamodbClient,
       SNAPSHOT_TABLE_NAME,
-      SNAPSHOTS_AID_INDEX_NAME,
+      SNAPSHOT_AID_INDEX_NAME,
+      SNAPSHOT_ACTIVE_TTL_INDEX_NAME,
     );
     eventStore = createEventStore(dynamodbClient);
   }, TIMEOUT);
@@ -91,122 +95,79 @@ describe("GroupChatRepository", () => {
   }, TIMEOUT);
 
   test("store and reply", async () => {
-    const repository = GroupChatRepositoryImpl.of(eventStore);
+    const repository = GroupChatRepository.create(eventStore);
 
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat1, groupChatCreated] = GroupChat.create(id, name, adminId);
-    const result = await repository.storeEventAndSnapshot(
-      groupChatCreated,
-      groupChat1,
-    )();
-    if (E.isLeft(result)) {
-      throw new Error(result.left.message);
-    }
+    ok(await repository.storeEventAndSnapshot(groupChatCreated, groupChat1));
 
     const name2 = GroupChatName.of("name2");
-    const renameEither = groupChat1.rename(name2, adminId);
-    if (E.isLeft(renameEither)) {
-      throw new Error(
-        `groupChat3Either is left: ${renameEither.left.stack?.toString()}`,
-      );
-    }
-    const [, groupChatRenamed] = renameEither.right;
-    const result2 = await repository.store(groupChatRenamed, groupChat1)();
-    if (E.isLeft(result2)) {
-      throw new Error(result2.left.message);
-    }
+    const [groupChat2, groupChatRenamed] = ok(
+      groupChat1.rename(name2, adminId),
+    );
+    ok(await repository.store(groupChatRenamed, groupChat2));
 
-    const groupChat3Either = await repository.findById(id)();
-    if (E.isLeft(groupChat3Either)) {
-      throw new Error(
-        `groupChat3Either is left: ${groupChat3Either.left.stack?.toString()}`,
-      );
-    }
-    const groupChat3 = groupChat3Either.right;
+    const groupChat3 = await repository.findById(id);
     if (groupChat3 === undefined) {
-      throw new Error("groupChat2 is undefined");
+      throw new Error("groupChat3 is undefined");
     }
-
-    expect(groupChat3.id.equals(id)).toEqual(true);
-    expect(groupChat3.name.equals(name2)).toEqual(true);
+    expect(GroupChatId.equals(groupChat3.id, id)).toEqual(true);
+    expect(GroupChatName.equals(groupChat3.name, name2)).toEqual(true);
   });
 
   test("store and reply: store method calling only", async () => {
-    const repository = GroupChatRepositoryImpl.of(eventStore).withRetention(3);
+    const repository = GroupChatRepository.create(eventStore).withRetention(3);
 
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
     const adminId = UserAccountId.generate();
     const [groupChat1, groupChatCreated] = GroupChat.create(id, name, adminId);
     expect(groupChat1.version).toEqual(1);
+    ok(await repository.store(groupChatCreated, groupChat1));
 
-    const result1Either = await repository.store(
-      groupChatCreated,
-      groupChat1,
-    )();
-    if (E.isLeft(result1Either)) {
-      throw new Error(result1Either.left.message);
-    }
-
-    const groupChat2Either = await repository.findById(id)();
-    if (E.isLeft(groupChat2Either)) {
-      throw new Error(groupChat2Either.left.message);
-    }
-    const groupChat2 = groupChat2Either.right;
+    const groupChat2 = await repository.findById(id);
     expect(groupChat2?.version).toEqual(1);
+    if (groupChat2 === undefined) {
+      throw new Error("groupChat2 is undefined");
+    }
 
     const name2 = GroupChatName.of("name2");
-    const rename2Either = groupChat2?.rename(name2, adminId);
-    if (rename2Either && E.isLeft(rename2Either)) {
-      throw new Error(
-        `groupChat3Either is left: ${rename2Either.left.stack?.toString()}`,
-      );
-    }
-    if (!rename2Either) {
-      return;
-    }
-    const [groupChat3, groupChatRenamed] = rename2Either.right;
+    const [groupChat3, groupChatRenamed] = ok(
+      groupChat2.rename(name2, adminId),
+    );
     expect(groupChat3.version).toEqual(1);
-    const result2Either = await repository.store(
-      groupChatRenamed,
-      groupChat3,
-    )();
+    ok(await repository.store(groupChatRenamed, groupChat3));
 
-    if (E.isLeft(result2Either)) {
-      throw new Error(result2Either.left.message);
-    }
-
-    const groupChat3Either = await repository.findById(id)();
-    if (E.isLeft(groupChat3Either)) {
-      throw new Error(
-        `groupChat3Either is left: ${groupChat3Either.left.stack?.toString()}`,
-      );
-    }
-    const groupChat4 = groupChat3Either.right;
-    expect(groupChat4?.id.equals(id)).toEqual(true);
-    expect(groupChat4?.name.equals(name2)).toEqual(true);
+    const groupChat4 = await repository.findById(id);
+    expect(groupChat4?.id && GroupChatId.equals(groupChat4.id, id)).toEqual(
+      true,
+    );
+    expect(groupChat4 && GroupChatName.equals(groupChat4.name, name2)).toEqual(
+      true,
+    );
     expect(groupChat4?.version).toEqual(2);
+  });
 
-    const name3 = GroupChatName.of("name3");
-    const rename3Either = groupChat4?.rename(name3, adminId);
-    if (rename3Either && E.isLeft(rename3Either)) {
-      throw new Error(
-        `groupChat3Either is left: ${rename3Either.left.stack?.toString()}`,
-      );
-    }
-    if (!rename3Either) {
-      return;
-    }
-    const [GroupChat5, groupChatRenamed2] = rename3Either.right;
+  test("optimistic lock conflict is reported as an error result", async () => {
+    const repository = GroupChatRepository.create(eventStore);
 
-    const result3Either = await repository.store(
-      groupChatRenamed2,
-      GroupChat5,
-    )();
-    if (E.isLeft(result3Either)) {
-      throw new Error(result3Either.left.message);
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat1, groupChatCreated] = GroupChat.create(id, name, adminId);
+    ok(await repository.storeEventAndSnapshot(groupChatCreated, groupChat1));
+
+    // Two concurrent renames from the same base version (1).
+    const [, renamedA] = ok(groupChat1.rename(GroupChatName.of("a"), adminId));
+    const [, renamedB] = ok(groupChat1.rename(GroupChatName.of("b"), adminId));
+    ok(await repository.storeEvent(renamedA, groupChat1.version));
+
+    const conflict = await repository.storeEvent(renamedB, groupChat1.version);
+    expect(conflict.type).toEqual("err");
+    if (conflict.type === "err") {
+      expect(conflict.error.type).toEqual("optimistic-lock-conflict");
     }
   });
 });

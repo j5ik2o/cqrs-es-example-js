@@ -81,6 +81,7 @@ services:
       JOURNAL_GSI_NAME: journal-aid-index
       SNAPSHOT_TABLE_NAME: snapshot
       SNAPSHOT_GSI_NAME: snapshot-aid-index
+      SNAPSHOT_ACTIVE_TTL_GSI_NAME: snapshot-active-ttl-index
     volumes:
       - ../dynamodb-setup:/setup
     entrypoint: [ "" ]

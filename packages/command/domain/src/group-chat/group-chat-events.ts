@@ -1,483 +1,758 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { Event } from "event-store-adapter-js";
+import type { Event } from "event-store-adapter-js/dist/event";
 import {
   type UserAccountId,
+  type UserAccountIdJson,
   convertJSONToUserAccountId,
 } from "../user-account";
-import { type GroupChatId, convertJSONToGroupChatId } from "./group-chat-id";
+import {
+  type GroupChatId,
+  type GroupChatIdJson,
+  convertJSONToGroupChatId,
+} from "./group-chat-id";
 import {
   type GroupChatName,
+  type GroupChatNameJson,
   convertJSONToGroupChatName,
 } from "./group-chat-name";
-import { type Member, convertJSONToMember } from "./member";
-import { type Members, convertJSONToMembers } from "./members";
-import { type Message, convertJSONToMessage } from "./message";
+import { Member, type MemberJson, convertJSONToMember } from "./member";
+import {
+  type Members,
+  type MembersJson,
+  convertJSONToMembers,
+} from "./members";
+import { Message, type MessageJson, convertJSONToMessage } from "./message";
 
-type GroupChatEventTypeSymbol =
-  | typeof GroupChatCreatedTypeSymbol
-  | typeof GroupChatRenamedTypeSymbol
-  | typeof GroupChatMemberAddedTypeSymbol
-  | typeof GroupChatMemberRemovedTypeSymbol
-  | typeof GroupChatMessagePostedTypeSymbol
-  | typeof GroupChatMessageDeletedTypeSymbol
-  | typeof GroupChatDeletedTypeSymbol;
+// --- Brands ---------------------------------------------------------------
 
-interface GroupChatEvent extends Event<GroupChatId> {
-  symbol: GroupChatEventTypeSymbol;
+const GROUP_CHAT_CREATED_BRAND: unique symbol = Symbol("GroupChatCreated");
+const GROUP_CHAT_RENAMED_BRAND: unique symbol = Symbol("GroupChatRenamed");
+const GROUP_CHAT_MEMBER_ADDED_BRAND: unique symbol = Symbol(
+  "GroupChatMemberAdded",
+);
+const GROUP_CHAT_MEMBER_REMOVED_BRAND: unique symbol = Symbol(
+  "GroupChatMemberRemoved",
+);
+const GROUP_CHAT_MESSAGE_POSTED_BRAND: unique symbol = Symbol(
+  "GroupChatMessagePosted",
+);
+const GROUP_CHAT_MESSAGE_DELETED_BRAND: unique symbol = Symbol(
+  "GroupChatMessageDeleted",
+);
+const GROUP_CHAT_DELETED_BRAND: unique symbol = Symbol("GroupChatDeleted");
+
+// --- Common shape ---------------------------------------------------------
+
+type GroupChatEventBase = Event<GroupChatId> & {
   executorId: UserAccountId;
-  toString: () => string;
-}
-
-const GroupChatCreatedTypeSymbol = Symbol("GroupChatCreated");
-
-class GroupChatCreated implements GroupChatEvent {
-  readonly symbol: typeof GroupChatCreatedTypeSymbol =
-    GroupChatCreatedTypeSymbol;
-  readonly typeName = "GroupChatCreated";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly name: GroupChatName,
-    public readonly members: Members,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = true;
-
-  toString() {
-    return `GroupChatCreated(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.members.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    name: GroupChatName,
-    members: Members,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatCreated {
-    return new GroupChatCreated(
-      Infrastructure.generateULID(),
-      aggregateId,
-      name,
-      members,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-const GroupChatRenamedTypeSymbol = Symbol("GroupChatRenamed");
-
-class GroupChatRenamed implements GroupChatEvent {
-  readonly symbol: typeof GroupChatRenamedTypeSymbol =
-    GroupChatRenamedTypeSymbol;
-  readonly typeName = "GroupChatRenamed";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly name: GroupChatName,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = false;
-
-  toString() {
-    return `GroupChatRenamed(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.name.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    name: GroupChatName,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatRenamed {
-    return new GroupChatRenamed(
-      Infrastructure.generateULID(),
-      aggregateId,
-      name,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-const GroupChatMemberAddedTypeSymbol = Symbol("GroupChatMemberAdded");
-
-class GroupChatMemberAdded implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMemberAddedTypeSymbol =
-    GroupChatMemberAddedTypeSymbol;
-  readonly typeName = "GroupChatMemberAdded";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly member: Member,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = false;
-
-  toString() {
-    return `GroupChatMemberAdded(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    member: Member,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMemberAdded {
-    return new GroupChatMemberAdded(
-      Infrastructure.generateULID(),
-      aggregateId,
-      member,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-const GroupChatMemberRemovedTypeSymbol = Symbol("GroupChatMemberRemoved");
-
-class GroupChatMemberRemoved implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMemberRemovedTypeSymbol =
-    GroupChatMemberRemovedTypeSymbol;
-  readonly typeName = "GroupChatMemberRemoved";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly member: Member,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = false;
-
-  toString() {
-    return `GroupChatMemberRemoved(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.member.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    member: Member,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMemberRemoved {
-    return new GroupChatMemberRemoved(
-      Infrastructure.generateULID(),
-      aggregateId,
-      member,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-const GroupChatDeletedTypeSymbol = Symbol("GroupChatDeleted");
-
-class GroupChatDeleted implements GroupChatEvent {
-  readonly symbol: typeof GroupChatDeletedTypeSymbol =
-    GroupChatDeletedTypeSymbol;
-  readonly typeName = "GroupChatDeleted";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = false;
-
-  toString() {
-    return `GroupChatDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatDeleted {
-    return new GroupChatDeleted(
-      Infrastructure.generateULID(),
-      aggregateId,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-const GroupChatMessagePostedTypeSymbol = Symbol("GroupChatMessagePosted");
-
-class GroupChatMessagePosted implements GroupChatEvent {
-  readonly symbol: typeof GroupChatMessagePostedTypeSymbol =
-    GroupChatMessagePostedTypeSymbol;
-  readonly typeName = "GroupChatMessagePosted";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly message: Message,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = false;
-
-  toString() {
-    return `GroupChatMessagePosted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    message: Message,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMessagePosted {
-    return new GroupChatMessagePosted(
-      Infrastructure.generateULID(),
-      aggregateId,
-      message,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-const GroupChatMessageDeletedTypeSymbol = Symbol("GroupChatMessageDeleted");
-
-class GroupChatMessageDeleted implements GroupChatEvent {
-  symbol: typeof GroupChatMessageDeletedTypeSymbol =
-    GroupChatMessageDeletedTypeSymbol;
-  typeName = "GroupChatMessageDeleted";
-
-  private constructor(
-    public readonly id: string,
-    public readonly aggregateId: GroupChatId,
-    public readonly message: Message,
-    public readonly executorId: UserAccountId,
-    public readonly sequenceNumber: number,
-    public readonly occurredAt: Date,
-  ) {}
-
-  isCreated = false;
-
-  toString() {
-    return `GroupChatMessageDeleted(${this.id.toString()}, ${this.aggregateId.toString()}, ${this.message.toString()}, ${this.executorId.toString()}, ${this.sequenceNumber}, ${this.occurredAt.toISOString()})`;
-  }
-
-  static of(
-    aggregateId: GroupChatId,
-    message: Message,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMessageDeleted {
-    return new GroupChatMessageDeleted(
-      Infrastructure.generateULID(),
-      aggregateId,
-      message,
-      executorId,
-      sequenceNumber,
-      new Date(),
-    );
-  }
-}
-
-class GroupChatEventFactory {
-  static ofGroupChatCreated(
-    aggregateId: GroupChatId,
-    name: GroupChatName,
-    members: Members,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatCreated {
-    return GroupChatCreated.of(
-      aggregateId,
-      name,
-      members,
-      executorId,
-      sequenceNumber,
-    );
-  }
-
-  static ofGroupChatRenamed(
-    aggregateId: GroupChatId,
-    name: GroupChatName,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatRenamed {
-    return GroupChatRenamed.of(aggregateId, name, executorId, sequenceNumber);
-  }
-
-  static ofGroupChatMemberAdded(
-    aggregateId: GroupChatId,
-    member: Member,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMemberAdded {
-    return GroupChatMemberAdded.of(
-      aggregateId,
-      member,
-      executorId,
-      sequenceNumber,
-    );
-  }
-
-  static ofGroupChatMemberRemoved(
-    aggregateId: GroupChatId,
-    member: Member,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMemberRemoved {
-    return GroupChatMemberRemoved.of(
-      aggregateId,
-      member,
-      executorId,
-      sequenceNumber,
-    );
-  }
-
-  static ofGroupChatMessagePosted(
-    aggregateId: GroupChatId,
-    message: Message,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMessagePosted {
-    return GroupChatMessagePosted.of(
-      aggregateId,
-      message,
-      executorId,
-      sequenceNumber,
-    );
-  }
-
-  static ofGroupChatMessageDeleted(
-    aggregateId: GroupChatId,
-    message: Message,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatMessageDeleted {
-    return GroupChatMessageDeleted.of(
-      aggregateId,
-      message,
-      executorId,
-      sequenceNumber,
-    );
-  }
-
-  static ofGroupChatDeleted(
-    aggregateId: GroupChatId,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatDeleted {
-    return GroupChatDeleted.of(aggregateId, executorId, sequenceNumber);
-  }
-}
-
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToGroupChatEvent(json: any): GroupChatEvent {
-  const id = convertJSONToGroupChatId(json.data.aggregateId);
-  const executorId = convertJSONToUserAccountId(json.data.executorId);
-  switch (json.type) {
-    case "GroupChatCreated": {
-      const name = convertJSONToGroupChatName(json.data.name);
-      const members = convertJSONToMembers(json.data.members);
-      return GroupChatCreated.of(
-        id,
-        name,
-        members,
-        executorId,
-        json.data.sequenceNumber,
-      );
-    }
-    case "GroupChatRenamed": {
-      const name = convertJSONToGroupChatName(json.data.name);
-      return GroupChatRenamed.of(
-        id,
-        name,
-        executorId,
-        json.data.sequenceNumber,
-      );
-    }
-    case "GroupChatMemberAdded": {
-      const member = convertJSONToMember(json.data.member);
-      return GroupChatMemberAdded.of(
-        id,
-        member,
-        executorId,
-        json.sequenceNumber,
-      );
-    }
-    case "GroupChatMemberRemoved": {
-      const member = convertJSONToMember(json.data.member);
-      return GroupChatMemberRemoved.of(
-        id,
-        member,
-        executorId,
-        json.sequenceNumber,
-      );
-    }
-    case "GroupChatMessagePosted": {
-      const message = convertJSONToMessage(json.data.message);
-      return GroupChatMessagePosted.of(
-        id,
-        message,
-        executorId,
-        json.sequenceNumber,
-      );
-    }
-    case "GroupChatMessageDeleted": {
-      const message = convertJSONToMessage(json.data.message);
-      return GroupChatMessageDeleted.of(
-        id,
-        message,
-        executorId,
-        json.sequenceNumber,
-      );
-    }
-    case "GroupChatDeleted": {
-      return GroupChatDeleted.of(id, executorId, json.sequenceNumber);
-    }
-    default:
-      throw new Error(`Unknown type: ${json.type}`);
-  }
-}
-
-export {
-  type GroupChatEvent,
-  type GroupChatEventTypeSymbol,
-  GroupChatCreated,
-  GroupChatCreatedTypeSymbol,
-  GroupChatRenamed,
-  GroupChatRenamedTypeSymbol,
-  GroupChatMemberAdded,
-  GroupChatMemberAddedTypeSymbol,
-  GroupChatMemberRemoved,
-  GroupChatMemberRemovedTypeSymbol,
-  GroupChatMessagePosted,
-  GroupChatMessagePostedTypeSymbol,
-  GroupChatMessageDeleted,
-  GroupChatMessageDeletedTypeSymbol,
-  GroupChatDeleted,
-  GroupChatDeletedTypeSymbol,
-  GroupChatEventFactory,
-  convertJSONToGroupChatEvent,
 };
+
+type GroupChatEventBaseJson = {
+  id: string;
+  aggregateId: GroupChatIdJson;
+  executorId: UserAccountIdJson;
+  sequenceNumber: number;
+  occurredAt: string;
+  isCreated: boolean;
+};
+
+function baseFields(input: {
+  id: string;
+  aggregateId: GroupChatId;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+}): GroupChatEventBase {
+  requireNonEmptyString("event id", input.id);
+  requireSequenceNumber(input.sequenceNumber);
+  requireValidDate(input.occurredAt);
+  return {
+    id: input.id,
+    aggregateId: input.aggregateId,
+    executorId: input.executorId,
+    sequenceNumber: input.sequenceNumber,
+    occurredAt: input.occurredAt,
+  } as GroupChatEventBase;
+}
+
+function baseToJSON(
+  event: GroupChatEventBase & { isCreated: boolean },
+): GroupChatEventBaseJson {
+  return {
+    id: event.id,
+    aggregateId: { value: event.aggregateId.value },
+    executorId: { value: event.executorId.value },
+    sequenceNumber: event.sequenceNumber,
+    occurredAt: event.occurredAt.toISOString(),
+    isCreated: event.isCreated,
+  };
+}
+
+function baseFromJSON(json: GroupChatEventDataJson): {
+  id: string;
+  aggregateId: GroupChatId;
+  executorId: UserAccountId;
+  sequenceNumber: number;
+  occurredAt: Date;
+} {
+  // Reject corrupt payloads explicitly rather than coercing (e.g. a missing id
+  // must not become the string "undefined" and pass validation downstream).
+  if (typeof json.id !== "string") {
+    throw new Error("Invalid GroupChatEvent JSON: id must be a string");
+  }
+  if (json.id === "") {
+    throw new Error("Invalid GroupChatEvent JSON: id must not be empty");
+  }
+  if (
+    typeof json.sequenceNumber !== "number" ||
+    !Number.isFinite(json.sequenceNumber)
+  ) {
+    throw new Error(
+      "Invalid GroupChatEvent JSON: sequenceNumber must be a finite number",
+    );
+  }
+  if (typeof json.occurredAt !== "string") {
+    throw new Error("Invalid GroupChatEvent JSON: occurredAt must be a string");
+  }
+  const occurredAt = new Date(json.occurredAt);
+  if (Number.isNaN(occurredAt.getTime())) {
+    throw new Error("Invalid GroupChatEvent JSON: occurredAt must be valid");
+  }
+  return {
+    id: json.id,
+    aggregateId: convertJSONToGroupChatId(json.aggregateId),
+    executorId: convertJSONToUserAccountId(json.executorId),
+    sequenceNumber: json.sequenceNumber,
+    occurredAt,
+  };
+}
+
+// --- GroupChatCreated -----------------------------------------------------
+
+export type GroupChatCreatedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatCreated";
+  name: GroupChatNameJson;
+  members: MembersJson;
+};
+
+export type GroupChatCreated = GroupChatEventBase & {
+  typeName: "GroupChatCreated";
+  isCreated: true;
+  name: GroupChatName;
+  members: Members;
+  readonly [GROUP_CHAT_CREATED_BRAND]: true;
+};
+
+export namespace GroupChatCreated {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    name: GroupChatName;
+    members: Members;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatCreated {
+    return Object.freeze({
+      [GROUP_CHAT_CREATED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatCreated",
+      isCreated: true,
+      name: input.name,
+      members: input.members,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    name: GroupChatName,
+    members: Members,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatCreated {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      name,
+      members,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatCreated {
+    return brandOf(value) === GROUP_CHAT_CREATED_BRAND;
+  }
+
+  export function toJSON(event: GroupChatCreated): GroupChatCreatedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatCreated",
+      name: { value: event.name.value },
+      members: { values: event.members.values.map((m) => Member.toJSON(m)) },
+    };
+  }
+
+  export function fromJSON(json: GroupChatEventDataJson): GroupChatCreated {
+    return create({
+      ...baseFromJSON(json),
+      name: convertJSONToGroupChatName(json.name),
+      members: convertJSONToMembers(json.members),
+    });
+  }
+}
+
+// --- GroupChatRenamed -----------------------------------------------------
+
+export type GroupChatRenamedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatRenamed";
+  name: GroupChatNameJson;
+};
+
+export type GroupChatRenamed = GroupChatEventBase & {
+  typeName: "GroupChatRenamed";
+  isCreated: false;
+  name: GroupChatName;
+  readonly [GROUP_CHAT_RENAMED_BRAND]: true;
+};
+
+export namespace GroupChatRenamed {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    name: GroupChatName;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatRenamed {
+    return Object.freeze({
+      [GROUP_CHAT_RENAMED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatRenamed",
+      isCreated: false,
+      name: input.name,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    name: GroupChatName,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatRenamed {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      name,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatRenamed {
+    return brandOf(value) === GROUP_CHAT_RENAMED_BRAND;
+  }
+
+  export function toJSON(event: GroupChatRenamed): GroupChatRenamedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatRenamed",
+      name: { value: event.name.value },
+    };
+  }
+
+  export function fromJSON(json: GroupChatEventDataJson): GroupChatRenamed {
+    return create({
+      ...baseFromJSON(json),
+      name: convertJSONToGroupChatName(json.name),
+    });
+  }
+}
+
+// --- GroupChatMemberAdded -------------------------------------------------
+
+export type GroupChatMemberAddedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatMemberAdded";
+  member: MemberJson;
+};
+
+export type GroupChatMemberAdded = GroupChatEventBase & {
+  typeName: "GroupChatMemberAdded";
+  isCreated: false;
+  member: Member;
+  readonly [GROUP_CHAT_MEMBER_ADDED_BRAND]: true;
+};
+
+export namespace GroupChatMemberAdded {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    member: Member;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatMemberAdded {
+    return Object.freeze({
+      [GROUP_CHAT_MEMBER_ADDED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatMemberAdded",
+      isCreated: false,
+      member: input.member,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    member: Member,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMemberAdded {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      member,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatMemberAdded {
+    return brandOf(value) === GROUP_CHAT_MEMBER_ADDED_BRAND;
+  }
+
+  export function toJSON(
+    event: GroupChatMemberAdded,
+  ): GroupChatMemberAddedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatMemberAdded",
+      member: Member.toJSON(event.member),
+    };
+  }
+
+  export function fromJSON(json: GroupChatEventDataJson): GroupChatMemberAdded {
+    return create({
+      ...baseFromJSON(json),
+      member: convertJSONToMember(json.member),
+    });
+  }
+}
+
+// --- GroupChatMemberRemoved -----------------------------------------------
+
+export type GroupChatMemberRemovedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatMemberRemoved";
+  member: MemberJson;
+};
+
+export type GroupChatMemberRemoved = GroupChatEventBase & {
+  typeName: "GroupChatMemberRemoved";
+  isCreated: false;
+  member: Member;
+  readonly [GROUP_CHAT_MEMBER_REMOVED_BRAND]: true;
+};
+
+export namespace GroupChatMemberRemoved {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    member: Member;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatMemberRemoved {
+    return Object.freeze({
+      [GROUP_CHAT_MEMBER_REMOVED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatMemberRemoved",
+      isCreated: false,
+      member: input.member,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    member: Member,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMemberRemoved {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      member,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatMemberRemoved {
+    return brandOf(value) === GROUP_CHAT_MEMBER_REMOVED_BRAND;
+  }
+
+  export function toJSON(
+    event: GroupChatMemberRemoved,
+  ): GroupChatMemberRemovedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatMemberRemoved",
+      member: Member.toJSON(event.member),
+    };
+  }
+
+  export function fromJSON(
+    json: GroupChatEventDataJson,
+  ): GroupChatMemberRemoved {
+    return create({
+      ...baseFromJSON(json),
+      member: convertJSONToMember(json.member),
+    });
+  }
+}
+
+// --- GroupChatMessagePosted -----------------------------------------------
+
+export type GroupChatMessagePostedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatMessagePosted";
+  message: MessageJson;
+};
+
+export type GroupChatMessagePosted = GroupChatEventBase & {
+  typeName: "GroupChatMessagePosted";
+  isCreated: false;
+  message: Message;
+  readonly [GROUP_CHAT_MESSAGE_POSTED_BRAND]: true;
+};
+
+export namespace GroupChatMessagePosted {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    message: Message;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatMessagePosted {
+    return Object.freeze({
+      [GROUP_CHAT_MESSAGE_POSTED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatMessagePosted",
+      isCreated: false,
+      message: input.message,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    message: Message,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMessagePosted {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      message,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatMessagePosted {
+    return brandOf(value) === GROUP_CHAT_MESSAGE_POSTED_BRAND;
+  }
+
+  export function toJSON(
+    event: GroupChatMessagePosted,
+  ): GroupChatMessagePostedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatMessagePosted",
+      message: Message.toJSON(event.message),
+    };
+  }
+
+  export function fromJSON(
+    json: GroupChatEventDataJson,
+  ): GroupChatMessagePosted {
+    return create({
+      ...baseFromJSON(json),
+      message: convertJSONToMessage(json.message),
+    });
+  }
+}
+
+// --- GroupChatMessageDeleted ----------------------------------------------
+
+export type GroupChatMessageDeletedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatMessageDeleted";
+  message: MessageJson;
+};
+
+export type GroupChatMessageDeleted = GroupChatEventBase & {
+  typeName: "GroupChatMessageDeleted";
+  isCreated: false;
+  message: Message;
+  readonly [GROUP_CHAT_MESSAGE_DELETED_BRAND]: true;
+};
+
+export namespace GroupChatMessageDeleted {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    message: Message;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatMessageDeleted {
+    return Object.freeze({
+      [GROUP_CHAT_MESSAGE_DELETED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatMessageDeleted",
+      isCreated: false,
+      message: input.message,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    message: Message,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatMessageDeleted {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      message,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatMessageDeleted {
+    return brandOf(value) === GROUP_CHAT_MESSAGE_DELETED_BRAND;
+  }
+
+  export function toJSON(
+    event: GroupChatMessageDeleted,
+  ): GroupChatMessageDeletedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatMessageDeleted",
+      message: Message.toJSON(event.message),
+    };
+  }
+
+  export function fromJSON(
+    json: GroupChatEventDataJson,
+  ): GroupChatMessageDeleted {
+    return create({
+      ...baseFromJSON(json),
+      message: convertJSONToMessage(json.message),
+    });
+  }
+}
+
+// --- GroupChatDeleted -----------------------------------------------------
+
+export type GroupChatDeletedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatDeleted";
+};
+
+export type GroupChatDeleted = GroupChatEventBase & {
+  typeName: "GroupChatDeleted";
+  isCreated: false;
+  readonly [GROUP_CHAT_DELETED_BRAND]: true;
+};
+
+export namespace GroupChatDeleted {
+  export function create(input: {
+    id: string;
+    aggregateId: GroupChatId;
+    executorId: UserAccountId;
+    sequenceNumber: number;
+    occurredAt: Date;
+  }): GroupChatDeleted {
+    return Object.freeze({
+      [GROUP_CHAT_DELETED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatDeleted",
+      isCreated: false,
+    });
+  }
+
+  export function of(
+    aggregateId: GroupChatId,
+    executorId: UserAccountId,
+    sequenceNumber: number,
+  ): GroupChatDeleted {
+    return create({
+      id: Infrastructure.generateULID(),
+      aggregateId,
+      executorId,
+      sequenceNumber,
+      occurredAt: new Date(),
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatDeleted {
+    return brandOf(value) === GROUP_CHAT_DELETED_BRAND;
+  }
+
+  export function toJSON(event: GroupChatDeleted): GroupChatDeletedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatDeleted",
+    };
+  }
+
+  export function fromJSON(json: GroupChatEventDataJson): GroupChatDeleted {
+    return create(baseFromJSON(json));
+  }
+}
+
+// --- Union ----------------------------------------------------------------
+
+export type GroupChatEvent =
+  | GroupChatCreated
+  | GroupChatRenamed
+  | GroupChatMemberAdded
+  | GroupChatMemberRemoved
+  | GroupChatMessagePosted
+  | GroupChatMessageDeleted
+  | GroupChatDeleted;
+
+export type GroupChatEventJson =
+  | GroupChatCreatedJson
+  | GroupChatRenamedJson
+  | GroupChatMemberAddedJson
+  | GroupChatMemberRemovedJson
+  | GroupChatMessagePostedJson
+  | GroupChatMessageDeletedJson
+  | GroupChatDeletedJson;
+
+export namespace GroupChatEvent {
+  export function is(value: unknown): value is GroupChatEvent {
+    return (
+      GroupChatCreated.is(value) ||
+      GroupChatRenamed.is(value) ||
+      GroupChatMemberAdded.is(value) ||
+      GroupChatMemberRemoved.is(value) ||
+      GroupChatMessagePosted.is(value) ||
+      GroupChatMessageDeleted.is(value) ||
+      GroupChatDeleted.is(value)
+    );
+  }
+
+  export function toJSON(event: GroupChatEvent): GroupChatEventJson {
+    switch (event.typeName) {
+      case "GroupChatCreated":
+        return GroupChatCreated.toJSON(event);
+      case "GroupChatRenamed":
+        return GroupChatRenamed.toJSON(event);
+      case "GroupChatMemberAdded":
+        return GroupChatMemberAdded.toJSON(event);
+      case "GroupChatMemberRemoved":
+        return GroupChatMemberRemoved.toJSON(event);
+      case "GroupChatMessagePosted":
+        return GroupChatMessagePosted.toJSON(event);
+      case "GroupChatMessageDeleted":
+        return GroupChatMessageDeleted.toJSON(event);
+      case "GroupChatDeleted":
+        return GroupChatDeleted.toJSON(event);
+      default: {
+        const exhaustive: never = event;
+        throw new Error(`Unknown GroupChatEvent: ${String(exhaustive)}`);
+      }
+    }
+  }
+
+  export function fromJSON(json: unknown): GroupChatEvent {
+    const { typeName, data } = unwrapEvent(json);
+    switch (typeName) {
+      case "GroupChatCreated":
+        return GroupChatCreated.fromJSON(data);
+      case "GroupChatRenamed":
+        return GroupChatRenamed.fromJSON(data);
+      case "GroupChatMemberAdded":
+        return GroupChatMemberAdded.fromJSON(data);
+      case "GroupChatMemberRemoved":
+        return GroupChatMemberRemoved.fromJSON(data);
+      case "GroupChatMessagePosted":
+        return GroupChatMessagePosted.fromJSON(data);
+      case "GroupChatMessageDeleted":
+        return GroupChatMessageDeleted.fromJSON(data);
+      case "GroupChatDeleted":
+        return GroupChatDeleted.fromJSON(data);
+      default:
+        throw new Error(`Unknown GroupChatEvent type: ${String(typeName)}`);
+    }
+  }
+}
+
+export const convertJSONToGroupChatEvent = GroupChatEvent.fromJSON;
+
+// --- Internal helpers -----------------------------------------------------
+
+// biome-ignore lint/suspicious/noExplicitAny: dynamic JSON payload from the event store
+type GroupChatEventDataJson = any;
+
+function unwrapEvent(json: unknown): {
+  typeName: string;
+  data: GroupChatEventDataJson;
+} {
+  if (typeof json !== "object" || json === null) {
+    throw new Error("Invalid GroupChatEvent JSON");
+  }
+  // Serializer envelope: { type, data }
+  if ("type" in json && "data" in json) {
+    return { typeName: String(json.type), data: json.data };
+  }
+  // Raw event object with a typeName discriminator.
+  if ("typeName" in json) {
+    return { typeName: String(json.typeName), data: json };
+  }
+  throw new Error("Invalid GroupChatEvent JSON");
+}
+
+function brandOf(value: unknown): symbol | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  for (const brand of [
+    GROUP_CHAT_CREATED_BRAND,
+    GROUP_CHAT_RENAMED_BRAND,
+    GROUP_CHAT_MEMBER_ADDED_BRAND,
+    GROUP_CHAT_MEMBER_REMOVED_BRAND,
+    GROUP_CHAT_MESSAGE_POSTED_BRAND,
+    GROUP_CHAT_MESSAGE_DELETED_BRAND,
+    GROUP_CHAT_DELETED_BRAND,
+  ]) {
+    if ((value as Record<symbol, unknown>)[brand] === true) {
+      return brand;
+    }
+  }
+  return undefined;
+}
+
+function requireNonEmptyString(fieldName: string, value: unknown): void {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${fieldName} must be a non-empty string`);
+  }
+}
+
+function requireSequenceNumber(value: unknown): void {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error("event sequenceNumber must be a non-negative safe integer");
+  }
+}
+
+function requireValidDate(value: unknown): void {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    throw new Error("event occurredAt must be a valid Date");
+  }
+}

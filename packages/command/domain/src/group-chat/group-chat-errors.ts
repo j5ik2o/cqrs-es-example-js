@@ -1,111 +1,56 @@
-abstract class GroupChatError extends Error {}
+const GROUP_CHAT_ERROR_BRAND: unique symbol = Symbol("GroupChatError");
 
-const GroupChatRenameErrorTypeSymbol = Symbol("GroupChatRenameError");
+export type GroupChatErrorKind =
+  | "rename"
+  | "add-member"
+  | "remove-member"
+  | "post-message"
+  | "delete-message"
+  | "delete";
 
-class GroupChatRenameError extends GroupChatError {
-  symbol: typeof GroupChatRenameErrorTypeSymbol =
-    GroupChatRenameErrorTypeSymbol;
-
-  private constructor(message: string, cause?: Error) {
-    super(message, cause);
-  }
-
-  static of(message: string, cause?: Error): GroupChatRenameError {
-    return new GroupChatRenameError(message, cause);
-  }
-}
-
-const GroupChatAddMemberErrorTypeSymbol = Symbol("GroupChatAddMemberError");
-
-class GroupChatAddMemberError extends GroupChatError {
-  symbol: typeof GroupChatAddMemberErrorTypeSymbol =
-    GroupChatAddMemberErrorTypeSymbol;
-
-  private constructor(message: string, error?: Error) {
-    super(message, error);
-  }
-
-  static of(message: string, error?: Error): GroupChatAddMemberError {
-    return new GroupChatAddMemberError(message, error);
-  }
-}
-
-const GroupChatRemoveMemberErrorTypeSymbol = Symbol(
-  "GroupChatMemberRemoveError",
-);
-
-class GroupChatRemoveMemberError extends GroupChatError {
-  symbol: typeof GroupChatRemoveMemberErrorTypeSymbol =
-    GroupChatRemoveMemberErrorTypeSymbol;
-
-  private constructor(message: string, error?: Error) {
-    super(message, error);
-  }
-
-  static of(message: string, error?: Error): GroupChatRemoveMemberError {
-    return new GroupChatRemoveMemberError(message, error);
-  }
-}
-
-const GroupChatPostMessageErrorTypeSymbol = Symbol("GroupChatPostError");
-
-class GroupChatPostMessageError extends GroupChatError {
-  symbol: typeof GroupChatPostMessageErrorTypeSymbol =
-    GroupChatPostMessageErrorTypeSymbol;
-
-  private constructor(message: string, error?: Error) {
-    super(message, error);
-  }
-
-  static of(message: string, error?: Error): GroupChatPostMessageError {
-    return new GroupChatPostMessageError(message, error);
-  }
-}
-
-const GroupChatDeleteMessageErrorTypeSymbol = Symbol("GroupChatPostError");
-
-class GroupChatDeleteMessageError extends GroupChatError {
-  symbol: typeof GroupChatDeleteMessageErrorTypeSymbol =
-    GroupChatDeleteMessageErrorTypeSymbol;
-
-  private constructor(message: string, error?: Error) {
-    super(message, error);
-  }
-
-  static of(message: string, error?: Error): GroupChatDeleteMessageError {
-    return new GroupChatDeleteMessageError(message, error);
-  }
-}
-
-const GroupChatDeleteErrorTypeSymbol = Symbol("GroupChatDeleteError");
-
-class GroupChatDeleteError extends Error {
-  readonly symbol: typeof GroupChatDeleteErrorTypeSymbol =
-    GroupChatDeleteErrorTypeSymbol;
-
-  private constructor(message: string, cause?: Error) {
-    super(message);
-    this.name = "GroupChatDeleteError";
-    this.cause = cause;
-  }
-
-  static of(message: string): GroupChatDeleteError {
-    return new GroupChatDeleteError(message);
-  }
-}
-
-export {
-  GroupChatError,
-  GroupChatRenameError,
-  GroupChatRenameErrorTypeSymbol,
-  GroupChatAddMemberError,
-  GroupChatAddMemberErrorTypeSymbol,
-  GroupChatRemoveMemberError,
-  GroupChatRemoveMemberErrorTypeSymbol,
-  GroupChatPostMessageError,
-  GroupChatPostMessageErrorTypeSymbol,
-  GroupChatDeleteMessageError,
-  GroupChatDeleteMessageErrorTypeSymbol,
-  GroupChatDeleteError,
-  GroupChatDeleteErrorTypeSymbol,
+export type GroupChatError = {
+  kind: GroupChatErrorKind;
+  message: string;
+  readonly [GROUP_CHAT_ERROR_BRAND]: true;
 };
+
+export namespace GroupChatError {
+  function make(kind: GroupChatErrorKind, message: string): GroupChatError {
+    return Object.freeze({
+      [GROUP_CHAT_ERROR_BRAND]: true as const,
+      kind,
+      message,
+    });
+  }
+
+  export function rename(message: string): GroupChatError {
+    return make("rename", message);
+  }
+
+  export function addMember(message: string): GroupChatError {
+    return make("add-member", message);
+  }
+
+  export function removeMember(message: string): GroupChatError {
+    return make("remove-member", message);
+  }
+
+  export function postMessage(message: string): GroupChatError {
+    return make("post-message", message);
+  }
+
+  export function deleteMessage(message: string): GroupChatError {
+    return make("delete-message", message);
+  }
+
+  export function deleteGroupChat(message: string): GroupChatError {
+    return make("delete", message);
+  }
+
+  export function is(value: unknown): value is GroupChatError {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    return (value as Partial<GroupChatError>)[GROUP_CHAT_ERROR_BRAND] === true;
+  }
+}

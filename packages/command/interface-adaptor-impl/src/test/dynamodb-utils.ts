@@ -25,49 +25,23 @@ async function createJournalTable(
   const request: CreateTableCommandInput = {
     TableName: tableName,
     AttributeDefinitions: [
-      {
-        AttributeName: "pkey",
-        AttributeType: "S",
-      },
-      {
-        AttributeName: "skey",
-        AttributeType: "S",
-      },
-      {
-        AttributeName: "aid",
-        AttributeType: "S",
-      },
-      {
-        AttributeName: "seq_nr",
-        AttributeType: "N",
-      },
+      { AttributeName: "pkey", AttributeType: "S" },
+      { AttributeName: "skey", AttributeType: "S" },
+      { AttributeName: "aid", AttributeType: "S" },
+      { AttributeName: "seq_nr", AttributeType: "N" },
     ],
     KeySchema: [
-      {
-        AttributeName: "pkey",
-        KeyType: "HASH",
-      },
-      {
-        AttributeName: "skey",
-        KeyType: "RANGE",
-      },
+      { AttributeName: "pkey", KeyType: "HASH" },
+      { AttributeName: "skey", KeyType: "RANGE" },
     ],
     GlobalSecondaryIndexes: [
       {
         IndexName: indexName,
         KeySchema: [
-          {
-            AttributeName: "aid",
-            KeyType: "HASH",
-          },
-          {
-            AttributeName: "seq_nr",
-            KeyType: "RANGE",
-          },
+          { AttributeName: "aid", KeyType: "HASH" },
+          { AttributeName: "seq_nr", KeyType: "RANGE" },
         ],
-        Projection: {
-          ProjectionType: "ALL",
-        },
+        Projection: { ProjectionType: "ALL" },
         ProvisionedThroughput: {
           ReadCapacityUnits: 10,
           WriteCapacityUnits: 5,
@@ -87,53 +61,41 @@ async function createSnapshotTable(
   dynamodbClient: DynamoDBClient,
   tableName: string,
   indexName: string,
+  activeTtlIndexName: string,
 ) {
   const request: CreateTableCommandInput = {
     TableName: tableName,
     AttributeDefinitions: [
-      {
-        AttributeName: "pkey",
-        AttributeType: "S",
-      },
-      {
-        AttributeName: "skey",
-        AttributeType: "S",
-      },
-      {
-        AttributeName: "aid",
-        AttributeType: "S",
-      },
-      {
-        AttributeName: "seq_nr",
-        AttributeType: "N",
-      },
+      { AttributeName: "pkey", AttributeType: "S" },
+      { AttributeName: "skey", AttributeType: "S" },
+      { AttributeName: "aid", AttributeType: "S" },
+      { AttributeName: "seq_nr", AttributeType: "N" },
+      { AttributeName: "active_ttl_seq_nr", AttributeType: "N" },
     ],
     KeySchema: [
-      {
-        AttributeName: "pkey",
-        KeyType: "HASH",
-      },
-      {
-        AttributeName: "skey",
-        KeyType: "RANGE",
-      },
+      { AttributeName: "pkey", KeyType: "HASH" },
+      { AttributeName: "skey", KeyType: "RANGE" },
     ],
     GlobalSecondaryIndexes: [
       {
         IndexName: indexName,
         KeySchema: [
-          {
-            AttributeName: "aid",
-            KeyType: "HASH",
-          },
-          {
-            AttributeName: "seq_nr",
-            KeyType: "RANGE",
-          },
+          { AttributeName: "aid", KeyType: "HASH" },
+          { AttributeName: "seq_nr", KeyType: "RANGE" },
         ],
-        Projection: {
-          ProjectionType: "ALL",
+        Projection: { ProjectionType: "ALL" },
+        ProvisionedThroughput: {
+          ReadCapacityUnits: 10,
+          WriteCapacityUnits: 5,
         },
+      },
+      {
+        IndexName: activeTtlIndexName,
+        KeySchema: [
+          { AttributeName: "aid", KeyType: "HASH" },
+          { AttributeName: "active_ttl_seq_nr", KeyType: "RANGE" },
+        ],
+        Projection: { ProjectionType: "KEYS_ONLY" },
         ProvisionedThroughput: {
           ReadCapacityUnits: 10,
           WriteCapacityUnits: 5,

@@ -4,6 +4,7 @@ CREATE TABLE `group_chats`
     `disabled`   tinyint(1)  NOT NULL,
     `name`       varchar(64) NOT NULL,
     `owner_id`   varchar(64) NOT NULL,
+    `last_processed_sequence_number` int NOT NULL,
     `created_at` datetime    NOT NULL,
     `updated_at` datetime    NOT NULL,
     PRIMARY KEY (`id`)

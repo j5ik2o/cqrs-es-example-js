@@ -1,74 +1,89 @@
 import {
   type UserAccountId,
+  type UserAccountIdJson,
   convertJSONToUserAccountId,
 } from "../user-account";
-import { type MemberId, convertJSONToMemberId } from "./member-id";
+import {
+  type MemberId,
+  type MemberIdJson,
+  convertJSONToMemberId,
+} from "./member-id";
 
-type MemberRole = "administrator" | "member";
+const MEMBER_BRAND: unique symbol = Symbol("Member");
 
-const MemberTypeSymbol = Symbol("Member");
+export type MemberRole = "administrator" | "member";
 
-interface MemberParams {
+export type MemberJson = {
+  id: MemberIdJson;
+  userAccountId: UserAccountIdJson;
+  memberRole: MemberRole;
+};
+
+export type Member = {
   id: MemberId;
   userAccountId: UserAccountId;
   memberRole: MemberRole;
-}
+  readonly [MEMBER_BRAND]: true;
+};
 
-class Member {
-  readonly symbol: typeof MemberTypeSymbol = MemberTypeSymbol;
-
-  public readonly id: MemberId;
-  public readonly userAccountId: UserAccountId;
-  public readonly memberRole: MemberRole;
-
-  private constructor(params: MemberParams) {
-    this.id = params.id;
-    this.userAccountId = params.userAccountId;
-    this.memberRole = params.memberRole;
-  }
-
-  toJSON() {
-    return {
-      id: this.id.toJSON(),
-      userAccountId: this.userAccountId.toJSON(),
-      memberRole: this.memberRole,
-    };
-  }
-
-  isAdministrator() {
-    return this.memberRole === "administrator";
-  }
-
-  isMember() {
-    return this.memberRole === "member";
-  }
-
-  withRole(role: MemberRole) {
-    return new Member({ ...this, memberRole: role });
-  }
-
-  toString() {
-    return `Member(${this.id.toString()}, ${this.userAccountId.toString()}, ${this.memberRole.toString()})`;
-  }
-
-  equals(other: Member) {
-    return this.userAccountId.value === other.userAccountId.value;
-  }
-
-  static of(
+export namespace Member {
+  export function of(
     id: MemberId,
     userAccountId: UserAccountId,
     memberRole: MemberRole,
   ): Member {
-    return new Member({ id, userAccountId, memberRole });
+    return Object.freeze({
+      [MEMBER_BRAND]: true as const,
+      id,
+      userAccountId,
+      memberRole,
+    });
+  }
+
+  export function isAdministrator(member: Member): boolean {
+    return member.memberRole === "administrator";
+  }
+
+  export function isMember(member: Member): boolean {
+    return member.memberRole === "member";
+  }
+
+  export function withRole(member: Member, memberRole: MemberRole): Member {
+    return of(member.id, member.userAccountId, memberRole);
+  }
+
+  export function equals(a: Member, b: Member): boolean {
+    return a.userAccountId.value === b.userAccountId.value;
+  }
+
+  export function toJSON(member: Member): MemberJson {
+    return {
+      id: { value: member.id.value },
+      userAccountId: { value: member.userAccountId.value },
+      memberRole: member.memberRole,
+    };
+  }
+
+  export function fromJSON(json: unknown): Member {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("id" in json) ||
+      !("userAccountId" in json) ||
+      !("memberRole" in json)
+    ) {
+      throw new Error("Invalid Member JSON");
+    }
+    const memberRole = json.memberRole;
+    if (memberRole !== "administrator" && memberRole !== "member") {
+      throw new Error(`Invalid member role: ${String(memberRole)}`);
+    }
+    return of(
+      convertJSONToMemberId(json.id),
+      convertJSONToUserAccountId(json.userAccountId),
+      memberRole,
+    );
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToMember(json: any): Member {
-  const id = convertJSONToMemberId(json.id);
-  const userAccountId = convertJSONToUserAccountId(json.userAccountId);
-  return Member.of(id, userAccountId, json.memberRole);
-}
-
-export { type MemberRole, Member, MemberTypeSymbol, convertJSONToMember };
+export const convertJSONToMember = Member.fromJSON;

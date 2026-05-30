@@ -98,8 +98,8 @@ async function localRmuMain() {
     logger.info(`Params: ${e.params}`);
     logger.info(`Duration: ${e.duration}ms`);
   });
-  const dao = GroupChatDao.of(prisma);
-  const readModelUpdater = ReadModelUpdater.of(dao);
+  const dao = GroupChatDao.create(prisma);
+  const readModelUpdater = ReadModelUpdater.create(dao);
 
   for (;;) {
     await streamDriver(

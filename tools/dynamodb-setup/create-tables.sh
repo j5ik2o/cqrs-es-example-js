@@ -28,12 +28,14 @@ JOURNAL_TABLE_NAME=${JOURNAL_TABLE_NAME:-"${PREFIX}-journal"}
 JOURNAL_GSI_NAME=${JOURNAL_GSI_NAME:-"${PREFIX}-aid-index"}
 SNAPSHOT_TABLE_NAME=${SNAPSHOT_TABLE_NAME:-"${PREFIX}-snapshot"}
 SNAPSHOT_GSI_NAME=${SNAPSHOT_GSI_NAME:-"${PREFIX}-aid-index"}
+SNAPSHOT_ACTIVE_TTL_GSI_NAME=${SNAPSHOT_ACTIVE_TTL_GSI_NAME:-"${PREFIX}-active-ttl-index"}
 
 echo "DYNAMODB_ENDPOINT = ${DYNAMODB_ENDPOINT}"
 echo "JOURNAL_TABLE_NAME = ${JOURNAL_TABLE_NAME}"
 echo "JOURNAL_GSI_NAME = ${JOURNAL_GSI_NAME}"
 echo "SNAPSHOT_TABLE_NAME = ${SNAPSHOT_TABLE_NAME}"
 echo "SNAPSHOT_GSI_NAME = ${SNAPSHOT_GSI_NAME}"
+echo "SNAPSHOT_ACTIVE_TTL_GSI_NAME = ${SNAPSHOT_ACTIVE_TTL_GSI_NAME}"
 
 if [ "${ENV_NAME}" = "dev" ]; then
   # shellcheck disable=SC2034
@@ -79,6 +81,7 @@ aws dynamodb create-table \
     AttributeName=skey,AttributeType=S \
     AttributeName=aid,AttributeType=S \
     AttributeName=seq_nr,AttributeType=N \
+    AttributeName=active_ttl_seq_nr,AttributeType=N \
   --key-schema \
     AttributeName=pkey,KeyType=HASH \
     AttributeName=skey,KeyType=RANGE \
@@ -92,6 +95,18 @@ aws dynamodb create-table \
                       {\"AttributeName\":\"seq_nr\",\"KeyType\":\"RANGE\"}],
       \"Projection\":{
         \"ProjectionType\":\"ALL\"
+      },
+      \"ProvisionedThroughput\": {
+        \"ReadCapacityUnits\": 10,
+        \"WriteCapacityUnits\": 10
+      }
+    },
+    {
+      \"IndexName\": \"${SNAPSHOT_ACTIVE_TTL_GSI_NAME}\",
+      \"KeySchema\": [{\"AttributeName\":\"aid\",\"KeyType\":\"HASH\"},
+                      {\"AttributeName\":\"active_ttl_seq_nr\",\"KeyType\":\"RANGE\"}],
+      \"Projection\":{
+        \"ProjectionType\":\"KEYS_ONLY\"
       },
       \"ProvisionedThroughput\": {
         \"ReadCapacityUnits\": 10,

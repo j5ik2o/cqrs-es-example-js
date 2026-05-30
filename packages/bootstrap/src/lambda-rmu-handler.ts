@@ -20,7 +20,7 @@ function getReadModelUpdater(): ReadModelUpdater {
       },
     },
   });
-  readModelUpdater = ReadModelUpdater.of(GroupChatDao.of(prisma));
+  readModelUpdater = ReadModelUpdater.create(GroupChatDao.create(prisma));
   return readModelUpdater;
 }
 
