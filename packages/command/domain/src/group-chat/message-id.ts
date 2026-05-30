@@ -1,5 +1,5 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import { Result } from "event-store-adapter-js";
+import { Result } from "event-store-adapter-js/dist/result";
 import * as U from "ulidx";
 
 const MESSAGE_ID_BRAND: unique symbol = Symbol("MessageId");

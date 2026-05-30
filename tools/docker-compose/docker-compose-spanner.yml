@@ -7,12 +7,11 @@
 # Pub/Sub -> Cloud Run/Functions -> MySQL) with the bridge standing in for the
 # managed Dataflow stage.
 #
-# KNOWN LIMITATION (see docs/spanner-local-pipeline.md): the Cloud Spanner
-# emulator requires change-stream reads to be single-use ExecuteStreamingSql
-# calls, which the high-level @google-cloud/spanner client does not issue. The
-# bridge is written for real Spanner; on the emulator the change-stream read
-# step is the documented fallback point. All other stages (write API on Spanner,
-# Pub/Sub -> Functions RMU -> MySQL -> read API) run locally.
+# The change-stream bridge reads via a low-level single-use ExecuteStreamingSql
+# client (packages/bootstrap/src/spanner-change-stream-reader.ts), so the whole
+# pipeline — including the change-stream read — runs against the emulator. The
+# emulator's constraints (single-use reads; bare `SELECT ChangeRecord FROM
+# READ_<stream>()` only) are handled there. See docs/spanner-local-pipeline.md.
 version: '3.6'
 services:
   spanner-emulator:
@@ -73,7 +72,9 @@ services:
       GCLOUD_PROJECT: local-project
       METADATA_SERVER_DETECTION: "none"
     depends_on:
-      - spanner-setup
+      spanner-setup:
+        condition: service_completed_successfully
+    restart: on-failure
 
   spanner-bridge:
     command: [ "spannerBridge" ]
@@ -92,7 +93,8 @@ services:
       GCLOUD_PROJECT: local-project
       METADATA_SERVER_DETECTION: "none"
     depends_on:
-      - spanner-setup
+      spanner-setup:
+        condition: service_completed_successfully
     restart: on-failure
 
   rmu-function:
@@ -112,9 +114,13 @@ services:
       PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
       GOOGLE_CLOUD_PROJECT: local-project
     depends_on:
-      - mysql
-      - migration
-      - pubsub-emulator
+      mysql:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+      pubsub-emulator:
+        condition: service_started
+    restart: on-failure
 
   read-api-server-spanner:
     command: [ "readApi" ]
@@ -127,7 +133,12 @@ services:
       API_PORT: 3000
       DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
     depends_on:
-      - mysql
-      - migration
-      - write-api-server-spanner
-      - rmu-function
+      mysql:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+      write-api-server-spanner:
+        condition: service_started
+      rmu-function:
+        condition: service_started
+    restart: on-failure

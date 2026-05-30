@@ -29,11 +29,17 @@ SPANNER="-f ../docker-compose/docker-compose-spanner.yml"
 
 # Only the database services (MySQL + migration) are needed from the databases
 # compose for the Spanner path; the read model lives in the same MySQL.
+# Both compose files are passed to every command so the Spanner services'
+# cross-file depends_on (mysql, migration) resolve. Services are listed
+# explicitly so the DynamoDB-only services (localstack, etc.) are not started.
+SPANNER_SERVICES="mysql migration spanner-emulator pubsub-emulator spanner-setup \
+write-api-server-spanner spanner-bridge rmu-function read-api-server-spanner"
+
 docker compose -p "${PROJECT}" ${DATABASES} ${SPANNER} down -v --remove-orphans
 
-docker compose -p "${PROJECT}" ${DATABASES} up --remove-orphans -d mysql migration
-
-docker compose -p "${PROJECT}" ${SPANNER} up --remove-orphans --force-recreate -d "$@"
+# shellcheck disable=SC2086
+docker compose -p "${PROJECT}" ${DATABASES} ${SPANNER} up \
+  --remove-orphans --force-recreate -d ${SPANNER_SERVICES}
 
 echo ""
 echo "Spanner pipeline is starting."

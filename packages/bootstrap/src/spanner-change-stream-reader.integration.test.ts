@@ -44,7 +44,11 @@ describe("Spanner change-stream reader (write -> change stream -> event)", () =>
   afterAll(async () => {
     await database?.close().catch(() => undefined);
     spanner?.close();
-    process.env.SPANNER_EMULATOR_HOST = prevHost ?? "";
+    if (prevHost === undefined) {
+      Reflect.deleteProperty(process.env, "SPANNER_EMULATOR_HOST");
+    } else {
+      process.env.SPANNER_EMULATOR_HOST = prevHost;
+    }
     await started?.stop().catch(() => undefined);
   }, TIMEOUT);
 
@@ -109,43 +113,60 @@ describe("Spanner change-stream reader (write -> change stream -> event)", () =>
         throw new Error(result.error.message);
       }
 
-      // Let the change record settle, then read the window with the bridge's
-      // reader.
-      await new Promise((r) => setTimeout(r, 1500));
       const reader = createChangeStreamReader(spanner, {
         projectId: PROJECT_ID,
         instanceId: INSTANCE_ID,
         databaseId: DATABASE_ID,
         streamName: STREAM,
       });
-      let events: GroupChatEvent[];
+      let createdEvent: GroupChatEvent | undefined;
       try {
-        const records = await reader.readWindow(
-          start.toISOString(),
-          new Date(Date.now() + 1000).toISOString(),
+        createdEvent = await readUntilEvent(
+          reader,
+          JOURNAL,
+          start,
+          (event) => event.typeName === "GroupChatCreated",
         );
-        events = records
-          .filter((r) => r.tableName === JOURNAL && r.modType === "INSERT")
-          .map((r) => {
-            const payloadJson = Buffer.from(
-              String(r.newValues.payload),
-              "base64",
-            ).toString("utf-8");
-            return convertJSONToGroupChatEvent(JSON.parse(payloadJson));
-          });
       } finally {
         await reader.close();
       }
 
-      const createdEvent = events.find(
-        (e) => e.typeName === "GroupChatCreated",
-      );
       expect(createdEvent).toBeDefined();
       expect(createdEvent?.aggregateId.asString()).toEqual(id.asString());
     },
     TIMEOUT,
   );
 });
+
+async function readUntilEvent(
+  reader: ReturnType<typeof createChangeStreamReader>,
+  journalTableName: string,
+  start: Date,
+  predicate: (event: GroupChatEvent) => boolean,
+): Promise<GroupChatEvent | undefined> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const records = await reader.readWindow(
+      start.toISOString(),
+      new Date(Date.now() + 1_000).toISOString(),
+    );
+    const event = records
+      .filter((r) => r.tableName === journalTableName && r.modType === "INSERT")
+      .map((r) => {
+        const payloadJson = Buffer.from(
+          String(r.newValues.payload),
+          "base64",
+        ).toString("utf-8");
+        return convertJSONToGroupChatEvent(JSON.parse(payloadJson));
+      })
+      .find(predicate);
+    if (event !== undefined) {
+      return event;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return undefined;
+}
 
 function eventStoreSchema(journal: string, snapshot: string): string[] {
   return [

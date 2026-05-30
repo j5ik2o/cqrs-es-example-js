@@ -15,12 +15,22 @@ export type Members = {
 
 export namespace Members {
   export function fromArray(values: readonly Member[]): Members {
-    if (values.length === 0) {
+    // Preserve the uniqueness invariant (one member per userAccountId), keeping
+    // the first occurrence so the creator/administrator stays first.
+    const deduped: Member[] = [];
+    const seen = new Set<string>();
+    for (const member of values) {
+      if (!seen.has(member.userAccountId.value)) {
+        seen.add(member.userAccountId.value);
+        deduped.push(member);
+      }
+    }
+    if (deduped.length === 0) {
       throw new Error("Members cannot be empty");
     }
     return Object.freeze({
       [MEMBERS_BRAND]: true as const,
-      values: Object.freeze([...values]),
+      values: Object.freeze(deduped),
     });
   }
 

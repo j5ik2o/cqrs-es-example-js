@@ -67,14 +67,21 @@ async function setupSpanner(input: {
       await op.promise();
       logger.info(`Created Spanner database: ${input.databaseId}`);
     }
-    const [op] = await database.updateSchema([
-      `CREATE CHANGE STREAM ${input.changeStreamName} FOR ${input.journalTableName}`,
-    ]);
-    await op.promise().catch((error: unknown) => {
-      // Tolerate "already exists" on re-run.
-      logger.warn(`Change stream creation skipped: ${String(error)}`);
-    });
-    logger.info(`Ensured change stream: ${input.changeStreamName}`);
+    try {
+      const [op] = await database.updateSchema([
+        `CREATE CHANGE STREAM ${input.changeStreamName} FOR ${input.journalTableName}`,
+      ]);
+      await op.promise();
+      logger.info(`Created change stream: ${input.changeStreamName}`);
+    } catch (error) {
+      // Tolerate only "already exists" on re-run; surface everything else
+      // (permissions, connectivity, invalid DDL) instead of reporting success.
+      if (isAlreadyExists(error)) {
+        logger.info(`Change stream already exists: ${input.changeStreamName}`);
+      } else {
+        throw error;
+      }
+    }
     await database.close();
   } finally {
     spanner.close();
@@ -131,6 +138,19 @@ function eventStoreSchema(
 function env(name: string, defaultValue: string): string {
   const value = process.env[name];
   return value !== undefined && value !== "" ? value : defaultValue;
+}
+
+// gRPC ALREADY_EXISTS = 6.
+function isAlreadyExists(error: unknown): boolean {
+  if (typeof error === "object" && error !== null) {
+    const code = (error as { code?: number }).code;
+    if (code === 6) {
+      return true;
+    }
+    const message = (error as { message?: string }).message ?? "";
+    return /already exists|duplicate name/i.test(message);
+  }
+  return false;
 }
 
 export { spannerSetupMain };

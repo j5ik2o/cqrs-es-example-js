@@ -15,7 +15,8 @@ The write API reads `PERSISTENCE_BACKEND`:
 | `dynamodb` | `EventStore.createDynamoDB({...})` |
 | `spanner`  | `EventStore.createSpanner({...})`  |
 
-An empty or unknown value fails fast (it does **not** fall back to a default).
+An empty value falls back to `dynamodb` for backward compatibility. Any other
+unknown value fails fast.
 
 DynamoDB env: `PERSISTENCE_JOURNAL_TABLE_NAME`, `PERSISTENCE_SNAPSHOT_TABLE_NAME`,
 `PERSISTENCE_JOURNAL_AID_INDEX_NAME`, `PERSISTENCE_SNAPSHOT_AID_INDEX_NAME`,
@@ -45,7 +46,7 @@ only decode the trigger and forward to the shared service.
 
 ## DynamoDB path (unchanged behavior)
 
-```
+```text
 LocalStack DynamoDB -> DynamoDB Streams -> local RMU / Lambda -> MySQL -> read API
 ```
 
@@ -54,7 +55,7 @@ Start it with `pnpm docker-compose-up` and verify with
 
 ## Spanner production topology
 
-```
+```text
 Spanner journal -> Change Streams -> Dataflow -> Pub/Sub -> Cloud Run / Cloud Functions (RMU) -> MySQL
 ```
 
@@ -63,7 +64,7 @@ read-model updates.
 
 ## Spanner local pipeline
 
-```
+```text
 Spanner emulator -> change-stream bridge -> Pub/Sub emulator -> Functions Framework RMU -> MySQL -> read API
 ```
 

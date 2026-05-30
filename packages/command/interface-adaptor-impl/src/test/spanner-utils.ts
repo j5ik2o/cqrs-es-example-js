@@ -9,6 +9,8 @@ const DEFAULT_PROJECT_ID = "test-project";
 const SPANNER_EMULATOR_GRPC_PORT = 9010;
 const SPANNER_EMULATOR_REST_PORT = 9020;
 
+let spannerEnvLock: Promise<void> = Promise.resolve();
+
 /**
  * Boots the Cloud Spanner emulator, creates an instance + database with the
  * event-store journal/snapshot schema, and returns a ready-to-use `Database`.
@@ -20,6 +22,7 @@ async function startSpannerContainer(input: {
   journalTableName: string;
   snapshotTableName: string;
 }): Promise<{ database: Database; stop: () => Promise<void> }> {
+  const releaseLock = await acquireSpannerEnvLock();
   const container = new GenericContainer(
     "gcr.io/cloud-spanner-emulator/emulator",
   )
@@ -35,20 +38,39 @@ async function startSpannerContainer(input: {
     } catch (stopError) {
       console.warn("Failed to stop Spanner emulator container", stopError);
     }
+    releaseLock();
     throw error;
   }
+  let stopped = false;
   return {
     database: context.database,
     stop: async () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
       try {
         await context.database.close();
         context.spanner.close();
       } finally {
         context.restoreEmulatorHost();
-        await startedContainer.stop();
+        try {
+          await startedContainer.stop();
+        } finally {
+          releaseLock();
+        }
       }
     },
   };
+}
+
+function acquireSpannerEnvLock(): Promise<() => void> {
+  let releaseCurrent: () => void = () => undefined;
+  const previous = spannerEnvLock;
+  spannerEnvLock = new Promise<void>((resolve) => {
+    releaseCurrent = resolve;
+  });
+  return previous.then(() => releaseCurrent);
 }
 
 async function createSpannerDatabase(input: {

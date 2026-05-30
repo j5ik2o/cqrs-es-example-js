@@ -1,6 +1,9 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  type DynamoDBClientConfig,
+} from "@aws-sdk/client-dynamodb";
 import { type Database, Spanner } from "@google-cloud/spanner";
 import {
   type GroupChat,
@@ -29,7 +32,10 @@ function env(name: string, defaultValue: string): string {
 }
 
 function resolveBackend(): PersistenceBackend {
-  const raw = process.env.PERSISTENCE_BACKEND;
+  const raw = process.env.PERSISTENCE_BACKEND ?? "dynamodb";
+  if (raw === "") {
+    return "dynamodb";
+  }
   if (raw === "dynamodb" || raw === "spanner") {
     return raw;
   }
@@ -49,7 +55,7 @@ function createDynamoDBEventStore(): GroupChatEventStore {
   );
   const snapshotAidIndexName = env(
     "PERSISTENCE_SNAPSHOT_AID_INDEX_NAME",
-    "snapshot-aid-index",
+    "snapshots-aid-index",
   );
   const snapshotActiveTtlIndexName = env(
     "PERSISTENCE_SNAPSHOT_ACTIVE_TTL_INDEX_NAME",
@@ -73,20 +79,23 @@ function createDynamoDBEventStore(): GroupChatEventStore {
   logger.info(`AWS_REGION: ${awsRegion}`);
   logger.info(`AWS_DYNAMODB_ENDPOINT_URL: ${awsDynamodbEndpointUrl}`);
 
-  const dynamodbClient =
-    awsRegion &&
-    awsDynamodbEndpointUrl &&
-    awsDynamodbAccessKeyId &&
-    awsDynamodbSecretAccessKey
-      ? new DynamoDBClient({
-          region: awsRegion,
-          endpoint: awsDynamodbEndpointUrl,
-          credentials: {
-            accessKeyId: awsDynamodbAccessKeyId,
-            secretAccessKey: awsDynamodbSecretAccessKey,
-          },
-        })
-      : new DynamoDBClient();
+  // Apply each setting independently: a configured endpoint (e.g. LocalStack)
+  // must still take effect when explicit credentials are not provided. The AWS
+  // SDK v3 does not pick up AWS_DYNAMODB_ENDPOINT_URL on its own.
+  const dynamodbConfig: DynamoDBClientConfig = {};
+  if (awsRegion) {
+    dynamodbConfig.region = awsRegion;
+  }
+  if (awsDynamodbEndpointUrl) {
+    dynamodbConfig.endpoint = awsDynamodbEndpointUrl;
+  }
+  if (awsDynamodbAccessKeyId && awsDynamodbSecretAccessKey) {
+    dynamodbConfig.credentials = {
+      accessKeyId: awsDynamodbAccessKeyId,
+      secretAccessKey: awsDynamodbSecretAccessKey,
+    };
+  }
+  const dynamodbClient = new DynamoDBClient(dynamodbConfig);
 
   return EventStore.createDynamoDB<GroupChatId, GroupChat, GroupChatEvent>({
     client: dynamodbClient,

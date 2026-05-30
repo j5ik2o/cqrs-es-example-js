@@ -1,4 +1,3 @@
-import { describe } from "node:test";
 import type { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   GroupChat,

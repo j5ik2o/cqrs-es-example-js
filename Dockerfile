@@ -4,7 +4,7 @@ RUN apk add --no-cache libc6-compat openssl3
 
 RUN corepack disable
 RUN rm -f /usr/local/bin/pnpm /usr/local/bin/yarn /usr/local/bin/pnpm.js /usr/local/bin/yarn.js
-RUN npm install -g --force pnpm@8
+RUN npm install -g --force pnpm@9.15.9
 RUN which pnpm && pnpm --version
 
 FROM base AS builder
@@ -18,7 +18,7 @@ WORKDIR /app
 COPY . /app
 
 RUN pnpm install -g turbo
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 RUN pnpm prisma:generate
 RUN pnpm build
 

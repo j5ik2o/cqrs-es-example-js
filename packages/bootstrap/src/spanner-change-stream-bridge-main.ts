@@ -28,6 +28,7 @@ import {
 
 const POLL_WINDOW_MILLIS = 2_000;
 const POLL_INTERVAL_MILLIS = 1_000;
+const POLL_READ_LAG_MILLIS = 5_000;
 
 async function spannerChangeStreamBridgeMain(): Promise<void> {
   const projectId = env("PERSISTENCE_SPANNER_PROJECT_ID", "local-project");
@@ -57,11 +58,19 @@ async function spannerChangeStreamBridgeMain(): Promise<void> {
     streamName: changeStreamName,
   });
 
-  let watermark = new Date();
+  // The cursor starts at SPANNER_BRIDGE_START_TIMESTAMP (if set) so events
+  // committed before this process starts — or during a restart — can be picked
+  // up. With the default (now), events committed while the bridge is down are
+  // skipped; a production bridge should persist the last-read position and
+  // resume from it (the managed Dataflow stage does this).
+  let watermark = parseStartTimestamp(
+    process.env.SPANNER_BRIDGE_START_TIMESTAMP,
+  );
   try {
     for (;;) {
+      const safeNow = Date.now() - POLL_READ_LAG_MILLIS;
       const end = new Date(
-        Math.min(Date.now(), watermark.getTime() + POLL_WINDOW_MILLIS),
+        Math.min(safeNow, watermark.getTime() + POLL_WINDOW_MILLIS),
       );
       if (end.getTime() <= watermark.getTime()) {
         await sleep(POLL_INTERVAL_MILLIS);
@@ -115,11 +124,11 @@ async function pollOnce(
     const data = toBytes(record.newValues.payload);
     if (data === undefined) {
       logger.warn(
-        `skipping journal insert with unrecognized payload type (aggregateId=${String(
+        `retrying journal window because payload type is unrecognized (aggregateId=${String(
           record.keys.aggregate_id ?? "",
         )}, sequenceNumber=${String(record.keys.sequence_number ?? "")})`,
       );
-      continue;
+      return false;
     }
     await topic.publishMessage({
       data,
@@ -150,6 +159,17 @@ function toBytes(payload: unknown): Buffer | undefined {
 function env(name: string, defaultValue: string): string {
   const value = process.env[name];
   return value !== undefined && value !== "" ? value : defaultValue;
+}
+
+function parseStartTimestamp(value: string | undefined): Date {
+  if (value === undefined || value === "") {
+    return new Date();
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid SPANNER_BRIDGE_START_TIMESTAMP: ${value}`);
+  }
+  return parsed;
 }
 
 function sleep(millis: number): Promise<void> {

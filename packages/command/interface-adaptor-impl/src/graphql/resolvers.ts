@@ -86,7 +86,7 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatOutput> {
     const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
     const userAccountId = orThrow(UserAccountId.validate(input.userAccountId));
-    const role = input.role.toLowerCase() as MemberRole;
+    const role = validateRole(input.role);
     const executorId = orThrow(UserAccountId.validate(input.executorId));
     const event = unwrap(
       await groupChatCommandProcessor.addMemberToGroupChat(
@@ -169,6 +169,16 @@ function orThrow<T>(result: Result<T, string>): T {
     throw new ValidationGraphQLError(result.error);
   }
   return result.value;
+}
+
+function validateRole(value: string): MemberRole {
+  const role = value.toLowerCase();
+  if (role !== "administrator" && role !== "member") {
+    throw new ValidationGraphQLError(
+      `Invalid role: ${value}. Must be "administrator" or "member".`,
+    );
+  }
+  return role;
 }
 
 function unwrap<T>(result: Result<T, ProcessError>): T {

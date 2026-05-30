@@ -1,5 +1,5 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { Event } from "event-store-adapter-js";
+import type { Event } from "event-store-adapter-js/dist/event";
 import {
   type UserAccountId,
   type UserAccountIdJson,
@@ -95,12 +95,35 @@ function baseFromJSON(json: GroupChatEventDataJson): {
   sequenceNumber: number;
   occurredAt: Date;
 } {
+  // Reject corrupt payloads explicitly rather than coercing (e.g. a missing id
+  // must not become the string "undefined" and pass validation downstream).
+  if (typeof json.id !== "string") {
+    throw new Error("Invalid GroupChatEvent JSON: id must be a string");
+  }
+  if (json.id === "") {
+    throw new Error("Invalid GroupChatEvent JSON: id must not be empty");
+  }
+  if (
+    typeof json.sequenceNumber !== "number" ||
+    !Number.isFinite(json.sequenceNumber)
+  ) {
+    throw new Error(
+      "Invalid GroupChatEvent JSON: sequenceNumber must be a finite number",
+    );
+  }
+  if (typeof json.occurredAt !== "string") {
+    throw new Error("Invalid GroupChatEvent JSON: occurredAt must be a string");
+  }
+  const occurredAt = new Date(json.occurredAt);
+  if (Number.isNaN(occurredAt.getTime())) {
+    throw new Error("Invalid GroupChatEvent JSON: occurredAt must be valid");
+  }
   return {
-    id: String(json.id),
+    id: json.id,
     aggregateId: convertJSONToGroupChatId(json.aggregateId),
     executorId: convertJSONToUserAccountId(json.executorId),
-    sequenceNumber: Number(json.sequenceNumber),
-    occurredAt: new Date(String(json.occurredAt)),
+    sequenceNumber: json.sequenceNumber,
+    occurredAt,
   };
 }
 

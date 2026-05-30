@@ -41,10 +41,13 @@ function decodePubSubMessage(message: PubSubMessage): ReadModelUpdaterInput[] {
 
 function parseObservedAt(value: string | undefined): Date {
   if (value === undefined) {
-    return new Date();
+    throw new Error("Invalid observedAt timestamp: missing value");
   }
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid observedAt timestamp: ${value}`);
+  }
+  return parsed;
 }
 
 export { decodePubSubMessage };

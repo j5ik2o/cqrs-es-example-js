@@ -1,4 +1,3 @@
-import { describe } from "node:test";
 import type { DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
@@ -90,5 +89,23 @@ describe("RMU adapter contract", () => {
       adminId.value,
     );
     expect(input.observedAt.toISOString()).toEqual("2026-05-30T00:00:00.000Z");
+  });
+
+  test("DynamoDB adapter rejects INSERT records without a journal payload", () => {
+    const event = {
+      Records: [
+        {
+          eventName: "INSERT",
+          dynamodb: {
+            NewImage: {},
+            SequenceNumber: "000000000000000000002",
+          },
+        },
+      ],
+    } as unknown as DynamoDBStreamEvent;
+
+    expect(() => decodeDynamoDBStreamEvent(event)).toThrow(
+      "DynamoDB INSERT record is missing NewImage.payload.B",
+    );
   });
 });

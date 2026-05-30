@@ -1,5 +1,6 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import { type AggregateId, Result } from "event-store-adapter-js";
+import type { AggregateId } from "event-store-adapter-js/dist/aggregate-id";
+import { Result } from "event-store-adapter-js/dist/result";
 import * as U from "ulidx";
 
 const GROUP_CHAT_PREFIX = "GroupChat";

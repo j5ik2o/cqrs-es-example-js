@@ -26,26 +26,52 @@ async function applyReadModel(
         event.name,
         administrator,
         at,
+        event.sequenceNumber,
       );
       break;
     }
     case "GroupChatRenamed":
-      await dao.updateGroupChatName(event.aggregateId, event.name, at);
+      await dao.updateGroupChatName(
+        event.aggregateId,
+        event.name,
+        at,
+        event.sequenceNumber,
+      );
       break;
     case "GroupChatMemberAdded":
-      await dao.insertMember(event.aggregateId, event.member, at);
+      await dao.insertMember(
+        event.aggregateId,
+        event.member,
+        at,
+        event.sequenceNumber,
+      );
       break;
     case "GroupChatMemberRemoved":
-      await dao.deleteMember(event.aggregateId, event.member.userAccountId);
+      await dao.deleteMember(
+        event.aggregateId,
+        event.member.userAccountId,
+        at,
+        event.sequenceNumber,
+      );
       break;
     case "GroupChatMessagePosted":
-      await dao.insertMessage(event.aggregateId, event.message, at);
+      await dao.insertMessage(
+        event.aggregateId,
+        event.message,
+        at,
+        event.sequenceNumber,
+      );
       break;
     case "GroupChatMessageDeleted":
-      await dao.deleteMessage(event.message.id, at);
+      await dao.deleteMessage(
+        event.aggregateId,
+        event.message.id,
+        at,
+        event.sequenceNumber,
+      );
       break;
     case "GroupChatDeleted":
-      await dao.deleteGroupChat(event.aggregateId, at);
+      await dao.deleteGroupChat(event.aggregateId, at, event.sequenceNumber);
       break;
     default: {
       const exhaustive: never = event;

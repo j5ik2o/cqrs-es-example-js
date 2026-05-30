@@ -1,4 +1,4 @@
-import { Result } from "event-store-adapter-js";
+import { Result } from "event-store-adapter-js/dist/result";
 import type { UserAccountId } from "../user-account";
 import { GroupChatError } from "./group-chat-errors";
 import {

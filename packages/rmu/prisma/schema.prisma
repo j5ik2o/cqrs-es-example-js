@@ -8,11 +8,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model ReadModelPositions {
+  aggregateId String @id @db.VarChar(64) @map("aggregate_id")
+  lastProcessedSequenceNumber Int @map("last_processed_sequence_number")
+
+  @@map("read_model_positions")
+}
+
 model GroupChats {
   id         String     @id @db.VarChar(64)
   disabled   Boolean
   name       String     @db.VarChar(64)
   ownerId    String     @db.VarChar(64) @map("owner_id")
+  lastProcessedSequenceNumber Int @map("last_processed_sequence_number")
   createdAt  DateTime   @db.DateTime(0) @map("created_at")
   updatedAt  DateTime   @db.DateTime(0) @map("updated_at")
   members    Members[]
@@ -26,6 +34,8 @@ model Members {
   groupChatId   String      @db.VarChar(64) @map("group_chat_id")
   userAccountId String      @db.VarChar(64) @map("user_account_id")
   role          String      @db.VarChar(64)
+  disabled      Boolean
+  lastProcessedSequenceNumber Int @map("last_processed_sequence_number")
   createdAt     DateTime    @db.DateTime(0) @map("created_at")
   updatedAt     DateTime    @db.DateTime(0) @map("updated_at")
   groupChats    GroupChats  @relation(fields: [groupChatId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "members_ibfk_1")
@@ -40,6 +50,7 @@ model Messages {
   groupChatId   String      @db.VarChar(64) @map("group_chat_id")
   userAccountId String      @db.VarChar(64) @map("user_account_id")
   text          String      @db.Text
+  lastProcessedSequenceNumber Int @map("last_processed_sequence_number")
   createdAt     DateTime    @db.DateTime(0) @map("created_at")
   updatedAt     DateTime    @db.DateTime(0) @map("updated_at")
   groupChats    GroupChats @relation(fields: [groupChatId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "messages_ibfk_1")

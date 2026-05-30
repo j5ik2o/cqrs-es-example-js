@@ -37,7 +37,7 @@ describe("Spanner emulator change-stream low-level read", () => {
     await database?.close().catch(() => undefined);
     spanner?.close();
     if (prevHost === undefined) {
-      process.env.SPANNER_EMULATOR_HOST = "";
+      Reflect.deleteProperty(process.env, "SPANNER_EMULATOR_HOST");
     } else {
       process.env.SPANNER_EMULATOR_HOST = prevHost;
     }

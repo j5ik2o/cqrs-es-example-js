@@ -1,4 +1,6 @@
-import { type AggregateId, Result } from "event-store-adapter-js";
+import * as Infrastructure from "cqrs-es-example-js-infrastructure";
+import type { AggregateId } from "event-store-adapter-js/dist/aggregate-id";
+import { Result } from "event-store-adapter-js/dist/result";
 import * as U from "ulidx";
 
 const USER_ACCOUNT_PREFIX = "UserAccount";
@@ -30,7 +32,7 @@ export namespace UserAccountId {
   }
 
   export function generate(): UserAccountId {
-    return of(U.ulid());
+    return of(Infrastructure.generateULID());
   }
 
   export function validate(value: string): Result<UserAccountId, string> {

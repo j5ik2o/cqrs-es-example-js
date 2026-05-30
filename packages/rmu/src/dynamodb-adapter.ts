@@ -14,10 +14,19 @@ function decodeDynamoDBStreamEvent(
 ): ReadModelUpdaterInput[] {
   const inputs: ReadModelUpdaterInput[] = [];
   for (const record of event.Records) {
+    // The journal is append-only; only INSERTs carry new domain events. Ignore
+    // MODIFY/REMOVE so an item change is never replayed as a fresh event.
+    if (record.eventName !== "INSERT") {
+      continue;
+    }
     const image = record.dynamodb?.NewImage;
     const rawPayload = image?.payload?.B;
     if (rawPayload === undefined) {
-      continue;
+      throw new Error(
+        `DynamoDB INSERT record is missing NewImage.payload.B (sequenceNumber=${String(
+          record.dynamodb?.SequenceNumber ?? "",
+        )})`,
+      );
     }
     const groupChatEvent = convertJSONToGroupChatEvent(
       parsePayload(rawPayload),

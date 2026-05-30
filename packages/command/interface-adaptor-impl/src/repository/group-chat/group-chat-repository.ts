@@ -64,6 +64,11 @@ function create(
 }
 
 function retentionCriteriaOf(numberOfEvents: number): SnapshotDecider {
+  if (!Number.isSafeInteger(numberOfEvents) || numberOfEvents <= 0) {
+    throw new Error(
+      `withRetention(numberOfEvents) requires a positive integer, got ${numberOfEvents}`,
+    );
+  }
   return (event: GroupChatEvent) => event.sequenceNumber % numberOfEvents === 0;
 }
 

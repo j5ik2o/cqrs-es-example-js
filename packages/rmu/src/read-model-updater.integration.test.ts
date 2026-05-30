@@ -84,6 +84,7 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
     // server accepts connections before running migrations.
     await waitForMysql(prisma);
     for (const file of [
+      "0_create_read_model_positions.up.sql",
       "1_create_group_chats.up.sql",
       "2_create_members.up.sql",
       "3_create_messages.up.sql",
@@ -176,6 +177,44 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
         });
         expect(row?.name).toEqual(`gc-${encoding}`);
       }
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "rejects sequence gaps and applies the retried event after the missing event",
+    async () => {
+      if (prisma === undefined) {
+        throw new Error("prisma not initialized");
+      }
+      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
+
+      const id = GroupChatId.generate();
+      const adminId = UserAccountId.generate();
+      const [gc0, created] = GroupChat.create(
+        id,
+        GroupChatName.of("before"),
+        adminId,
+      );
+      const memberId = UserAccountId.generate();
+      const [gc1, memberAdded] = unwrap(
+        gc0.addMember(memberId, "member", adminId),
+      );
+      const [, renamed] = unwrap(
+        gc1.rename(GroupChatName.of("after"), adminId),
+      );
+
+      await updater.updateReadModel(streamEventOf(created));
+      await expect(
+        updater.updateReadModel(streamEventOf(renamed)),
+      ).rejects.toThrow("Read model projection gap");
+      await updater.updateReadModel(streamEventOf(memberAdded));
+      await updater.updateReadModel(streamEventOf(renamed));
+
+      const groupChat = await prisma.groupChats.findUnique({
+        where: { id: id.asString() },
+      });
+      expect(groupChat?.name).toEqual("after");
     },
     TIMEOUT,
   );

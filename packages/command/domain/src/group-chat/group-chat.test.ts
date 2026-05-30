@@ -1,5 +1,4 @@
-import { describe } from "node:test";
-import type { Result } from "event-store-adapter-js";
+import type { Result } from "event-store-adapter-js/dist/result";
 import { UserAccountId } from "../user-account";
 import { GroupChat } from "./group-chat";
 import type { GroupChatError } from "./group-chat-errors";
