@@ -67,14 +67,19 @@ async function spannerChangeStreamBridgeMain(): Promise<void> {
         await sleep(POLL_INTERVAL_MILLIS);
         continue;
       }
-      await pollOnce(
+      const succeeded = await pollOnce(
         reader,
         topic,
         journalTableName,
         watermark.toISOString(),
         end.toISOString(),
       );
-      watermark = end;
+      // Only advance the watermark on a successful read; otherwise retry the
+      // same window so a transient read failure never permanently skips the
+      // journal inserts in that interval.
+      if (succeeded) {
+        watermark = end;
+      }
       await sleep(POLL_INTERVAL_MILLIS);
     }
   } finally {
@@ -85,6 +90,7 @@ async function spannerChangeStreamBridgeMain(): Promise<void> {
   }
 }
 
+/** Returns true when the window was read successfully (so the caller may advance). */
 async function pollOnce(
   reader: ChangeStreamReader,
   // biome-ignore lint/suspicious/noExplicitAny: PubSub Topic type
@@ -92,26 +98,31 @@ async function pollOnce(
   journalTableName: string,
   start: string,
   end: string,
-): Promise<void> {
+): Promise<boolean> {
   let records: Awaited<ReturnType<ChangeStreamReader["readWindow"]>>;
   try {
     records = await reader.readWindow(start, end);
   } catch (error) {
     logger.warn(`change-stream read failed for [${start}, ${end}]`, error);
-    return;
+    return false;
   }
   for (const record of records) {
     if (record.tableName !== journalTableName || record.modType !== "INSERT") {
       continue;
     }
-    const payload = record.newValues.payload;
-    if (typeof payload !== "string") {
+    // `payload` is the BYTES journal payload. The low-level decoder yields it as
+    // a base64 string (JSON mode), but tolerate Buffer/Uint8Array too.
+    const data = toBytes(record.newValues.payload);
+    if (data === undefined) {
+      logger.warn(
+        `skipping journal insert with unrecognized payload type (aggregateId=${String(
+          record.keys.aggregate_id ?? "",
+        )}, sequenceNumber=${String(record.keys.sequence_number ?? "")})`,
+      );
       continue;
     }
-    // `payload` is the BYTES journal payload, base64-encoded in the change
-    // record — exactly the wire format the Pub/Sub RMU adapter expects.
     await topic.publishMessage({
-      data: Buffer.from(payload, "base64"),
+      data,
       attributes: {
         aggregateId: String(record.keys.aggregate_id ?? ""),
         sequenceNumber: String(record.keys.sequence_number ?? ""),
@@ -120,6 +131,20 @@ async function pollOnce(
       },
     });
   }
+  return true;
+}
+
+function toBytes(payload: unknown): Buffer | undefined {
+  if (typeof payload === "string") {
+    return Buffer.from(payload, "base64");
+  }
+  if (Buffer.isBuffer(payload)) {
+    return payload;
+  }
+  if (payload instanceof Uint8Array) {
+    return Buffer.from(payload);
+  }
+  return undefined;
 }
 
 function env(name: string, defaultValue: string): string {

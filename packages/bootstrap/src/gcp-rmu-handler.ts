@@ -41,20 +41,22 @@ function getReadModelUpdater(): ReadModelUpdater {
 cloudEvent<PubSubCloudEventData>(
   "readModelUpdater",
   async (event: CloudEvent<PubSubCloudEventData>) => {
+    // Throw on a malformed payload rather than returning: a thrown error makes
+    // the Functions Framework respond non-2xx so Pub/Sub retries / dead-letters
+    // the message instead of silently acking and dropping it.
     const message = extractPubSubMessage(event);
-    if (message === undefined) {
-      return;
-    }
     await getReadModelUpdater().updateFromPubSub(message);
   },
 );
 
 function extractPubSubMessage(
   event: CloudEvent<PubSubCloudEventData>,
-): PubSubMessage | undefined {
+): PubSubMessage {
   const message = event.data?.message;
   if (message === undefined || typeof message.data !== "string") {
-    return undefined;
+    throw new Error(
+      "Invalid Pub/Sub CloudEvent: missing message.data string payload",
+    );
   }
   return message;
 }

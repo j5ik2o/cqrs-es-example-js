@@ -91,7 +91,15 @@ function createChangeStreamReader(
       { token: null, startTs: start },
     ];
     let budget = MAX_PARTITIONS_PER_WINDOW;
-    while (queue.length > 0 && budget-- > 0) {
+    while (queue.length > 0) {
+      if (budget-- <= 0) {
+        // Fail loudly rather than silently dropping the remaining partitions:
+        // the caller must NOT advance its watermark past partitions we never
+        // read. (A real window should never approach this many partitions.)
+        throw new Error(
+          `change-stream partition walk exceeded ${MAX_PARTITIONS_PER_WINDOW} partitions for window [${start}, ${end})`,
+        );
+      }
       const item = queue.shift();
       if (item === undefined) {
         break;
@@ -193,12 +201,23 @@ function readPartition(
   return new Promise<ChangeRecord[]>((resolve, reject) => {
     const records: ChangeRecord[] = [];
     partialResultStream(requestFn, { json: true })
-      .on("data", (row: { ChangeRecord?: ChangeRecord[] } | ChangeRecord[]) => {
-        const cr = Array.isArray(row) ? row[0] : row.ChangeRecord;
-        if (Array.isArray(cr)) {
-          records.push(...cr);
-        }
-      })
+      .on(
+        "data",
+        (
+          row:
+            | { ChangeRecord?: ChangeRecord[] | ChangeRecord }
+            | (ChangeRecord[] | ChangeRecord)[],
+        ) => {
+          const cr = Array.isArray(row) ? row[0] : row.ChangeRecord;
+          // The column type is ARRAY<STRUCT<...>>, but tolerate a single record
+          // object too so no change record is silently dropped.
+          if (Array.isArray(cr)) {
+            records.push(...cr);
+          } else if (cr != null) {
+            records.push(cr as ChangeRecord);
+          }
+        },
+      )
       .on("error", reject)
       .on("end", () => resolve(records));
   });
