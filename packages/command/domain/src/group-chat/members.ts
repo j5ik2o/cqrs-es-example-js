@@ -1,121 +1,117 @@
-import * as O from "fp-ts/lib/Option";
-import { UserAccountId } from "../user-account";
-import { Member, convertJSONToMember } from "./member";
+import type { UserAccountId } from "../user-account";
+import { Member, type MemberJson, convertJSONToMember } from "./member";
 import { MemberId } from "./member-id";
 
-const MembersTypeSymbol = Symbol("Members");
+const MEMBERS_BRAND: unique symbol = Symbol("Members");
 
-class Members {
-  readonly symbol: typeof MembersTypeSymbol = MembersTypeSymbol;
+export type MembersJson = {
+  values: MemberJson[];
+};
 
-  private constructor(public readonly values: Map<string, Member>) {
-    if (values.size === 0) {
+export type Members = {
+  values: readonly Member[];
+  readonly [MEMBERS_BRAND]: true;
+};
+
+export namespace Members {
+  export function fromArray(values: readonly Member[]): Members {
+    if (values.length === 0) {
       throw new Error("Members cannot be empty");
     }
+    return Object.freeze({
+      [MEMBERS_BRAND]: true as const,
+      values: Object.freeze([...values]),
+    });
   }
 
-  toJSON() {
-    return {
-      values: this.toArray().map((m) => m.toJSON()),
-    };
+  export function ofSingle(userAccountId: UserAccountId): Members {
+    return fromArray([
+      Member.of(MemberId.generate(), userAccountId, "administrator"),
+    ]);
   }
 
-  addMember(member: Member): Members {
-    return new Members(
-      new Map(this.values).set(member.userAccountId.value, member),
+  export function addMember(members: Members, member: Member): Members {
+    const withoutTarget = members.values.filter(
+      (m) => m.userAccountId.value !== member.userAccountId.value,
     );
+    return fromArray([...withoutTarget, member]);
   }
 
-  removeMemberById(userAccountId: UserAccountId): O.Option<[Members, Member]> {
-    const member = this.values.get(userAccountId.value);
-    if (member === undefined) {
-      return O.none;
+  export function removeMemberById(
+    members: Members,
+    userAccountId: UserAccountId,
+  ): [Members, Member] | undefined {
+    const target = findById(members, userAccountId);
+    if (target === undefined) {
+      return undefined;
     }
-    const newMap = new Map(this.values);
-    newMap.delete(userAccountId.value);
-    return O.some([new Members(newMap), member]);
+    const remaining = members.values.filter(
+      (m) => m.userAccountId.value !== userAccountId.value,
+    );
+    return [fromArray(remaining), target];
   }
 
-  containsById(userAccountId: UserAccountId): boolean {
-    return this.values.has(userAccountId.value);
-  }
-
-  isMember(userAccountId: UserAccountId): boolean {
-    const member = this.values.get(userAccountId.value);
-    return member?.isMember() || false;
-  }
-
-  isAdministrator(userAccountId: UserAccountId): boolean {
-    const member = this.values.get(userAccountId.value);
-    return member?.isAdministrator() || false;
-  }
-
-  findById(userAccountId: UserAccountId): Member | undefined {
-    return this.values.get(userAccountId.value);
-  }
-
-  toArray(): Member[] {
-    return Array.from(this.values.values());
-  }
-
-  toMap(): Map<UserAccountId, Member> {
-    return new Map(
-      Array.from(this.values, ([key, value]) => [UserAccountId.of(key), value]),
+  export function findById(
+    members: Members,
+    userAccountId: UserAccountId,
+  ): Member | undefined {
+    return members.values.find(
+      (m) => m.userAccountId.value === userAccountId.value,
     );
   }
 
-  toString() {
-    return `Members(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
+  export function containsById(
+    members: Members,
+    userAccountId: UserAccountId,
+  ): boolean {
+    return findById(members, userAccountId) !== undefined;
   }
 
-  equals(other: Members): boolean {
-    const values = this.toMap();
-    if (values.size !== other.toMap().size) {
+  export function isMember(
+    members: Members,
+    userAccountId: UserAccountId,
+  ): boolean {
+    const member = findById(members, userAccountId);
+    return member !== undefined && Member.isMember(member);
+  }
+
+  export function isAdministrator(
+    members: Members,
+    userAccountId: UserAccountId,
+  ): boolean {
+    const member = findById(members, userAccountId);
+    return member !== undefined && Member.isAdministrator(member);
+  }
+
+  export function toArray(members: Members): Member[] {
+    return [...members.values];
+  }
+
+  export function equals(a: Members, b: Members): boolean {
+    if (a.values.length !== b.values.length) {
       return false;
     }
-    for (const [key, value] of values) {
-      const otherValue = this.values.get(key.value);
-      if (otherValue === undefined || !value.equals(otherValue)) {
-        return false;
-      }
+    return a.values.every((member) => {
+      const other = findById(b, member.userAccountId);
+      return other !== undefined && Member.equals(member, other);
+    });
+  }
+
+  export function toJSON(members: Members): MembersJson {
+    return { values: members.values.map(Member.toJSON) };
+  }
+
+  export function fromJSON(json: unknown): Members {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("values" in json) ||
+      !Array.isArray(json.values)
+    ) {
+      throw new Error("Invalid Members JSON");
     }
-    return true;
-  }
-
-  static ofSingle(userAccountId: UserAccountId): Members {
-    return new Members(
-      new Map([
-        [
-          userAccountId.value,
-          Member.of(MemberId.generate(), userAccountId, "administrator"),
-        ],
-      ]),
-    );
-  }
-
-  static fromMap(values: Map<UserAccountId, Member>): Members {
-    return new Members(
-      new Map(
-        Array.from(values, ([userAccountId, member]) => [
-          userAccountId.value,
-          member,
-        ]),
-      ),
-    );
-  }
-
-  static fromArray(values: Member[]): Members {
-    return new Members(new Map(values.map((m) => [m.userAccountId.value, m])));
+    return fromArray(json.values.map(convertJSONToMember));
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToMembers(json: any): Members {
-  // console.log("convertJSONToMembers = ", obj);
-  return Members.fromArray(
-    // biome-ignore lint/suspicious/noExplicitAny:
-    json.values.map((v: any) => convertJSONToMember(v)),
-  );
-}
-
-export { Members, MembersTypeSymbol, convertJSONToMembers };
+export const convertJSONToMembers = Members.fromJSON;

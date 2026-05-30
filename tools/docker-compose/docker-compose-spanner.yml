@@ -1,0 +1,133 @@
+# Spanner backend local pipeline.
+#
+#   Spanner emulator -> change-stream bridge -> Pub/Sub emulator ->
+#   Functions Framework RMU -> MySQL -> read API
+#
+# This mirrors the production GCP topology (Spanner Change Streams -> Dataflow ->
+# Pub/Sub -> Cloud Run/Functions -> MySQL) with the bridge standing in for the
+# managed Dataflow stage.
+#
+# KNOWN LIMITATION (see docs/spanner-local-pipeline.md): the Cloud Spanner
+# emulator requires change-stream reads to be single-use ExecuteStreamingSql
+# calls, which the high-level @google-cloud/spanner client does not issue. The
+# bridge is written for real Spanner; on the emulator the change-stream read
+# step is the documented fallback point. All other stages (write API on Spanner,
+# Pub/Sub -> Functions RMU -> MySQL -> read API) run locally.
+version: '3.6'
+services:
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator
+    ports:
+      - "39010:9010"
+      - "39020:9020"
+
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: >
+      gcloud beta emulators pubsub start
+      --host-port=0.0.0.0:8085 --project=local-project
+    ports:
+      - "38085:8085"
+
+  spanner-setup:
+    image: cqrs-es-example-js:latest
+    command: [ "spannerSetup" ]
+    environment:
+      SPANNER_EMULATOR_HOST: spanner-emulator:9010
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      GOOGLE_CLOUD_PROJECT: local-project
+      GCLOUD_PROJECT: local-project
+      METADATA_SERVER_DETECTION: "none"
+      PERSISTENCE_SPANNER_PROJECT_ID: local-project
+      PERSISTENCE_SPANNER_INSTANCE_ID: local-instance
+      PERSISTENCE_SPANNER_DATABASE_ID: local-database
+      PERSISTENCE_JOURNAL_TABLE_NAME: journal
+      PERSISTENCE_SNAPSHOT_TABLE_NAME: snapshot
+      SPANNER_CHANGE_STREAM_NAME: journal_stream
+      PUBSUB_TOPIC: group-chat-journal
+      PUBSUB_SUBSCRIPTION: group-chat-journal-sub
+      PUBSUB_PUSH_ENDPOINT: http://rmu-function:8080/
+    depends_on:
+      - spanner-emulator
+      - pubsub-emulator
+    restart: on-failure
+
+  write-api-server-spanner:
+    command: [ "writeApi" ]
+    image: cqrs-es-example-js:latest
+    container_name: write-api-server-spanner
+    ports:
+      - 48080:3000
+    environment:
+      API_HOST: "0.0.0.0"
+      API_PORT: 3000
+      PERSISTENCE_BACKEND: spanner
+      PERSISTENCE_SPANNER_PROJECT_ID: local-project
+      PERSISTENCE_SPANNER_INSTANCE_ID: local-instance
+      PERSISTENCE_SPANNER_DATABASE_ID: local-database
+      PERSISTENCE_JOURNAL_TABLE_NAME: journal
+      PERSISTENCE_SNAPSHOT_TABLE_NAME: snapshot
+      PERSISTENCE_SHARD_COUNT: 32
+      SPANNER_EMULATOR_HOST: spanner-emulator:9010
+      GOOGLE_CLOUD_PROJECT: local-project
+      GCLOUD_PROJECT: local-project
+      METADATA_SERVER_DETECTION: "none"
+    depends_on:
+      - spanner-setup
+
+  spanner-bridge:
+    command: [ "spannerBridge" ]
+    image: cqrs-es-example-js:latest
+    container_name: spanner-bridge
+    environment:
+      PERSISTENCE_SPANNER_PROJECT_ID: local-project
+      PERSISTENCE_SPANNER_INSTANCE_ID: local-instance
+      PERSISTENCE_SPANNER_DATABASE_ID: local-database
+      PERSISTENCE_JOURNAL_TABLE_NAME: journal
+      SPANNER_CHANGE_STREAM_NAME: journal_stream
+      PUBSUB_TOPIC: group-chat-journal
+      SPANNER_EMULATOR_HOST: spanner-emulator:9010
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      GOOGLE_CLOUD_PROJECT: local-project
+      GCLOUD_PROJECT: local-project
+      METADATA_SERVER_DETECTION: "none"
+    depends_on:
+      - spanner-setup
+    restart: on-failure
+
+  rmu-function:
+    image: cqrs-es-example-js:latest
+    container_name: rmu-function
+    working_dir: /app/packages/bootstrap
+    command:
+      [
+        "npx", "functions-framework",
+        "--target=readModelUpdater",
+        "--signature-type=cloudevent",
+        "--source=dist/gcp-rmu-handler.js",
+        "--port=8080"
+      ]
+    environment:
+      DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      GOOGLE_CLOUD_PROJECT: local-project
+    depends_on:
+      - mysql
+      - migration
+      - pubsub-emulator
+
+  read-api-server-spanner:
+    command: [ "readApi" ]
+    image: cqrs-es-example-js:latest
+    container_name: read-api-server-spanner
+    ports:
+      - 48082:3000
+    environment:
+      API_HOST: "0.0.0.0"
+      API_PORT: 3000
+      DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
+    depends_on:
+      - mysql
+      - migration
+      - write-api-server-spanner
+      - rmu-function

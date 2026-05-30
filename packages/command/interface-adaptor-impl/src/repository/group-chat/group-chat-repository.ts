@@ -3,126 +3,71 @@ import {
   type GroupChatEvent,
   type GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-import {
-  type GroupChatRepository,
-  RepositoryError,
+import type {
+  GroupChatRepository as GroupChatRepositoryContract,
+  SnapshotDecider,
 } from "cqrs-es-example-js-command-interface-adaptor-if";
-import { type EventStore, OptimisticLockError } from "event-store-adapter-js";
-import * as TE from "fp-ts/TaskEither";
+import type {
+  EventStore,
+  EventStoreError,
+  Result,
+} from "event-store-adapter-js";
 
-type SnapshotDecider = (event: GroupChatEvent, snapshot: GroupChat) => boolean;
+type GroupChatEventStore = EventStore<GroupChatId, GroupChat, GroupChatEvent>;
 
-class GroupChatRepositoryImpl implements GroupChatRepository {
-  private constructor(
-    public readonly eventStore: EventStore<
-      GroupChatId,
-      GroupChat,
-      GroupChatEvent
-    >,
-    private readonly snapshotDecider: SnapshotDecider | undefined,
-  ) {}
+function create(
+  eventStore: GroupChatEventStore,
+  snapshotDecider?: SnapshotDecider,
+): GroupChatRepositoryContract {
+  return Object.freeze({
+    withRetention(numberOfEvents: number): GroupChatRepositoryContract {
+      return create(eventStore, retentionCriteriaOf(numberOfEvents));
+    },
 
-  store(
-    event: GroupChatEvent,
-    snapshot: GroupChat,
-  ): TE.TaskEither<RepositoryError, void> {
-    if (event.isCreated || this.snapshotDecider?.(event, snapshot)) {
-      return this.storeEventAndSnapshot(event, snapshot);
-    }
-    return this.storeEvent(event, snapshot.version);
-  }
+    store(
+      event: GroupChatEvent,
+      snapshot: GroupChat,
+    ): Promise<Result<void, EventStoreError>> {
+      if (event.isCreated || snapshotDecider?.(event, snapshot)) {
+        return eventStore.persistEventAndSnapshot(event, snapshot);
+      }
+      return eventStore.persistEvent(event, snapshot.version);
+    },
 
-  storeEvent(
-    event: GroupChatEvent,
-    version: number,
-  ): TE.TaskEither<RepositoryError, void> {
-    return TE.tryCatch(
-      () => this.eventStore.persistEvent(event, version),
-      (reason) => {
-        if (reason instanceof OptimisticLockError) {
-          return new RepositoryError(
-            "Failed to store event and snapshot due to optimistic lock error",
-            reason,
-          );
-        }
-        if (reason instanceof Error) {
-          return new RepositoryError(
-            "Failed to store event and snapshot due to error",
-            reason,
-          );
-        }
-        return new RepositoryError(String(reason));
-      },
-    );
-  }
+    storeEvent(
+      event: GroupChatEvent,
+      version: number,
+    ): Promise<Result<void, EventStoreError>> {
+      return eventStore.persistEvent(event, version);
+    },
 
-  storeEventAndSnapshot(
-    event: GroupChatEvent,
-    snapshot: GroupChat,
-  ): TE.TaskEither<RepositoryError, void> {
-    return TE.tryCatch(
-      () => this.eventStore.persistEventAndSnapshot(event, snapshot),
-      (reason) => {
-        if (reason instanceof OptimisticLockError) {
-          return new RepositoryError(
-            "Failed to store event and snapshot due to optimistic lock error",
-            reason,
-          );
-        }
-        if (reason instanceof Error) {
-          return new RepositoryError(
-            "Failed to store event and snapshot due to error",
-            reason,
-          );
-        }
-        return new RepositoryError(String(reason));
-      },
-    );
-  }
+    storeEventAndSnapshot(
+      event: GroupChatEvent,
+      snapshot: GroupChat,
+    ): Promise<Result<void, EventStoreError>> {
+      return eventStore.persistEventAndSnapshot(event, snapshot);
+    },
 
-  findById(
-    id: GroupChatId,
-  ): TE.TaskEither<RepositoryError, GroupChat | undefined> {
-    return TE.tryCatch(
-      async () => {
-        const snapshot = await this.eventStore.getLatestSnapshotById(id);
-        if (snapshot === undefined) {
-          return undefined;
-        }
-        const events = await this.eventStore.getEventsByIdSinceSequenceNumber(
-          id,
-          snapshot.sequenceNumber + 1,
-        );
-        return GroupChat.replay(events, snapshot);
-      },
-      (reason) => {
-        if (reason instanceof Error) {
-          return new RepositoryError("Failed to find by id to error", reason);
-        }
-        return new RepositoryError(String(reason));
-      },
-    );
-  }
-
-  static of(
-    eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent>,
-    snapshotDecider: SnapshotDecider | undefined = undefined,
-  ): GroupChatRepository {
-    return new GroupChatRepositoryImpl(eventStore, snapshotDecider);
-  }
-
-  withRetention(numberOfEvents: number): GroupChatRepository {
-    return new GroupChatRepositoryImpl(
-      this.eventStore,
-      GroupChatRepositoryImpl.retentionCriteriaOf(numberOfEvents),
-    );
-  }
-
-  static retentionCriteriaOf(numberOfEvents: number): SnapshotDecider {
-    return (event: GroupChatEvent, _: GroupChat) => {
-      return event.sequenceNumber % numberOfEvents === 0;
-    };
-  }
+    async findById(id: GroupChatId): Promise<GroupChat | undefined> {
+      const snapshot = await eventStore.getLatestSnapshotById(id);
+      if (snapshot === undefined) {
+        const events = await eventStore.getEventsByIdSinceSequenceNumber(id, 1);
+        return GroupChat.replayFromEvents(events);
+      }
+      const events = await eventStore.getEventsByIdSinceSequenceNumber(
+        id,
+        snapshot.sequenceNumber + 1,
+      );
+      return GroupChat.replay(events, snapshot);
+    },
+  });
 }
 
-export { GroupChatRepositoryImpl, type RepositoryError };
+function retentionCriteriaOf(numberOfEvents: number): SnapshotDecider {
+  return (event: GroupChatEvent) => event.sequenceNumber % numberOfEvents === 0;
+}
+
+export const GroupChatRepository = Object.freeze({
+  create,
+  retentionCriteriaOf,
+});

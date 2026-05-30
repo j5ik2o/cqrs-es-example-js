@@ -3,37 +3,39 @@ import type {
   GroupChatEvent,
   GroupChatId,
 } from "cqrs-es-example-js-command-domain";
-import type * as TE from "fp-ts/TaskEither";
+import type { EventStoreError, Result } from "event-store-adapter-js";
 
-class RepositoryError extends Error {
-  constructor(message: string, cause?: Error) {
-    super(message);
-    this.name = "RepositoryError";
-    this.cause = cause;
-  }
-}
+/**
+ * Decides whether a snapshot should be persisted together with the given event.
+ */
+export type SnapshotDecider = (
+  event: GroupChatEvent,
+  snapshot: GroupChat,
+) => boolean;
 
-interface GroupChatRepository {
+/**
+ * The repository contract for group chats. Persistence operations return a
+ * `Result` carrying an `EventStoreError` (no exceptions for expected failures
+ * such as optimistic-lock conflicts); `findById` resolves to `undefined` when
+ * the aggregate does not exist and rejects only on infrastructure errors.
+ */
+export type GroupChatRepository = {
   withRetention(numberOfEvents: number): GroupChatRepository;
-
-  storeEvent(
-    event: GroupChatEvent,
-    version: number,
-  ): TE.TaskEither<RepositoryError, void>;
-
-  storeEventAndSnapshot(
-    event: GroupChatEvent,
-    snapshot: GroupChat,
-  ): TE.TaskEither<RepositoryError, void>;
 
   store(
     event: GroupChatEvent,
     snapshot: GroupChat,
-  ): TE.TaskEither<RepositoryError, void>;
+  ): Promise<Result<void, EventStoreError>>;
 
-  findById(
-    id: GroupChatId,
-  ): TE.TaskEither<RepositoryError, GroupChat | undefined>;
-}
+  storeEvent(
+    event: GroupChatEvent,
+    version: number,
+  ): Promise<Result<void, EventStoreError>>;
 
-export { type GroupChatRepository, RepositoryError };
+  storeEventAndSnapshot(
+    event: GroupChatEvent,
+    snapshot: GroupChat,
+  ): Promise<Result<void, EventStoreError>>;
+
+  findById(id: GroupChatId): Promise<GroupChat | undefined>;
+};

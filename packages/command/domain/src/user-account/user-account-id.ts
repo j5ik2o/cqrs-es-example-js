@@ -1,65 +1,78 @@
-import type { AggregateId } from "event-store-adapter-js";
-import * as E from "fp-ts/Either";
+import { type AggregateId, Result } from "event-store-adapter-js";
 import * as U from "ulidx";
 
-const USER_ACCOUNT_PREFIX: string = "UserAccount";
+const USER_ACCOUNT_PREFIX = "UserAccount";
+const USER_ACCOUNT_ID_BRAND: unique symbol = Symbol("UserAccountId");
 
-const UserAccountIdTypeSymbol = Symbol("UserAccountId");
+export type UserAccountIdJson = {
+  value: string;
+};
 
-class UserAccountId implements AggregateId {
-  readonly symbol: typeof UserAccountIdTypeSymbol = UserAccountIdTypeSymbol;
-  readonly typeName: string = USER_ACCOUNT_PREFIX;
+export type UserAccountId = AggregateId & {
+  typeName: typeof USER_ACCOUNT_PREFIX;
+  readonly [USER_ACCOUNT_ID_BRAND]: true;
+};
 
-  private constructor(public readonly value: string) {
-    if (!U.isValid(value)) {
-      throw new Error(`Invalid user account id: ${value}`);
-    }
-  }
-
-  toJSON() {
-    return {
-      value: this.value,
-    };
-  }
-
-  asString() {
-    return `${USER_ACCOUNT_PREFIX}-${this.value}`;
-  }
-
-  toString() {
-    return `UserAccountId(${this.value})`;
-  }
-
-  equals(anotherId: UserAccountId): boolean {
-    return this.value === anotherId.value;
-  }
-
-  static validate(value: string): E.Either<string, UserAccountId> {
-    try {
-      return E.right(UserAccountId.of(value));
-    } catch (error) {
-      if (error instanceof Error) {
-        return E.left(error.message);
-      }
-      throw error;
-    }
-  }
-
-  static of(value: string): UserAccountId {
+export namespace UserAccountId {
+  export function of(value: string): UserAccountId {
     const ulid = value.startsWith(`${USER_ACCOUNT_PREFIX}-`)
       ? value.substring(USER_ACCOUNT_PREFIX.length + 1)
       : value;
-    return new UserAccountId(ulid);
+    if (!U.isValid(ulid)) {
+      throw new Error(`Invalid user account id: ${value}`);
+    }
+    return Object.freeze({
+      [USER_ACCOUNT_ID_BRAND]: true as const,
+      typeName: USER_ACCOUNT_PREFIX,
+      value: ulid,
+      asString: () => `${USER_ACCOUNT_PREFIX}-${ulid}`,
+    });
   }
 
-  static generate(): UserAccountId {
-    return new UserAccountId(U.ulid());
+  export function generate(): UserAccountId {
+    return of(U.ulid());
+  }
+
+  export function validate(value: string): Result<UserAccountId, string> {
+    try {
+      return Result.ok(of(value));
+    } catch (error) {
+      return Result.err(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  export function equals(a: UserAccountId, b: UserAccountId): boolean {
+    return a.value === b.value;
+  }
+
+  export function is(value: unknown): value is UserAccountId {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    const candidate = value as Partial<UserAccountId>;
+    return (
+      candidate[USER_ACCOUNT_ID_BRAND] === true &&
+      candidate.typeName === USER_ACCOUNT_PREFIX &&
+      typeof candidate.value === "string" &&
+      typeof candidate.asString === "function"
+    );
+  }
+
+  export function toJSON(value: UserAccountId): UserAccountIdJson {
+    return { value: value.value };
+  }
+
+  export function fromJSON(json: unknown): UserAccountId {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("value" in json) ||
+      typeof json.value !== "string"
+    ) {
+      throw new Error("Invalid UserAccountId JSON");
+    }
+    return of(json.value);
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToUserAccountId(json: any): UserAccountId {
-  return UserAccountId.of(json.value);
-}
-
-export { UserAccountId, UserAccountIdTypeSymbol, convertJSONToUserAccountId };
+export const convertJSONToUserAccountId = UserAccountId.fromJSON;

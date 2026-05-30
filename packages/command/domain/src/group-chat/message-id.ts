@@ -1,57 +1,73 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import * as E from "fp-ts/lib/Either";
+import { Result } from "event-store-adapter-js";
 import * as U from "ulidx";
 
-const MessageIdTypeSymbol = Symbol("MessageId");
+const MESSAGE_ID_BRAND: unique symbol = Symbol("MessageId");
 
-class MessageId {
-  readonly symbol: typeof MessageIdTypeSymbol = MessageIdTypeSymbol;
+export type MessageIdJson = {
+  value: string;
+};
 
-  private constructor(public readonly value: string) {
+export type MessageId = {
+  value: string;
+  asString: () => string;
+  readonly [MESSAGE_ID_BRAND]: true;
+};
+
+export namespace MessageId {
+  export function of(value: string): MessageId {
     if (!U.isValid(value)) {
       throw new Error("Invalid message id");
     }
+    return Object.freeze({
+      [MESSAGE_ID_BRAND]: true as const,
+      value,
+      asString: () => value,
+    });
   }
 
-  toJSON() {
-    return {
-      value: this.value,
-    };
+  export function generate(): MessageId {
+    return of(Infrastructure.generateULID());
   }
 
-  asString() {
-    return this.value;
-  }
-  toString() {
-    return `MessageId(${this.value})`;
-  }
-  equals(anotherId: MessageId): boolean {
-    return this.value === anotherId.value;
-  }
-
-  static validate(value: string): E.Either<string, MessageId> {
+  export function validate(value: string): Result<MessageId, string> {
     try {
-      return E.right(new MessageId(value));
+      return Result.ok(of(value));
     } catch (error) {
-      if (error instanceof Error) {
-        return E.left(error.message);
-      }
-      throw error;
+      return Result.err(error instanceof Error ? error.message : String(error));
     }
   }
 
-  static of(value: string): MessageId {
-    return new MessageId(value);
+  export function equals(a: MessageId, b: MessageId): boolean {
+    return a.value === b.value;
   }
 
-  static generate(): MessageId {
-    return new MessageId(Infrastructure.generateULID());
+  export function is(value: unknown): value is MessageId {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    const candidate = value as Partial<MessageId>;
+    return (
+      candidate[MESSAGE_ID_BRAND] === true &&
+      typeof candidate.value === "string"
+    );
+  }
+
+  export function toJSON(value: MessageId): MessageIdJson {
+    return { value: value.value };
+  }
+
+  export function fromJSON(json: unknown): MessageId {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("value" in json) ||
+      typeof json.value !== "string"
+    ) {
+      throw new Error("Invalid MessageId JSON");
+    }
+    return of(json.value);
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToMessageId(json: any): MessageId {
-  return MessageId.of(json.value);
-}
-
-export { MessageId, MessageIdTypeSymbol, convertJSONToMessageId };
+export const convertJSONToMessageId = MessageId.fromJSON;

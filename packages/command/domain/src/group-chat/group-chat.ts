@@ -1,46 +1,36 @@
-import type { Aggregate } from "event-store-adapter-js";
-import * as E from "fp-ts/lib/Either";
-import * as O from "fp-ts/lib/Option";
+import { Result } from "event-store-adapter-js";
 import type { UserAccountId } from "../user-account";
-import {
-  GroupChatAddMemberError,
-  GroupChatDeleteError,
-  GroupChatDeleteMessageError,
-  GroupChatPostMessageError,
-  GroupChatRemoveMemberError,
-  GroupChatRenameError,
-} from "./group-chat-errors";
+import { GroupChatError } from "./group-chat-errors";
 import {
   GroupChatCreated,
   GroupChatDeleted,
-  GroupChatDeletedTypeSymbol,
   type GroupChatEvent,
   GroupChatMemberAdded,
-  GroupChatMemberAddedTypeSymbol,
   GroupChatMemberRemoved,
-  GroupChatMemberRemovedTypeSymbol,
   GroupChatMessageDeleted,
-  GroupChatMessageDeletedTypeSymbol,
   GroupChatMessagePosted,
-  GroupChatMessagePostedTypeSymbol,
   GroupChatRenamed,
-  GroupChatRenamedTypeSymbol,
 } from "./group-chat-events";
-import { type GroupChatId, convertJSONToGroupChatId } from "./group-chat-id";
+import {
+  type GroupChatId,
+  type GroupChatIdJson,
+  convertJSONToGroupChatId,
+} from "./group-chat-id";
 import {
   type GroupChatName,
+  type GroupChatNameJson,
   convertJSONToGroupChatName,
 } from "./group-chat-name";
 import { Member, type MemberRole } from "./member";
 import { MemberId } from "./member-id";
-import { Members, convertJSONToMembers } from "./members";
+import { Members, type MembersJson, convertJSONToMembers } from "./members";
 import type { Message } from "./message";
 import type { MessageId } from "./message-id";
-import { Messages, convertJSONToMessages } from "./messages";
+import { Messages, type MessagesJson, convertJSONToMessages } from "./messages";
 
-const GroupChatTypeSymbol = Symbol("GroupChat");
+const GROUP_CHAT_BRAND: unique symbol = Symbol("GroupChat");
 
-interface GroupChatParams {
+type GroupChatParams = {
   id: GroupChatId;
   deleted: boolean;
   name: GroupChatName;
@@ -48,353 +38,353 @@ interface GroupChatParams {
   messages: Messages;
   sequenceNumber: number;
   version: number;
-}
+};
 
-class GroupChat implements Aggregate<GroupChat, GroupChatId> {
-  readonly symbol: typeof GroupChatTypeSymbol = GroupChatTypeSymbol;
-  readonly typeName = "GroupChat";
+export type GroupChatSnapshotJson = {
+  typeName: "GroupChat";
+  id: GroupChatIdJson;
+  deleted: boolean;
+  name: GroupChatNameJson;
+  members: MembersJson;
+  messages: MessagesJson;
+  sequenceNumber: number;
+  version: number;
+};
 
-  public readonly id: GroupChatId;
-  public readonly deleted: boolean;
-  public readonly name: GroupChatName;
-  public readonly members: Members;
-  public readonly messages: Messages;
-  public readonly sequenceNumber: number;
-  public readonly version: number;
-
-  private constructor(params: GroupChatParams) {
-    this.id = params.id;
-    this.deleted = params.deleted;
-    this.name = params.name;
-    this.members = params.members;
-    this.messages = params.messages;
-    this.sequenceNumber = params.sequenceNumber;
-    this.version = params.version;
-  }
-
-  toJSON() {
-    return {
-      id: this.id.toJSON(),
-      deleted: this.deleted,
-      name: this.name.toJSON(),
-      members: this.members.toJSON(),
-      messages: this.messages.toJSON(),
-      sequenceNumber: this.sequenceNumber,
-      version: this.version,
-    };
-  }
-
+export type GroupChat = {
+  typeName: "GroupChat";
+  id: GroupChatId;
+  sequenceNumber: number;
+  version: number;
+  deleted: boolean;
+  name: GroupChatName;
+  members: Members;
+  messages: Messages;
   rename(
     name: GroupChatName,
     executorId: UserAccountId,
-  ): E.Either<GroupChatRenameError, [GroupChat, GroupChatRenamed]> {
-    if (this.deleted) {
-      return E.left(GroupChatRenameError.of("The group chat is deleted"));
-    }
-    if (!this.members.isAdministrator(executorId)) {
-      return E.left(
-        GroupChatRenameError.of(
-          "The executorId is not the member of the group chat",
-        ),
-      );
-    }
-    if (this.name.equals(name)) {
-      return E.left(
-        GroupChatRenameError.of("The new name is the same as the old name"),
-      );
-    }
-    const newSequenceNumber = this.sequenceNumber + 1;
-    const newGroupChat: GroupChat = new GroupChat({
-      ...this,
-      name,
-      sequenceNumber: newSequenceNumber,
-    });
-    const event = GroupChatRenamed.of(
-      this.id,
-      name,
-      executorId,
-      newSequenceNumber,
-    );
-    return E.right([newGroupChat, event]);
-  }
-
+  ): Result<[GroupChat, GroupChatRenamed], GroupChatError>;
   addMember(
     userAccountId: UserAccountId,
     memberRole: MemberRole,
     executorId: UserAccountId,
-  ): E.Either<GroupChatAddMemberError, [GroupChat, GroupChatMemberAdded]> {
-    if (this.deleted) {
-      return E.left(GroupChatAddMemberError.of("The group chat is deleted"));
-    }
-    if (this.members.isMember(userAccountId)) {
-      return E.left(
-        GroupChatAddMemberError.of(
-          "The userAccountId is already the member of the group chat",
-        ),
-      );
-    }
-    if (!this.members.isAdministrator(executorId)) {
-      return E.left(
-        GroupChatAddMemberError.of(
-          "The executorId is not the member of the group chat",
-        ),
-      );
-    }
-    const newMember = Member.of(MemberId.generate(), userAccountId, memberRole);
-    const newMembers = this.members.addMember(newMember);
-    const newSequenceNumber = this.sequenceNumber + 1;
-    const newGroupChat: GroupChat = new GroupChat({
-      ...this,
-      members: newMembers,
-      sequenceNumber: newSequenceNumber,
-    });
-    const event = GroupChatMemberAdded.of(
-      this.id,
-      newMember,
-      executorId,
-      newSequenceNumber,
-    );
-    return E.right([newGroupChat, event]);
-  }
-
+  ): Result<[GroupChat, GroupChatMemberAdded], GroupChatError>;
   removeMemberById(
     userAccountId: UserAccountId,
     executorId: UserAccountId,
-  ): E.Either<GroupChatRemoveMemberError, [GroupChat, GroupChatMemberRemoved]> {
-    if (this.deleted) {
-      return E.left(GroupChatRemoveMemberError.of("The group chat is deleted"));
-    }
-    if (!this.members.containsById(userAccountId)) {
-      return E.left(
-        GroupChatRemoveMemberError.of(
-          "The userAccountId is not the member of the group chat",
-        ),
-      );
-    }
-    const newMembersOpt = this.members.removeMemberById(userAccountId);
-    if (O.isNone(newMembersOpt)) {
-      return E.left(
-        GroupChatRemoveMemberError.of(
-          "The userAccountId is not the member of the group chat",
-        ),
-      );
-    }
-    const [newMembers, removedMember] = newMembersOpt.value;
-    const newSequenceNumber = this.sequenceNumber + 1;
-    const newGroupChat: GroupChat = new GroupChat({
-      ...this,
-      members: newMembers,
-      sequenceNumber: newSequenceNumber,
-    });
-    const event = GroupChatMemberRemoved.of(
-      this.id,
-      removedMember,
-      executorId,
-      newSequenceNumber,
-    );
-    return E.right([newGroupChat, event]);
-  }
-
+  ): Result<[GroupChat, GroupChatMemberRemoved], GroupChatError>;
   postMessage(
     message: Message,
     executorId: UserAccountId,
-  ): E.Either<GroupChatPostMessageError, [GroupChat, GroupChatMessagePosted]> {
-    if (this.deleted) {
-      return E.left(GroupChatPostMessageError.of("The group chat is deleted"));
-    }
-    if (!this.members.containsById(executorId)) {
-      return E.left(
-        GroupChatPostMessageError.of(
-          "The executorId is not the member of the group chat",
-        ),
-      );
-    }
-    if (!this.members.containsById(message.senderId)) {
-      return E.left(
-        GroupChatPostMessageError.of(
-          "The sender id is not the member of the group chat",
-        ),
-      );
-    }
-    if (this.messages.containsById(message.id)) {
-      return E.left(
-        GroupChatPostMessageError.of(
-          "The message id is already exists in the group chat",
-        ),
-      );
-    }
-    const newSequenceNumber = this.sequenceNumber + 1;
-    const newMessages = this.messages.addMessage(message);
-    const newGroupChat: GroupChat = new GroupChat({
-      ...this,
-      messages: newMessages,
-      sequenceNumber: newSequenceNumber,
-    });
-    const event = GroupChatMessagePosted.of(
-      this.id,
-      message,
-      executorId,
-      newSequenceNumber,
-    );
-    return E.right([newGroupChat, event]);
-  }
-
+  ): Result<[GroupChat, GroupChatMessagePosted], GroupChatError>;
   deleteMessage(
     messageId: MessageId,
     executorId: UserAccountId,
-  ): E.Either<
-    GroupChatDeleteMessageError,
-    [GroupChat, GroupChatMessageDeleted]
-  > {
-    if (this.deleted) {
-      return E.left(
-        GroupChatDeleteMessageError.of("The group chat is deleted"),
-      );
-    }
-    if (!this.members.containsById(executorId)) {
-      return E.left(
-        GroupChatDeleteMessageError.of(
-          "The executorId is not the member of the group chat",
-        ),
-      );
-    }
-    const result = this.messages.removeMessageById(messageId);
-    if (O.isNone(result)) {
-      return E.left(
-        GroupChatDeleteMessageError.of(
-          "The message id is not exists in the group chat",
-        ),
-      );
-    }
-    const [newMessages, removedMessage] = result.value;
-    const newSequenceNumber = this.sequenceNumber + 1;
-    const newGroupChat: GroupChat = new GroupChat({
-      ...this,
-      messages: newMessages,
-      sequenceNumber: newSequenceNumber,
-    });
-    const event = GroupChatMessageDeleted.of(
-      this.id,
-      removedMessage,
-      executorId,
-      newSequenceNumber,
-    );
-    return E.right([newGroupChat, event]);
-  }
-
+  ): Result<[GroupChat, GroupChatMessageDeleted], GroupChatError>;
   delete(
     executorId: UserAccountId,
-  ): E.Either<GroupChatDeleteError, [GroupChat, GroupChatDeleted]> {
-    if (this.deleted) {
-      return E.left(GroupChatDeleteError.of("The group chat is deleted"));
-    }
-    if (!this.members.isAdministrator(executorId)) {
-      return E.left(
-        GroupChatDeleteError.of(
-          "The executorId is not the member of the group chat",
-        ),
+  ): Result<[GroupChat, GroupChatDeleted], GroupChatError>;
+  withVersion(version: number): GroupChat;
+  updateVersion(version: (value: number) => number): GroupChat;
+  readonly [GROUP_CHAT_BRAND]: true;
+};
+
+function paramsOf(self: GroupChat): GroupChatParams {
+  return {
+    id: self.id,
+    deleted: self.deleted,
+    name: self.name,
+    members: self.members,
+    messages: self.messages,
+    sequenceNumber: self.sequenceNumber,
+    version: self.version,
+  };
+}
+
+function make(params: GroupChatParams): GroupChat {
+  return Object.freeze({
+    [GROUP_CHAT_BRAND]: true as const,
+    typeName: "GroupChat",
+    id: params.id,
+    deleted: params.deleted,
+    name: params.name,
+    members: params.members,
+    messages: params.messages,
+    sequenceNumber: params.sequenceNumber,
+    version: params.version,
+
+    withVersion(version: number): GroupChat {
+      return make({ ...params, version });
+    },
+    updateVersion(version: (value: number) => number): GroupChat {
+      return make({ ...params, version: version(params.version) });
+    },
+
+    rename(
+      name: GroupChatName,
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatRenamed], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(GroupChatError.rename("The group chat is deleted"));
+      }
+      if (!Members.isAdministrator(params.members, executorId)) {
+        return Result.err(
+          GroupChatError.rename(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      if (params.name.value === name.value) {
+        return Result.err(
+          GroupChatError.rename("The new name is the same as the old name"),
+        );
+      }
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, name, sequenceNumber });
+      const event = GroupChatRenamed.of(
+        params.id,
+        name,
+        executorId,
+        sequenceNumber,
       );
+      return Result.ok([newGroupChat, event]);
+    },
+
+    addMember(
+      userAccountId: UserAccountId,
+      memberRole: MemberRole,
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatMemberAdded], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(
+          GroupChatError.addMember("The group chat is deleted"),
+        );
+      }
+      if (Members.containsById(params.members, userAccountId)) {
+        return Result.err(
+          GroupChatError.addMember(
+            "The userAccountId is already the member of the group chat",
+          ),
+        );
+      }
+      if (!Members.isAdministrator(params.members, executorId)) {
+        return Result.err(
+          GroupChatError.addMember(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      const newMember = Member.of(
+        MemberId.generate(),
+        userAccountId,
+        memberRole,
+      );
+      const members = Members.addMember(params.members, newMember);
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, members, sequenceNumber });
+      const event = GroupChatMemberAdded.of(
+        params.id,
+        newMember,
+        executorId,
+        sequenceNumber,
+      );
+      return Result.ok([newGroupChat, event]);
+    },
+
+    removeMemberById(
+      userAccountId: UserAccountId,
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatMemberRemoved], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(
+          GroupChatError.removeMember("The group chat is deleted"),
+        );
+      }
+      const removed = Members.removeMemberById(params.members, userAccountId);
+      if (removed === undefined) {
+        return Result.err(
+          GroupChatError.removeMember(
+            "The userAccountId is not the member of the group chat",
+          ),
+        );
+      }
+      const [members, removedMember] = removed;
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, members, sequenceNumber });
+      const event = GroupChatMemberRemoved.of(
+        params.id,
+        removedMember,
+        executorId,
+        sequenceNumber,
+      );
+      return Result.ok([newGroupChat, event]);
+    },
+
+    postMessage(
+      message: Message,
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatMessagePosted], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(
+          GroupChatError.postMessage("The group chat is deleted"),
+        );
+      }
+      if (!Members.containsById(params.members, executorId)) {
+        return Result.err(
+          GroupChatError.postMessage(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      if (!Members.containsById(params.members, message.senderId)) {
+        return Result.err(
+          GroupChatError.postMessage(
+            "The sender id is not the member of the group chat",
+          ),
+        );
+      }
+      if (Messages.containsById(params.messages, message.id)) {
+        return Result.err(
+          GroupChatError.postMessage(
+            "The message id is already exists in the group chat",
+          ),
+        );
+      }
+      const messages = Messages.addMessage(params.messages, message);
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, messages, sequenceNumber });
+      const event = GroupChatMessagePosted.of(
+        params.id,
+        message,
+        executorId,
+        sequenceNumber,
+      );
+      return Result.ok([newGroupChat, event]);
+    },
+
+    deleteMessage(
+      messageId: MessageId,
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatMessageDeleted], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(
+          GroupChatError.deleteMessage("The group chat is deleted"),
+        );
+      }
+      if (!Members.containsById(params.members, executorId)) {
+        return Result.err(
+          GroupChatError.deleteMessage(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      const removed = Messages.removeMessageById(params.messages, messageId);
+      if (removed === undefined) {
+        return Result.err(
+          GroupChatError.deleteMessage(
+            "The message id is not exists in the group chat",
+          ),
+        );
+      }
+      const [messages, removedMessage] = removed;
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, messages, sequenceNumber });
+      const event = GroupChatMessageDeleted.of(
+        params.id,
+        removedMessage,
+        executorId,
+        sequenceNumber,
+      );
+      return Result.ok([newGroupChat, event]);
+    },
+
+    delete(
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatDeleted], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(
+          GroupChatError.deleteGroupChat("The group chat is deleted"),
+        );
+      }
+      if (!Members.isAdministrator(params.members, executorId)) {
+        return Result.err(
+          GroupChatError.deleteGroupChat(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, deleted: true, sequenceNumber });
+      const event = GroupChatDeleted.of(params.id, executorId, sequenceNumber);
+      return Result.ok([newGroupChat, event]);
+    },
+  });
+}
+
+function applyEvent(self: GroupChat, event: GroupChatEvent): GroupChat {
+  const base = paramsOf(self);
+  switch (event.typeName) {
+    case "GroupChatCreated":
+      return self;
+    case "GroupChatRenamed":
+      return make({
+        ...base,
+        name: event.name,
+        sequenceNumber: event.sequenceNumber,
+      });
+    case "GroupChatMemberAdded":
+      return make({
+        ...base,
+        members: Members.addMember(base.members, event.member),
+        sequenceNumber: event.sequenceNumber,
+      });
+    case "GroupChatMemberRemoved": {
+      const removed = Members.removeMemberById(
+        base.members,
+        event.member.userAccountId,
+      );
+      return make({
+        ...base,
+        members: removed === undefined ? base.members : removed[0],
+        sequenceNumber: event.sequenceNumber,
+      });
     }
-    const newSequenceNumber = this.sequenceNumber + 1;
-    const newGroupChat: GroupChat = new GroupChat({
-      ...this,
-      deleted: true,
-      sequenceNumber: newSequenceNumber,
-    });
-    const event = GroupChatDeleted.of(this.id, executorId, newSequenceNumber);
-    return E.right([newGroupChat, event]);
-  }
-
-  withVersion(version: number): GroupChat {
-    return new GroupChat({ ...this, version });
-  }
-
-  updateVersion(versionF: (value: number) => number): GroupChat {
-    return new GroupChat({ ...this, version: versionF(this.version) });
-  }
-
-  toString() {
-    return `GroupChat(${this.id.toString()}, ${this.deleted}, ${this.name.toString()}, ${this.members.toString()}, ${this.messages.toString()}, ${this.sequenceNumber}, ${this.version})`;
-  }
-
-  equals(other: GroupChat) {
-    return (
-      this.id.equals(other.id) &&
-      this.deleted === other.deleted &&
-      this.name.equals(other.name) &&
-      this.members.equals(other.members) &&
-      this.sequenceNumber === other.sequenceNumber &&
-      this.version === other.version
-    );
-  }
-
-  applyEvent(event: GroupChatEvent): GroupChat {
-    switch (event.symbol) {
-      case GroupChatRenamedTypeSymbol: {
-        const typedEvent = event as GroupChatRenamed;
-        const result = this.rename(typedEvent.name, event.executorId);
-        if (E.isLeft(result)) {
-          throw new Error(result.left.message);
-        }
-        return result.right[0];
-      }
-      case GroupChatMemberAddedTypeSymbol: {
-        const typedEvent = event as GroupChatMemberAdded;
-        const result = this.addMember(
-          typedEvent.member.userAccountId,
-          typedEvent.member.memberRole,
-          event.executorId,
-        );
-        if (E.isLeft(result)) {
-          throw new Error(result.left.message);
-        }
-        return result.right[0];
-      }
-      case GroupChatMemberRemovedTypeSymbol: {
-        const typedEvent = event as GroupChatMemberRemoved;
-        const result = this.removeMemberById(
-          typedEvent.member.userAccountId,
-          event.executorId,
-        );
-        if (E.isLeft(result)) {
-          throw new Error(result.left.message);
-        }
-        return result.right[0];
-      }
-      case GroupChatMessagePostedTypeSymbol: {
-        const typedEvent = event as GroupChatMessagePosted;
-        const result = this.postMessage(typedEvent.message, event.executorId);
-        if (E.isLeft(result)) {
-          throw new Error(result.left.message);
-        }
-        return result.right[0];
-      }
-      case GroupChatMessageDeletedTypeSymbol: {
-        const typedEvent = event as GroupChatMessageDeleted;
-        const result = this.deleteMessage(
-          typedEvent.message.id,
-          event.executorId,
-        );
-        if (E.isLeft(result)) {
-          throw new Error(result.left.message);
-        }
-        return result.right[0];
-      }
-      case GroupChatDeletedTypeSymbol: {
-        const typedEvent = event as GroupChatDeleted;
-        const result = this.delete(typedEvent.executorId);
-        if (E.isLeft(result)) {
-          throw new Error(result.left.message);
-        }
-        return result.right[0];
-      }
-      default: {
-        throw new Error("Unknown event");
-      }
+    case "GroupChatMessagePosted":
+      return make({
+        ...base,
+        messages: Messages.addMessage(base.messages, event.message),
+        sequenceNumber: event.sequenceNumber,
+      });
+    case "GroupChatMessageDeleted": {
+      const removed = Messages.removeMessageById(
+        base.messages,
+        event.message.id,
+      );
+      return make({
+        ...base,
+        messages: removed === undefined ? base.messages : removed[0],
+        sequenceNumber: event.sequenceNumber,
+      });
+    }
+    case "GroupChatDeleted":
+      return make({
+        ...base,
+        deleted: true,
+        sequenceNumber: event.sequenceNumber,
+      });
+    default: {
+      const exhaustive: never = event;
+      throw new Error(`Unknown GroupChatEvent: ${String(exhaustive)}`);
     }
   }
+}
 
-  static create(
+export namespace GroupChat {
+  export function of(params: GroupChatParams): GroupChat {
+    return make(params);
+  }
+
+  export function create(
     id: GroupChatId,
     name: GroupChatName,
     executorId: UserAccountId,
@@ -402,47 +392,97 @@ class GroupChat implements Aggregate<GroupChat, GroupChatId> {
     const members = Members.ofSingle(executorId);
     const sequenceNumber = 1;
     const version = 1;
-    return [
-      new GroupChat({
-        id,
-        deleted: false,
-        name,
-        members,
-        messages: Messages.ofEmpty(),
-        sequenceNumber,
-        version,
-      }),
-      GroupChatCreated.of(id, name, members, executorId, sequenceNumber),
-    ];
-  }
-
-  static replay(events: GroupChatEvent[], snapshot: GroupChat): GroupChat {
-    return events.reduce(
-      (groupChat, event) => groupChat.applyEvent(event),
-      snapshot,
+    const groupChat = make({
+      id,
+      deleted: false,
+      name,
+      members,
+      messages: Messages.ofEmpty(),
+      sequenceNumber,
+      version,
+    });
+    const event = GroupChatCreated.of(
+      id,
+      name,
+      members,
+      executorId,
+      sequenceNumber,
     );
+    return [groupChat, event];
   }
 
-  static of(params: GroupChatParams): GroupChat {
-    return new GroupChat(params);
+  export function replay(
+    events: readonly GroupChatEvent[],
+    snapshot: GroupChat,
+  ): GroupChat {
+    return events.reduce((self, event) => applyEvent(self, event), snapshot);
+  }
+
+  export function replayFromEvents(
+    events: readonly GroupChatEvent[],
+  ): GroupChat | undefined {
+    const [first, ...rest] = events;
+    if (first === undefined) {
+      return undefined;
+    }
+    if (first.typeName !== "GroupChatCreated") {
+      throw new Error("GroupChat history must start with GroupChatCreated");
+    }
+    const initial = make({
+      id: first.aggregateId,
+      deleted: false,
+      name: first.name,
+      members: first.members,
+      messages: Messages.ofEmpty(),
+      sequenceNumber: first.sequenceNumber,
+      version: 1,
+    });
+    return rest.reduce((self, event) => applyEvent(self, event), initial);
+  }
+
+  export function is(value: unknown): value is GroupChat {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    return (value as Partial<GroupChat>)[GROUP_CHAT_BRAND] === true;
+  }
+
+  export function toJSON(self: GroupChat): GroupChatSnapshotJson {
+    return {
+      typeName: "GroupChat",
+      id: { value: self.id.value },
+      deleted: self.deleted,
+      name: { value: self.name.value },
+      members: { values: self.members.values.map((m) => Member.toJSON(m)) },
+      messages: Messages.toJSON(self.messages),
+      sequenceNumber: self.sequenceNumber,
+      version: self.version,
+    };
+  }
+
+  export function fromJSON(json: unknown): GroupChat {
+    const data = unwrapSnapshot(json);
+    return make({
+      id: convertJSONToGroupChatId(data.id),
+      deleted: Boolean(data.deleted),
+      name: convertJSONToGroupChatName(data.name),
+      members: convertJSONToMembers(data.members),
+      messages: convertJSONToMessages(data.messages),
+      sequenceNumber: Number(data.sequenceNumber),
+      version: Number(data.version),
+    });
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToGroupChat(json: any): GroupChat {
-  const id = convertJSONToGroupChatId(json.data.id);
-  const name = convertJSONToGroupChatName(json.data.name);
-  const members = convertJSONToMembers(json.data.members);
-  const messages = convertJSONToMessages(json.data.messages);
-  return GroupChat.of({
-    id,
-    deleted: json.data.deleted,
-    name,
-    members,
-    messages,
-    sequenceNumber: json.data.sequenceNumber,
-    version: json.data.version,
-  });
-}
+export const convertJSONToGroupChat = GroupChat.fromJSON;
 
-export { GroupChat, GroupChatTypeSymbol, convertJSONToGroupChat };
+// biome-ignore lint/suspicious/noExplicitAny: dynamic JSON payload from the snapshot store
+function unwrapSnapshot(json: unknown): any {
+  if (typeof json !== "object" || json === null) {
+    throw new Error("Invalid GroupChat JSON");
+  }
+  if ("type" in json && "data" in json) {
+    return json.data;
+  }
+  return json;
+}

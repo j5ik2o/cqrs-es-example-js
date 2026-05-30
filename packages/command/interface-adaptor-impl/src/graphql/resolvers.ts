@@ -1,5 +1,4 @@
 import {
-  GroupChatError,
   GroupChatId,
   GroupChatName,
   type MemberRole,
@@ -7,17 +6,11 @@ import {
   MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import { RepositoryError } from "cqrs-es-example-js-command-interface-adaptor-if";
-import {
-  type GroupChatCommandProcessor,
-  ProcessNotFoundError,
+import type {
+  GroupChatCommandProcessor,
+  ProcessError,
 } from "cqrs-es-example-js-command-processor";
-import type { ProcessError } from "cqrs-es-example-js-command-processor";
-import { OptimisticLockError } from "event-store-adapter-js";
-import type { Task } from "fp-ts/Task";
-import * as TE from "fp-ts/TaskEither";
-import type { TaskEither } from "fp-ts/TaskEither";
-import { pipe } from "fp-ts/function";
+import type { Result } from "event-store-adapter-js";
 import { GraphQLError } from "graphql/error";
 import { Arg, Ctx, Mutation, Query, Resolver } from "type-graphql";
 import {
@@ -47,29 +40,12 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => CreateGroupChatInput) input: CreateGroupChatInput,
   ): Promise<GroupChatOutput> {
-    return pipe(
-      this.validateGroupChatName(input.name),
-      TE.chainW((validatedName) =>
-        pipe(
-          this.validateUserAccountId(input.executorId),
-          TE.map((validatedExecutorId) => ({
-            validatedName,
-            validatedExecutorId,
-          })),
-        ),
-      ),
-      TE.chainW(({ validatedName, validatedExecutorId }) =>
-        groupChatCommandProcessor.createGroupChat(
-          validatedName,
-          validatedExecutorId,
-        ),
-      ),
-      TE.map((groupChatEvent) => ({
-        groupChatId: groupChatEvent.aggregateId.asString(),
-      })),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    const name = orThrow(GroupChatName.validate(input.name));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const event = unwrap(
+      await groupChatCommandProcessor.createGroupChat(name, executorId),
+    );
+    return { groupChatId: event.aggregateId.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -77,29 +53,12 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => DeleteGroupChatInput) input: DeleteGroupChatInput,
   ): Promise<GroupChatOutput> {
-    return pipe(
-      this.validateGroupChatId(input.groupChatId),
-      TE.chainW((validateGroupChatId) =>
-        pipe(
-          this.validateUserAccountId(input.executorId),
-          TE.map((validatedExecutorId) => ({
-            validateGroupChatId,
-            validatedExecutorId,
-          })),
-        ),
-      ),
-      TE.chainW(({ validateGroupChatId, validatedExecutorId }) =>
-        groupChatCommandProcessor.deleteGroupChat(
-          validateGroupChatId,
-          validatedExecutorId,
-        ),
-      ),
-      TE.map((groupChatEvent) => ({
-        groupChatId: groupChatEvent.aggregateId.asString(),
-      })),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const event = unwrap(
+      await groupChatCommandProcessor.deleteGroupChat(groupChatId, executorId),
+    );
+    return { groupChatId: event.aggregateId.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -107,45 +66,17 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => RenameGroupChatInput) input: RenameGroupChatInput,
   ): Promise<GroupChatOutput> {
-    return pipe(
-      this.validateGroupChatId(input.groupChatId),
-      TE.chainW((validateGroupChatId) =>
-        pipe(
-          this.validateGroupChatName(input.name),
-          TE.map((validatedGroupChatName) => ({
-            validateGroupChatId,
-            validatedGroupChatName,
-          })),
-        ),
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const name = orThrow(GroupChatName.validate(input.name));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const event = unwrap(
+      await groupChatCommandProcessor.renameGroupChat(
+        groupChatId,
+        name,
+        executorId,
       ),
-      TE.chainW(({ validateGroupChatId, validatedGroupChatName }) =>
-        pipe(
-          this.validateUserAccountId(input.executorId),
-          TE.map((validatedExecutorId) => ({
-            validateGroupChatId,
-            validatedGroupChatName,
-            validatedExecutorId,
-          })),
-        ),
-      ),
-      TE.chainW(
-        ({
-          validateGroupChatId,
-          validatedGroupChatName,
-          validatedExecutorId,
-        }) =>
-          groupChatCommandProcessor.renameGroupChat(
-            validateGroupChatId,
-            validatedGroupChatName,
-            validatedExecutorId,
-          ),
-      ),
-      TE.map((groupChatEvent) => ({
-        groupChatId: groupChatEvent.aggregateId.asString(),
-      })),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    );
+    return { groupChatId: event.aggregateId.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -153,59 +84,19 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => AddMemberInput) input: AddMemberInput,
   ): Promise<GroupChatOutput> {
-    return pipe(
-      this.validateGroupChatId(input.groupChatId),
-      TE.chainW((validateGroupChatId) =>
-        pipe(
-          this.validateUserAccountId(input.userAccountId),
-          TE.map((validatedUserAccountId) => ({
-            validateGroupChatId,
-            validatedUserAccountId,
-          })),
-        ),
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const userAccountId = orThrow(UserAccountId.validate(input.userAccountId));
+    const role = input.role.toLowerCase() as MemberRole;
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const event = unwrap(
+      await groupChatCommandProcessor.addMemberToGroupChat(
+        groupChatId,
+        userAccountId,
+        role,
+        executorId,
       ),
-      TE.chainW(({ validateGroupChatId, validatedUserAccountId }) =>
-        pipe(
-          TE.right(input.role.toLowerCase() as MemberRole),
-          TE.map((validatedRole) => ({
-            validateGroupChatId,
-            validatedUserAccountId,
-            validatedRole,
-          })),
-        ),
-      ),
-      TE.chainW(
-        ({ validateGroupChatId, validatedUserAccountId, validatedRole }) =>
-          pipe(
-            this.validateUserAccountId(input.executorId),
-            TE.map((validatedExecutorId) => ({
-              validateGroupChatId,
-              validatedUserAccountId,
-              validatedRole,
-              validatedExecutorId,
-            })),
-          ),
-      ),
-      TE.chainW(
-        ({
-          validateGroupChatId,
-          validatedUserAccountId,
-          validatedRole,
-          validatedExecutorId,
-        }) =>
-          groupChatCommandProcessor.addMemberToGroupChat(
-            validateGroupChatId,
-            validatedUserAccountId,
-            validatedRole,
-            validatedExecutorId,
-          ),
-      ),
-      TE.map((groupChatEvent) => ({
-        groupChatId: groupChatEvent.aggregateId.asString(),
-      })),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    );
+    return { groupChatId: event.aggregateId.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -213,45 +104,17 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => RemoveMemberInput) input: RemoveMemberInput,
   ): Promise<GroupChatOutput> {
-    return pipe(
-      this.validateGroupChatId(input.groupChatId),
-      TE.chainW((validateGroupChatId) =>
-        pipe(
-          this.validateUserAccountId(input.userAccountId),
-          TE.map((validatedUserAccountId) => ({
-            validateGroupChatId,
-            validatedUserAccountId,
-          })),
-        ),
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const userAccountId = orThrow(UserAccountId.validate(input.userAccountId));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const event = unwrap(
+      await groupChatCommandProcessor.removeMemberFromGroupChat(
+        groupChatId,
+        userAccountId,
+        executorId,
       ),
-      TE.chainW(({ validateGroupChatId, validatedUserAccountId }) =>
-        pipe(
-          this.validateUserAccountId(input.executorId),
-          TE.map((validatedExecutorId) => ({
-            validateGroupChatId,
-            validatedUserAccountId,
-            validatedExecutorId,
-          })),
-        ),
-      ),
-      TE.chainW(
-        ({
-          validateGroupChatId,
-          validatedUserAccountId,
-          validatedExecutorId,
-        }) =>
-          groupChatCommandProcessor.removeMemberFromGroupChat(
-            validateGroupChatId,
-            validatedUserAccountId,
-            validatedExecutorId,
-          ),
-      ),
-      TE.map((groupChatEvent) => ({
-        groupChatId: groupChatEvent.aggregateId.asString(),
-      })),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    );
+    return { groupChatId: event.aggregateId.asString() };
   }
 
   @Mutation(() => MessageOutput)
@@ -259,49 +122,27 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => PostMessageInput) input: PostMessageInput,
   ): Promise<MessageOutput> {
-    return pipe(
-      this.validateGroupChatId(input.groupChatId),
-      TE.chainW((validateGroupChatId) =>
-        pipe(
-          this.validateUserAccountId(input.executorId),
-          TE.map((validatedExecutorId) => ({
-            validateGroupChatId,
-            validatedExecutorId,
-          })),
-        ),
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const message = orThrow(
+      Message.validate(
+        MessageId.generate(),
+        input.content,
+        executorId,
+        new Date(),
       ),
-      TE.chainW(({ validateGroupChatId, validatedExecutorId }) =>
-        pipe(
-          this.validateMessage(
-            MessageId.generate(),
-            input.content,
-            validatedExecutorId,
-            new Date(),
-          ),
-          TE.map((validatedMessage) => ({
-            validateGroupChatId,
-            validatedExecutorId,
-            validatedMessage,
-          })),
-        ),
+    );
+    const event = unwrap(
+      await groupChatCommandProcessor.postMessageToGroupChat(
+        groupChatId,
+        message,
+        executorId,
       ),
-      TE.chainW(
-        ({ validateGroupChatId, validatedExecutorId, validatedMessage }) =>
-          pipe(
-            groupChatCommandProcessor.postMessageToGroupChat(
-              validateGroupChatId,
-              validatedMessage,
-              validatedExecutorId,
-            ),
-            TE.map((groupChatEvent) => ({
-              groupChatId: groupChatEvent.aggregateId.asString(),
-              messageId: validatedMessage.id.asString(),
-            })),
-          ),
-      ),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    );
+    return {
+      groupChatId: event.aggregateId.asString(),
+      messageId: message.id.asString(),
+    };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -309,125 +150,69 @@ class GroupChatCommandResolver {
     @Ctx() { groupChatCommandProcessor }: CommandContext,
     @Arg("input", () => DeleteMessageInput) input: DeleteMessageInput,
   ): Promise<GroupChatOutput> {
-    return pipe(
-      this.validateGroupChatId(input.groupChatId),
-      TE.chainW((validateGroupChatId) =>
-        pipe(
-          MessageId.validate(input.messageId),
-          TE.fromEither,
-          TE.map((validatedMessageId) => ({
-            validateGroupChatId,
-            validatedMessageId,
-          })),
-        ),
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const messageId = orThrow(MessageId.validate(input.messageId));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const event = unwrap(
+      await groupChatCommandProcessor.deleteMessageFromGroupChat(
+        groupChatId,
+        messageId,
+        executorId,
       ),
-      TE.chainW(({ validateGroupChatId, validatedMessageId }) =>
-        pipe(
-          this.validateUserAccountId(input.executorId),
-          TE.map((validatedExecutorId) => ({
-            validateGroupChatId,
-            validatedMessageId,
-            validatedExecutorId,
-          })),
-        ),
-      ),
-      TE.chainW(
-        ({ validateGroupChatId, validatedMessageId, validatedExecutorId }) =>
-          groupChatCommandProcessor.deleteMessageFromGroupChat(
-            validateGroupChatId,
-            validatedMessageId,
-            validatedExecutorId,
-          ),
-      ),
-      TE.map((groupChatEvent) => ({
-        groupChatId: groupChatEvent.aggregateId.asString(),
-      })),
-      TE.mapLeft(this.convertToError),
-      this.toTask(),
-    )();
+    );
+    return { groupChatId: event.aggregateId.asString() };
   }
+}
 
-  private convertToError(error: string | ProcessError): Error {
-    if (typeof error === "string") {
-      return new ValidationGraphQLError(error);
-    }
-    if (
-      error.cause instanceof RepositoryError &&
-      error.cause.cause instanceof OptimisticLockError
-    ) {
+function orThrow<T>(result: Result<T, string>): T {
+  if (result.type === "err") {
+    throw new ValidationGraphQLError(result.error);
+  }
+  return result.value;
+}
+
+function unwrap<T>(result: Result<T, ProcessError>): T {
+  if (result.type === "err") {
+    throw toGraphQLError(result.error);
+  }
+  return result.value;
+}
+
+function toGraphQLError(error: ProcessError): GraphQLError {
+  switch (error.kind) {
+    case "optimistic-lock":
       return new OptimisticLockingGraphQLError(
         "A conflict occurred while attempting to save your changes. Please try again.",
         error,
       );
-    }
-    if (error.cause instanceof GroupChatError) {
+    case "domain":
       return new DomainLogicGraphQLError(
         "The request could not be processed due to a domain logic error. Please verify your data and try again.",
         error,
       );
-    }
-    if (error instanceof ProcessNotFoundError) {
+    case "not-found":
       return new NotFoundGraphQLError(
         "The requested resource could not be found.",
         error,
       );
-    }
-    return new InternalServerGraphQLError(
-      "An unexpected error occurred. Please try again later.",
-      error,
-    );
-  }
-
-  private toTask<A, B>(): (_: TaskEither<A, B>) => Task<B> {
-    return TE.fold<A, B, B>(
-      (e) => () => Promise.reject(e),
-      (r) => () => Promise.resolve(r),
-    );
-  }
-
-  private validateGroupChatId(value: string): TaskEither<string, GroupChatId> {
-    return TE.fromEither(GroupChatId.validate(value));
-  }
-
-  private validateUserAccountId(
-    value: string,
-  ): TaskEither<string, UserAccountId> {
-    return TE.fromEither(UserAccountId.validate(value));
-  }
-
-  private validateGroupChatName(
-    value: string,
-  ): TaskEither<string, GroupChatName> {
-    return TE.fromEither(GroupChatName.validate(value));
-  }
-
-  private validateMessage(
-    id: MessageId,
-    content: string,
-    senderId: UserAccountId,
-    sentAt: Date,
-  ): TE.TaskEither<string, Message> {
-    return TE.fromEither(Message.validate(id, content, senderId, sentAt));
+    default:
+      return new InternalServerGraphQLError(
+        "An unexpected error occurred. Please try again later.",
+        error,
+      );
   }
 }
 
 class ValidationGraphQLError extends GraphQLError {
   constructor(message: string) {
-    super(message, {
-      extensions: {
-        code: "400",
-      },
-    });
+    super(message, { extensions: { code: "400" } });
   }
 }
 
 class NotFoundGraphQLError extends GraphQLError {
   constructor(message: string, cause?: ProcessError) {
     super(message, {
-      extensions: {
-        code: "404",
-        cause: { message: cause?.message, stack: cause?.stack },
-      },
+      extensions: { code: "404", cause: { message: cause?.message } },
     });
   }
 }
@@ -435,10 +220,7 @@ class NotFoundGraphQLError extends GraphQLError {
 class OptimisticLockingGraphQLError extends GraphQLError {
   constructor(message: string, cause?: ProcessError) {
     super(message, {
-      extensions: {
-        code: "409",
-        cause: { message: cause?.message, stack: cause?.stack },
-      },
+      extensions: { code: "409", cause: { message: cause?.message } },
     });
   }
 }
@@ -446,10 +228,7 @@ class OptimisticLockingGraphQLError extends GraphQLError {
 class DomainLogicGraphQLError extends GraphQLError {
   constructor(message: string, cause?: ProcessError) {
     super(message, {
-      extensions: {
-        code: "422",
-        cause: { message: cause?.message, stack: cause?.stack },
-      },
+      extensions: { code: "422", cause: { message: cause?.message } },
     });
   }
 }
@@ -457,10 +236,7 @@ class DomainLogicGraphQLError extends GraphQLError {
 class InternalServerGraphQLError extends GraphQLError {
   constructor(message: string, cause?: ProcessError) {
     super(message, {
-      extensions: {
-        code: "500",
-        cause: { message: cause?.message, stack: cause?.stack },
-      },
+      extensions: { code: "500", cause: { message: cause?.message } },
     });
   }
 }

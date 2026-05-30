@@ -1,100 +1,100 @@
-import * as O from "fp-ts/Option";
-import { type Message, convertJSONToMessage } from "./message";
-import { MessageId } from "./message-id";
+import { Message, type MessageJson, convertJSONToMessage } from "./message";
+import type { MessageId } from "./message-id";
 
-const MessagesTypeSymbol = Symbol("Messages");
+const MESSAGES_BRAND: unique symbol = Symbol("Messages");
 
-class Messages {
-  readonly symbol: typeof MessagesTypeSymbol = MessagesTypeSymbol;
-  constructor(public readonly values: Map<string, Message>) {
-    this.values = values;
+export type MessagesJson = {
+  values: MessageJson[];
+};
+
+export type Messages = {
+  values: readonly Message[];
+  readonly [MESSAGES_BRAND]: true;
+};
+
+export namespace Messages {
+  export function fromArray(values: readonly Message[]): Messages {
+    return Object.freeze({
+      [MESSAGES_BRAND]: true as const,
+      values: Object.freeze([...values]),
+    });
   }
 
-  toJSON() {
-    return {
-      values: this.toArray().map((m) => m.toJSON()),
-    };
+  export function ofEmpty(): Messages {
+    return fromArray([]);
   }
 
-  addMessage(message: Message) {
-    return new Messages(
-      new Map(this.values).set(message.id.asString(), message),
+  export function ofSingle(message: Message): Messages {
+    return fromArray([message]);
+  }
+
+  export function addMessage(messages: Messages, message: Message): Messages {
+    const withoutTarget = messages.values.filter(
+      (m) => m.id.value !== message.id.value,
     );
+    return fromArray([...withoutTarget, message]);
   }
 
-  removeMessageById(messageId: MessageId): O.Option<[Messages, Message]> {
-    const message = this.values.get(messageId.value);
-    if (message === undefined) {
-      return O.none;
+  export function removeMessageById(
+    messages: Messages,
+    messageId: MessageId,
+  ): [Messages, Message] | undefined {
+    const target = findById(messages, messageId);
+    if (target === undefined) {
+      return undefined;
     }
-    const newMap = new Map(this.values);
-    newMap.delete(messageId.value);
-    return O.some([new Messages(newMap), message]);
-  }
-
-  containsById(messageId: MessageId): boolean {
-    return this.values.has(messageId.value);
-  }
-
-  findById(messageId: MessageId): Message | undefined {
-    return this.values.get(messageId.value);
-  }
-
-  toArray(): Message[] {
-    return Array.from(this.values.values());
-  }
-
-  toMap(): Map<MessageId, Message> {
-    return new Map(
-      Array.from(this.values.entries()).map(([k, v]) => [MessageId.of(k), v]),
+    const remaining = messages.values.filter(
+      (m) => m.id.value !== messageId.value,
     );
+    return [fromArray(remaining), target];
   }
 
-  size(): number {
-    return this.values.size;
+  export function findById(
+    messages: Messages,
+    messageId: MessageId,
+  ): Message | undefined {
+    return messages.values.find((m) => m.id.value === messageId.value);
   }
 
-  toString() {
-    return `Messages(${JSON.stringify(this.toArray().map((m) => m.toString()))})`;
+  export function containsById(
+    messages: Messages,
+    messageId: MessageId,
+  ): boolean {
+    return findById(messages, messageId) !== undefined;
   }
 
-  equals(anotherMessages: Messages) {
+  export function toArray(messages: Messages): Message[] {
+    return [...messages.values];
+  }
+
+  export function size(messages: Messages): number {
+    return messages.values.length;
+  }
+
+  export function equals(a: Messages, b: Messages): boolean {
     return (
-      this.size() === anotherMessages.size() &&
-      this.toArray().every((message, index) =>
-        message.equals(anotherMessages.toArray()[index]),
+      a.values.length === b.values.length &&
+      a.values.every((message, index) =>
+        Message.equals(message, b.values[index]),
       )
     );
   }
 
-  static ofEmpty(): Messages {
-    return new Messages(new Map());
+  export function toJSON(messages: Messages): MessagesJson {
+    return { values: messages.values.map(Message.toJSON) };
   }
 
-  static ofSingle(message: Message): Messages {
-    return new Messages(new Map([[message.id.asString(), message]]));
-  }
-
-  static fromArray(messages: Message[]): Messages {
-    return new Messages(
-      new Map(messages.map((message) => [message.id.asString(), message])),
-    );
-  }
-
-  static fromMap(messages: Map<MessageId, Message>): Messages {
-    return new Messages(
-      new Map(
-        Array.from(messages.entries()).map(([k, v]) => [k.asString(), v]),
-      ),
-    );
+  export function fromJSON(json: unknown): Messages {
+    if (
+      typeof json !== "object" ||
+      json === null ||
+      !("values" in json) ||
+      !Array.isArray(json.values)
+    ) {
+      throw new Error("Invalid Messages JSON");
+    }
+    return fromArray(json.values.map(convertJSONToMessage));
   }
 }
-// biome-ignore lint/suspicious/noExplicitAny:
-function convertJSONToMessages(json: any): Messages {
-  // console.log("convertJSONToMessages = ", obj);
-  return Messages.fromArray(
-    // biome-ignore lint/suspicious/noExplicitAny:
-    json.values.map((v: any) => convertJSONToMessage(v)),
-  );
-}
-export { Messages, MessagesTypeSymbol, convertJSONToMessages };
+
+export const convertJSONToMessages = Messages.fromJSON;

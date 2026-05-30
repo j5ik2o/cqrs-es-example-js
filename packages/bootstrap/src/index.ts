@@ -3,13 +3,17 @@ import { type ILogObj, Logger } from "tslog";
 import * as yargs from "yargs";
 import { localRmuMain } from "./local-rmu-main";
 import { readApiMain } from "./read-api-main";
+import { spannerChangeStreamBridgeMain } from "./spanner-change-stream-bridge-main";
+import { spannerSetupMain } from "./spanner-setup-main";
 import { writeApiMain } from "./write-api-main";
 export const logger: Logger<ILogObj> = new Logger();
 async function main() {
   const argv = yargs
     .command("writeApi", "write api server")
     .command("readApi", "read api server")
-    .command("localRmu", "local read model updater")
+    .command("localRmu", "local read model updater (DynamoDB streams)")
+    .command("spannerSetup", "create Spanner schema/change-stream + Pub/Sub")
+    .command("spannerBridge", "local Spanner change-stream -> Pub/Sub bridge")
     .demandCommand(1)
     .help()
     .parseSync();
@@ -23,6 +27,12 @@ async function main() {
       break;
     case "localRmu":
       await localRmuMain();
+      break;
+    case "spannerSetup":
+      await spannerSetupMain();
+      break;
+    case "spannerBridge":
+      await spannerChangeStreamBridgeMain();
       break;
   }
 }
