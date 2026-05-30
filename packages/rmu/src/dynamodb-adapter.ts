@@ -22,10 +22,9 @@ function decodeDynamoDBStreamEvent(
     const groupChatEvent = convertJSONToGroupChatEvent(
       parsePayload(rawPayload),
     );
-    const observedAt =
-      record.dynamodb?.ApproximateCreationDateTime !== undefined
-        ? new Date(record.dynamodb.ApproximateCreationDateTime * 1000)
-        : new Date();
+    const observedAt = approximateCreationToDate(
+      record.dynamodb?.ApproximateCreationDateTime,
+    );
     inputs.push({
       event: groupChatEvent,
       aggregateId: groupChatEvent.aggregateId.asString(),
@@ -36,6 +35,21 @@ function decodeDynamoDBStreamEvent(
     });
   }
   return inputs;
+}
+
+/**
+ * AWS Lambda documents `ApproximateCreationDateTime` as epoch **seconds**, but
+ * LocalStack and the local-rmu stream driver deliver epoch **milliseconds**.
+ * Disambiguate by magnitude so the value never overflows into a garbage date.
+ */
+function approximateCreationToDate(value: number | undefined): Date {
+  if (value === undefined) {
+    return new Date();
+  }
+  // 1e12 ms ≈ year 2001; any realistic epoch-seconds value is below it.
+  const millis = value < 1e12 ? value * 1000 : value;
+  const date = new Date(millis);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 function parsePayload(rawPayload: string): unknown {
