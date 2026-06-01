@@ -52,7 +52,7 @@ done
 shift $(($OPTIND - 1))
 
 if [ "${SKIP_LAMBDA_BUILD}" != "1" ] && [ "${DOCKER_COMPOSE_UP_BUILD_LAMBDA:-1}" != "0" ]; then
-  (cd "${ROOT}" && ./tools/scripts/build-read-model-updater-lambda.sh)
+  (cd "${ROOT}" && ./tools/scripts/build-dynamodb-read-model-updater-lambda.sh)
 fi
 
 docker compose -p cqrs-es-example-js -f ../docker-compose/docker-compose-databases.yml ${F_OPTION} down -v --remove-orphans
@@ -61,7 +61,7 @@ docker compose -p cqrs-es-example-js -f ../docker-compose/docker-compose-databas
 
 if [ "${DOCKER_COMPOSE_UP_DEPLOY_LAMBDA:-1}" != "0" ]; then
   if command -v aws >/dev/null 2>&1; then
-    (cd "${ROOT}" && ./tools/scripts/deploy-read-model-updater-localstack.sh)
+    (cd "${ROOT}" && ./tools/scripts/deploy-dynamodb-read-model-updater-localstack.sh)
   else
     echo "Skipping Lambda deploy to LocalStack: aws CLI not found. Install it or set DOCKER_COMPOSE_UP_DEPLOY_LAMBDA=0." >&2
   fi

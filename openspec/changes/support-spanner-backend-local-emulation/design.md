@@ -39,7 +39,7 @@ provider-specific な event-store construction は interface-adapter/composition
 
 現在の AWS-compatible path を維持します。
 
-`LocalStack DynamoDB -> DynamoDB Streams -> LocalStack Lambda/localRmu -> MySQL`
+`LocalStack DynamoDB -> DynamoDB Streams -> LocalStack Lambda/dynamodbLocalRmu -> MySQL`
 
 現在の Lambda-style handler は引き続き有用ですが、event decoding 後の処理は shared RMU application service に委譲します。
 

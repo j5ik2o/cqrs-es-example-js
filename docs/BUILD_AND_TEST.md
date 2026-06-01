@@ -37,14 +37,14 @@ This mirrors the Rust example: run the Read Model Updater as an AWS Lambda on Lo
 3. Build the deployment zip (Docker `linux/amd64`, Prisma engines for Lambda):
 
    ```shell
-   $ pnpm build-read-model-updater-lambda
+   $ pnpm build-dynamodb-read-model-updater-lambda
    ```
 
-   Output: `dist/lambda/read-model-updater/function.zip`.
+   Output: `dist/lambda/dynamodb-read-model-updater/function.zip`.
 
-4. `pnpm docker-compose-up` and `pnpm docker-compose-e2e-test` can build the zip (unless `DOCKER_COMPOSE_UP_BUILD_LAMBDA=0`), wait for LocalStack, run `deploy-read-model-updater-localstack.sh`, and by default stop the `read-model-updater-1` container to avoid double-processing the stream. Set `DOCKER_COMPOSE_UP_DEPLOY_LAMBDA=0` to skip deploy. The e2e script brings stacks up, deploys Lambda, then runs the `e2e-test` container (`profile: e2e`) so GraphQL is ready before `verify-group-chat.sh` runs.
+4. `pnpm docker-compose-up` and `pnpm docker-compose-e2e-test` can build the zip (unless `DOCKER_COMPOSE_UP_BUILD_LAMBDA=0`), wait for LocalStack, run `deploy-dynamodb-read-model-updater-localstack.sh`, and by default stop the `dynamodb-read-model-updater-1` container to avoid double-processing the stream. Set `DOCKER_COMPOSE_UP_DEPLOY_LAMBDA=0` to skip deploy. The e2e script brings stacks up, deploys Lambda, then runs the `e2e-test` container (`profile: e2e`) so GraphQL is ready before `verify-group-chat.sh` runs.
 5. To deploy manually after Compose is up:
 
    ```shell
-   $ pnpm deploy-read-model-updater-localstack
+   $ pnpm deploy-dynamodb-read-model-updater-localstack
    ```

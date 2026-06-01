@@ -32,7 +32,7 @@
   - GraphQLサーバーは[apollographql/apollo-server](https://github.com/apollographql/apollo-server)、GraphQLスキーマツールは[MichalLytek/type-graphql](https://github.com/MichalLytek/type-graphql)
 - Read Model Updater
   - ジャーナルに基づいてリードモデルを構築するLambda
-  - ローカルでは、Lambdaの動作をエミュレートするコードを実行します（local-rmu）
+  - ローカルでは、Lambdaの動作をエミュレートするコードを実行します（dynamodb-local-rmu）
 - 読み取りAPIサーバー
   - APIはGraphQL（Query）によって実装されています
   - GraphQLサーバーは[apollographql/apollo-server](https://github.com/apollographql/apollo-server)、GraphQLスキーマツールは[MichalLytek/type-graphql](https://github.com/MichalLytek/type-graphql)、ORMは[prisma](https://github.com/prisma/prisma)

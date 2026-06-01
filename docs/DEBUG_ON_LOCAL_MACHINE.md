@@ -12,8 +12,8 @@ The application is not running, so start it and debug it if necessary.
 
 - write-api-server
   - `packages/bootstrap/src/write-api-main.ts`
-- read-model-updater `(local-rmu)
-  - `packages/bootstrap/src/local-rmu-main.ts`
+- dynamodb-read-model-updater `(dynamodb-local-rmu)`
+  - `packages/bootstrap/src/dynamodb-local-rmu-main.ts`
 - read-api-server
   - `packages/bootstrap/src/read-api-main.ts`
 

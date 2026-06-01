@@ -106,7 +106,7 @@ services:
         "npx", "functions-framework",
         "--target=readModelUpdater",
         "--signature-type=cloudevent",
-        "--source=dist/gcp-rmu-handler.js",
+        "--source=dist/spanner-rmu-handler.js",
         "--port=8080"
       ]
     environment:

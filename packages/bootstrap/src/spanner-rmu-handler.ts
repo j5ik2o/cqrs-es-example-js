@@ -7,7 +7,7 @@ import {
 } from "cqrs-es-example-js-rmu";
 
 /**
- * GCP RMU handler (thin adapter). Functions Framework entry point for the
+ * Spanner RMU handler (thin adapter). Functions Framework entry point for the
  * Spanner read-model pipeline: it only decodes the Pub/Sub trigger and forwards
  * to the shared, provider-neutral read-model service. All projection rules live
  * in `ReadModelUpdater` / `applyReadModel`.
