@@ -2,8 +2,8 @@ import { type CloudEvent, cloudEvent } from "@google-cloud/functions-framework";
 import { PrismaClient } from "@prisma/client";
 import {
   GroupChatDao,
-  type PubSubMessage,
   ReadModelUpdater,
+  type SpannerPubSubMessage,
 } from "cqrs-es-example-js-rmu";
 
 /**
@@ -16,8 +16,8 @@ import {
  *   functions-framework --target=readModelUpdater --signature-type=cloudevent
  */
 
-type PubSubCloudEventData = {
-  message: PubSubMessage;
+type SpannerPubSubCloudEventData = {
+  message: SpannerPubSubMessage;
   subscription?: string;
 };
 
@@ -38,27 +38,32 @@ function getReadModelUpdater(): ReadModelUpdater {
   return readModelUpdater;
 }
 
-cloudEvent<PubSubCloudEventData>(
+cloudEvent<SpannerPubSubCloudEventData>(
   "readModelUpdater",
-  async (event: CloudEvent<PubSubCloudEventData>) => {
+  async (spannerPubSubCloudEvent: CloudEvent<SpannerPubSubCloudEventData>) => {
     // Throw on a malformed payload rather than returning: a thrown error makes
     // the Functions Framework respond non-2xx so Pub/Sub retries / dead-letters
     // the message instead of silently acking and dropping it.
-    const message = extractPubSubMessage(event);
-    await getReadModelUpdater().updateFromPubSub(message);
+    const spannerPubSubMessage = extractSpannerPubSubMessage(
+      spannerPubSubCloudEvent,
+    );
+    await getReadModelUpdater().updateFromSpannerPubSub(spannerPubSubMessage);
   },
 );
 
-function extractPubSubMessage(
-  event: CloudEvent<PubSubCloudEventData>,
-): PubSubMessage {
-  const message = event.data?.message;
-  if (message === undefined || typeof message.data !== "string") {
+function extractSpannerPubSubMessage(
+  spannerPubSubCloudEvent: CloudEvent<SpannerPubSubCloudEventData>,
+): SpannerPubSubMessage {
+  const spannerPubSubMessage = spannerPubSubCloudEvent.data?.message;
+  if (
+    spannerPubSubMessage === undefined ||
+    typeof spannerPubSubMessage.data !== "string"
+  ) {
     throw new Error(
       "Invalid Pub/Sub CloudEvent: missing message.data string payload",
     );
   }
-  return message;
+  return spannerPubSubMessage;
 }
 
 export { getReadModelUpdater };

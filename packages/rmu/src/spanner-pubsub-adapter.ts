@@ -6,7 +6,7 @@ import type { ReadModelUpdaterInput } from "./read-model-updater-input";
  * payload produced by the Spanner change-stream bridge: the same
  * `{ type, data }` event envelope the event store serializes.
  */
-export type PubSubMessage = {
+export type SpannerPubSubMessage = {
   data: string;
   attributes?: Record<string, string>;
   messageId?: string;
@@ -18,28 +18,32 @@ export type PubSubMessage = {
  * `ReadModelUpdaterInput`. Returns an array for symmetry with the DynamoDB
  * adapter.
  */
-function decodePubSubMessage(message: PubSubMessage): ReadModelUpdaterInput[] {
-  const json = JSON.parse(
-    Buffer.from(message.data, "base64").toString("utf-8"),
+function decodeSpannerPubSubMessage(
+  spannerPubSubMessage: SpannerPubSubMessage,
+): ReadModelUpdaterInput[] {
+  const spannerPubSubPayload = JSON.parse(
+    Buffer.from(spannerPubSubMessage.data, "base64").toString("utf-8"),
   );
-  const event = convertJSONToGroupChatEvent(json);
-  const attributes = message.attributes ?? {};
-  const observedAt = parseObservedAt(
-    attributes.commitTimestamp ?? message.publishTime,
+  const groupChatEvent = convertJSONToGroupChatEvent(spannerPubSubPayload);
+  const spannerPubSubAttributes = spannerPubSubMessage.attributes ?? {};
+  const observedAt = parseSpannerPubSubObservedAt(
+    spannerPubSubAttributes.commitTimestamp ?? spannerPubSubMessage.publishTime,
   );
   return [
     {
-      event,
-      aggregateId: event.aggregateId.asString(),
-      sequenceNumber: event.sequenceNumber,
+      event: groupChatEvent,
+      aggregateId: groupChatEvent.aggregateId.asString(),
+      sequenceNumber: groupChatEvent.sequenceNumber,
       sourceProvider: "spanner",
       observedAt,
-      position: attributes.commitTimestamp ?? message.messageId,
+      position:
+        spannerPubSubAttributes.commitTimestamp ??
+        spannerPubSubMessage.messageId,
     },
   ];
 }
 
-function parseObservedAt(value: string | undefined): Date {
+function parseSpannerPubSubObservedAt(value: string | undefined): Date {
   if (value === undefined) {
     throw new Error("Invalid observedAt timestamp: missing value");
   }
@@ -50,4 +54,4 @@ function parseObservedAt(value: string | undefined): Date {
   return parsed;
 }
 
-export { decodePubSubMessage };
+export { decodeSpannerPubSubMessage };

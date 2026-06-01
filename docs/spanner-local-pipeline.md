@@ -39,7 +39,7 @@ through an idempotent `GroupChatDao` (so the projection tolerates at-least-once 
 duplicate delivery).
 
 - **AWS** (`decodeDynamoDBStreamEvent`): DynamoDB Streams → `ReadModelUpdaterInput`.
-- **GCP** (`decodePubSubMessage`): Pub/Sub message → `ReadModelUpdaterInput`.
+- **GCP** (`decodeSpannerPubSubMessage`): Pub/Sub message → `ReadModelUpdaterInput`.
 
 The AWS Lambda handler and the GCP Functions Framework handler are thin: they
 only decode the trigger and forward to the shared service.

@@ -176,7 +176,7 @@ async function streamDriver(
           const item = getItem(record);
           logger.info(`keys = ${JSON.stringify(keys)}`);
           logger.info(`item = ${JSON.stringify(item)}`);
-          await readModelUpdater.updateReadModel(
+          await readModelUpdater.updateFromDynamoDBStream(
             convertToEvent(record, keys, item, streamArn),
           );
         }
