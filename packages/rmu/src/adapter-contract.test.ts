@@ -7,7 +7,7 @@ import {
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import { decodeDynamoDBStreamEvent } from "./dynamodb-adapter";
-import { decodePubSubMessage } from "./pubsub-adapter";
+import { decodePubSubMessage } from "./spanner-pubsub-adapter";
 
 // The event-store serializer envelope: JSON.stringify({ type, data }).
 function wirePayload(event: GroupChatEvent): string {

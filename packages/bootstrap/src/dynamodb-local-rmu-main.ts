@@ -17,7 +17,7 @@ import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
 import { logger } from "./index";
 import type { PrismaQueryEvent } from "./types";
 
-async function localRmuMain() {
+async function dynamodbLocalRmuMain() {
   logger.info("Starting local read model updater");
 
   const apiHost =
@@ -305,4 +305,4 @@ function convertTo(value: SDKStreamsAttributeValue): LambdaAttributeValue {
   throw new Error("Unexpected attribute value");
 }
 
-export { localRmuMain };
+export { dynamodbLocalRmuMain };

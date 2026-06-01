@@ -24,7 +24,7 @@
 
 - [x] 3.1 DynamoDB stream parsing から provider-neutral event application logic を抽出する。（`apply-read-model.ts`）
 - [x] 3.2 AWS Lambda/DynamoDB stream handler は thin adapter として維持する。
-- [x] 3.3 Functions Framework を使い、GCP RMU path 用の Pub/Sub/CloudEvent handler を追加する。（`gcp-rmu-handler.ts`）
+- [x] 3.3 Functions Framework を使い、Spanner RMU path 用の Pub/Sub/CloudEvent handler を追加する。（`spanner-rmu-handler.ts`）
 - [x] 3.4 idempotent projection logic を追加する。（`GroupChatDao` を upsert/updateMany/deleteMany で冪等化）
 - [x] 3.5 provider-neutral な `ReadModelUpdaterInput` を定義する。（event + aggregateId + sequenceNumber + sourceProvider + observedAt + position）
 - [x] 3.6 shared RMU application service を provider-neutral wrapper を受け取るように変更する。

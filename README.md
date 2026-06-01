@@ -34,7 +34,7 @@ Please refer to [here](https://github.com/j5ik2o/cqrs-es-example) for implementa
   - Event Sourced Aggregate is implemented by [j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js)
 - Read Model Updater
   - Lambda to build read models based on journals
-  - Locally, run code that emulates Lambda behavior (local-rmu)
+  - Locally, run code that emulates Lambda behavior (dynamodb-local-rmu)
 - Read API Server
   - API is implemented by GraphQL (Query)
 

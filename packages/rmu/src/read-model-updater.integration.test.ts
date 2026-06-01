@@ -30,7 +30,7 @@ function encodePayload(json: string, encoding: PayloadEncoding): string {
     return Buffer.from(json, "utf-8").toString("base64");
   }
   if (encoding === "bytes") {
-    // local-rmu delivers B as a comma-separated byte string (Uint8Array.toString()).
+    // dynamodb-local-rmu delivers B as a comma-separated byte string (Uint8Array.toString()).
     return Array.from(Buffer.from(json, "utf-8")).join(",");
   }
   // LocalStack delivers B as a raw JSON string.
@@ -50,7 +50,7 @@ function streamEventOf(
       {
         eventName: "INSERT",
         dynamodb: {
-          // LocalStack / local-rmu deliver this in epoch MILLISECONDS.
+          // LocalStack / dynamodb-local-rmu deliver this in epoch MILLISECONDS.
           ApproximateCreationDateTime: 1_780_000_000_000,
           NewImage: { payload: { B: payload } },
           SequenceNumber: "1",

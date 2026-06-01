@@ -2,8 +2,11 @@ import type { DynamoDBStreamEvent } from "aws-lambda";
 import { applyReadModel } from "./apply-read-model";
 import { decodeDynamoDBStreamEvent } from "./dynamodb-adapter";
 import type { GroupChatDao } from "./group-chat-dao";
-import { type PubSubMessage, decodePubSubMessage } from "./pubsub-adapter";
 import type { ReadModelUpdaterInput } from "./read-model-updater-input";
+import {
+  type PubSubMessage,
+  decodePubSubMessage,
+} from "./spanner-pubsub-adapter";
 
 /**
  * Thin composition over the provider adapters and the shared application

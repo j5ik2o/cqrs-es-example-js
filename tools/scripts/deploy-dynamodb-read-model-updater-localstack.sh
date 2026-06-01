@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
 
-ZIP="${ROOT}/dist/lambda/read-model-updater/function.zip"
+ZIP="${ROOT}/dist/lambda/dynamodb-read-model-updater/function.zip"
 if [ ! -f "${ZIP}" ]; then
-  echo "Missing ${ZIP}. Run: pnpm build-read-model-updater-lambda" >&2
+  echo "Missing ${ZIP}. Run: pnpm build-dynamodb-read-model-updater-lambda" >&2
   exit 1
 fi
 
@@ -215,7 +215,7 @@ if [ "${STOP_LOCAL_RMU_AFTER_LAMBDA_DEPLOY:-1}" != "0" ]; then
     -f "${ROOT}/tools/docker-compose/docker-compose-databases.yml"
     -f "${ROOT}/tools/docker-compose/docker-compose-applications.yml"
   )
-  docker compose -p "${COMPOSE_PROJECT}" "${COMPOSE_FILES[@]}" stop read-model-updater-1 || true
+  docker compose -p "${COMPOSE_PROJECT}" "${COMPOSE_FILES[@]}" stop dynamodb-read-model-updater-1 || true
 fi
 
 echo "Deployed Lambda ${FUNCTION_NAME} with stream ${STREAM_ARN}"

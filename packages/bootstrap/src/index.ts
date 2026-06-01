@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { type ILogObj, Logger } from "tslog";
 import * as yargs from "yargs";
-import { localRmuMain } from "./local-rmu-main";
+import { dynamodbLocalRmuMain } from "./dynamodb-local-rmu-main";
 import { readApiMain } from "./read-api-main";
 import { spannerChangeStreamBridgeMain } from "./spanner-change-stream-bridge-main";
 import { spannerSetupMain } from "./spanner-setup-main";
@@ -11,7 +11,7 @@ async function main() {
   const argv = yargs
     .command("writeApi", "write api server")
     .command("readApi", "read api server")
-    .command("localRmu", "local read model updater (DynamoDB streams)")
+    .command("dynamodbLocalRmu", "local read model updater (DynamoDB streams)")
     .command("spannerSetup", "create Spanner schema/change-stream + Pub/Sub")
     .command("spannerBridge", "local Spanner change-stream -> Pub/Sub bridge")
     .demandCommand(1)
@@ -25,8 +25,8 @@ async function main() {
     case "readApi":
       await readApiMain();
       break;
-    case "localRmu":
-      await localRmuMain();
+    case "dynamodbLocalRmu":
+      await dynamodbLocalRmuMain();
       break;
     case "spannerSetup":
       await spannerSetupMain();

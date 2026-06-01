@@ -80,7 +80,7 @@ CLI commands (in `packages/bootstrap`):
   topic + push subscription.
 - `spannerBridge` — run the change-stream → Pub/Sub bridge.
 - the RMU function runs via `functions-framework --target=readModelUpdater
-  --signature-type=cloudevent --source=dist/gcp-rmu-handler.js`.
+  --signature-type=cloudevent --source=dist/spanner-rmu-handler.js`.
 
 Bring the whole pipeline up with:
 

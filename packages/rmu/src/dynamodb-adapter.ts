@@ -48,7 +48,7 @@ function decodeDynamoDBStreamEvent(
 
 /**
  * AWS Lambda documents `ApproximateCreationDateTime` as epoch **seconds**, but
- * LocalStack and the local-rmu stream driver deliver epoch **milliseconds**.
+ * LocalStack and the dynamodb-local-rmu stream driver deliver epoch **milliseconds**.
  * Disambiguate by magnitude so the value never overflows into a garbage date.
  */
 function approximateCreationToDate(value: number | undefined): Date {
@@ -66,7 +66,7 @@ function parsePayload(rawPayload: string): unknown {
     // LocalStack: the B field carries a raw JSON string.
     return JSON.parse(rawPayload);
   } catch {
-    // AWS Lambda: base64; local RMU bridge: comma-separated byte string.
+    // AWS Lambda: base64; dynamodb-local-rmu bridge: comma-separated byte string.
     const bytes = /^\d+(,\d+)*$/.test(rawPayload)
       ? new Uint8Array(rawPayload.split(",").map(Number))
       : new Uint8Array(Buffer.from(rawPayload, "base64"));
