@@ -37,7 +37,7 @@ function encodePayload(json: string, encoding: PayloadEncoding): string {
   return json;
 }
 
-function streamEventOf(
+function asDynamoDBStreamEvent(
   event: GroupChatEvent,
   encoding: PayloadEncoding = "raw",
 ): DynamoDBStreamEvent {
@@ -114,13 +114,15 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
         GroupChatName.of("name"),
         adminId,
       );
-      await updater.updateReadModel(streamEventOf(created));
+      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
 
       const memberId = UserAccountId.generate();
       const [gc1, memberAdded] = unwrap(
         gc0.addMember(memberId, "member", adminId),
       );
-      await updater.updateReadModel(streamEventOf(memberAdded));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(memberAdded),
+      );
 
       const groupChat = await prisma.groupChats.findUnique({
         where: { id: id.asString() },
@@ -140,8 +142,10 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
       expect(members.length).toEqual(2);
 
       // Idempotency: replaying the same event must not error or duplicate.
-      await updater.updateReadModel(streamEventOf(created));
-      await updater.updateReadModel(streamEventOf(memberAdded));
+      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(memberAdded),
+      );
       const membersAfter = await prisma.members.findMany({
         where: { groupChatId: id.asString() },
       });
@@ -171,7 +175,9 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
           GroupChatName.of(`gc-${encoding}`),
           adminId,
         );
-        await updater.updateReadModel(streamEventOf(created, encoding));
+        await updater.updateFromDynamoDBStream(
+          asDynamoDBStreamEvent(created, encoding),
+        );
         const row = await prisma.groupChats.findUnique({
           where: { id: id.asString() },
         });
@@ -204,12 +210,14 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
         gc1.rename(GroupChatName.of("after"), adminId),
       );
 
-      await updater.updateReadModel(streamEventOf(created));
+      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
       await expect(
-        updater.updateReadModel(streamEventOf(renamed)),
+        updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed)),
       ).rejects.toThrow("Read model projection gap");
-      await updater.updateReadModel(streamEventOf(memberAdded));
-      await updater.updateReadModel(streamEventOf(renamed));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(memberAdded),
+      );
+      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed));
 
       const groupChat = await prisma.groupChats.findUnique({
         where: { id: id.asString() },

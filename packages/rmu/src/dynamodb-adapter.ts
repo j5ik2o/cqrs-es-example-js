@@ -10,29 +10,29 @@ const decoder = new TextDecoder("utf-8");
  * more provider-neutral `ReadModelUpdaterInput` values.
  */
 function decodeDynamoDBStreamEvent(
-  event: DynamoDBStreamEvent,
+  dynamodbStreamEvent: DynamoDBStreamEvent,
 ): ReadModelUpdaterInput[] {
   const inputs: ReadModelUpdaterInput[] = [];
-  for (const record of event.Records) {
+  for (const dynamodbStreamRecord of dynamodbStreamEvent.Records) {
     // The journal is append-only; only INSERTs carry new domain events. Ignore
     // MODIFY/REMOVE so an item change is never replayed as a fresh event.
-    if (record.eventName !== "INSERT") {
+    if (dynamodbStreamRecord.eventName !== "INSERT") {
       continue;
     }
-    const image = record.dynamodb?.NewImage;
-    const rawPayload = image?.payload?.B;
+    const dynamodbStreamImage = dynamodbStreamRecord.dynamodb?.NewImage;
+    const rawPayload = dynamodbStreamImage?.payload?.B;
     if (rawPayload === undefined) {
       throw new Error(
         `DynamoDB INSERT record is missing NewImage.payload.B (sequenceNumber=${String(
-          record.dynamodb?.SequenceNumber ?? "",
+          dynamodbStreamRecord.dynamodb?.SequenceNumber ?? "",
         )})`,
       );
     }
     const groupChatEvent = convertJSONToGroupChatEvent(
-      parsePayload(rawPayload),
+      parseDynamoDBStreamPayload(rawPayload),
     );
-    const observedAt = approximateCreationToDate(
-      record.dynamodb?.ApproximateCreationDateTime,
+    const observedAt = parseDynamoDBApproximateCreationDate(
+      dynamodbStreamRecord.dynamodb?.ApproximateCreationDateTime,
     );
     inputs.push({
       event: groupChatEvent,
@@ -40,7 +40,7 @@ function decodeDynamoDBStreamEvent(
       sequenceNumber: groupChatEvent.sequenceNumber,
       sourceProvider: "dynamodb",
       observedAt,
-      position: record.dynamodb?.SequenceNumber,
+      position: dynamodbStreamRecord.dynamodb?.SequenceNumber,
     });
   }
   return inputs;
@@ -51,7 +51,7 @@ function decodeDynamoDBStreamEvent(
  * LocalStack and the dynamodb-local-rmu stream driver deliver epoch **milliseconds**.
  * Disambiguate by magnitude so the value never overflows into a garbage date.
  */
-function approximateCreationToDate(value: number | undefined): Date {
+function parseDynamoDBApproximateCreationDate(value: number | undefined): Date {
   if (value === undefined) {
     return new Date();
   }
@@ -61,7 +61,7 @@ function approximateCreationToDate(value: number | undefined): Date {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
-function parsePayload(rawPayload: string): unknown {
+function parseDynamoDBStreamPayload(rawPayload: string): unknown {
   try {
     // LocalStack: the B field carries a raw JSON string.
     return JSON.parse(rawPayload);

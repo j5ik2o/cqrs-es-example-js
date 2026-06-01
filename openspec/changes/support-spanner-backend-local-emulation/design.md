@@ -72,7 +72,7 @@ RMU は次のように分割します。
 
 これにより projection rules の重複を避け、retries/idempotency behavior を推論しやすくします。
 target となる internal RMU input shape は `DynamoDBStreamEvent` ではなく provider-neutral wrapper です。名前は `ReadModelUpdaterInput` または同等のものにします。decoded `GroupChatEvent` に加えて、ordering, idempotency, diagnostics に必要な metadata を持たせます。例えば aggregate id, sequence number, source provider, observed timestamp, 利用可能な場合は provider position や retry information です。
-現在の `ReadModelUpdater.updateReadModel(DynamoDBStreamEvent)` shape は DynamoDB adapter の背後に移します。AWS/GCP adapters は shared service を呼び出す前に provider payloads を `ReadModelUpdaterInput` に normalize します。Lambda と Functions Framework handlers は trigger decoding, acknowledgement/error semantics, dependency composition に限定します。
+`ReadModelUpdater.updateFromDynamoDBStream(DynamoDBStreamEvent)` と `ReadModelUpdater.updateFromSpannerPubSub(SpannerPubSubMessage)` は provider-specific adapters の入口に限定します。AWS/GCP adapters は shared service を呼び出す前に provider payloads を `ReadModelUpdaterInput` に normalize します。Lambda と Functions Framework handlers は trigger decoding, acknowledgement/error semantics, dependency composition に限定します。
 
 ### Local Verification
 

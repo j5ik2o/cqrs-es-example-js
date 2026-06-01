@@ -24,6 +24,8 @@ function getReadModelUpdater(): ReadModelUpdater {
   return readModelUpdater;
 }
 
-export const handler: Handler<DynamoDBStreamEvent, void> = async (event) => {
-  await getReadModelUpdater().updateReadModel(event);
+export const handler: Handler<DynamoDBStreamEvent, void> = async (
+  dynamodbStreamEvent,
+) => {
+  await getReadModelUpdater().updateFromDynamoDBStream(dynamodbStreamEvent);
 };

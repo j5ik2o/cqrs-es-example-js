@@ -40,25 +40,30 @@ function getReadModelUpdater(): ReadModelUpdater {
 
 cloudEvent<SpannerPubSubCloudEventData>(
   "readModelUpdater",
-  async (event: CloudEvent<SpannerPubSubCloudEventData>) => {
+  async (spannerPubSubCloudEvent: CloudEvent<SpannerPubSubCloudEventData>) => {
     // Throw on a malformed payload rather than returning: a thrown error makes
     // the Functions Framework respond non-2xx so Pub/Sub retries / dead-letters
     // the message instead of silently acking and dropping it.
-    const message = extractSpannerPubSubMessage(event);
-    await getReadModelUpdater().updateFromSpannerPubSub(message);
+    const spannerPubSubMessage = extractSpannerPubSubMessage(
+      spannerPubSubCloudEvent,
+    );
+    await getReadModelUpdater().updateFromSpannerPubSub(spannerPubSubMessage);
   },
 );
 
 function extractSpannerPubSubMessage(
-  event: CloudEvent<SpannerPubSubCloudEventData>,
+  spannerPubSubCloudEvent: CloudEvent<SpannerPubSubCloudEventData>,
 ): SpannerPubSubMessage {
-  const message = event.data?.message;
-  if (message === undefined || typeof message.data !== "string") {
+  const spannerPubSubMessage = spannerPubSubCloudEvent.data?.message;
+  if (
+    spannerPubSubMessage === undefined ||
+    typeof spannerPubSubMessage.data !== "string"
+  ) {
     throw new Error(
       "Invalid Pub/Sub CloudEvent: missing message.data string payload",
     );
   }
-  return message;
+  return spannerPubSubMessage;
 }
 
 export { getReadModelUpdater };

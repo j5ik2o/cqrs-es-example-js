@@ -19,29 +19,31 @@ export type SpannerPubSubMessage = {
  * adapter.
  */
 function decodeSpannerPubSubMessage(
-  message: SpannerPubSubMessage,
+  spannerPubSubMessage: SpannerPubSubMessage,
 ): ReadModelUpdaterInput[] {
-  const json = JSON.parse(
-    Buffer.from(message.data, "base64").toString("utf-8"),
+  const spannerPubSubPayload = JSON.parse(
+    Buffer.from(spannerPubSubMessage.data, "base64").toString("utf-8"),
   );
-  const event = convertJSONToGroupChatEvent(json);
-  const attributes = message.attributes ?? {};
-  const observedAt = parseObservedAt(
-    attributes.commitTimestamp ?? message.publishTime,
+  const groupChatEvent = convertJSONToGroupChatEvent(spannerPubSubPayload);
+  const spannerPubSubAttributes = spannerPubSubMessage.attributes ?? {};
+  const observedAt = parseSpannerPubSubObservedAt(
+    spannerPubSubAttributes.commitTimestamp ?? spannerPubSubMessage.publishTime,
   );
   return [
     {
-      event,
-      aggregateId: event.aggregateId.asString(),
-      sequenceNumber: event.sequenceNumber,
+      event: groupChatEvent,
+      aggregateId: groupChatEvent.aggregateId.asString(),
+      sequenceNumber: groupChatEvent.sequenceNumber,
       sourceProvider: "spanner",
       observedAt,
-      position: attributes.commitTimestamp ?? message.messageId,
+      position:
+        spannerPubSubAttributes.commitTimestamp ??
+        spannerPubSubMessage.messageId,
     },
   ];
 }
 
-function parseObservedAt(value: string | undefined): Date {
+function parseSpannerPubSubObservedAt(value: string | undefined): Date {
   if (value === undefined) {
     throw new Error("Invalid observedAt timestamp: missing value");
   }

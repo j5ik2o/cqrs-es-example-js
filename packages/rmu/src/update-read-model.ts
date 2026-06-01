@@ -16,9 +16,13 @@ import {
  */
 export type ReadModelUpdater = {
   /** AWS / DynamoDB Streams path (kept for the existing local + Lambda RMU). */
-  updateReadModel(event: DynamoDBStreamEvent): Promise<void>;
+  updateFromDynamoDBStream(
+    dynamodbStreamEvent: DynamoDBStreamEvent,
+  ): Promise<void>;
   /** Spanner Change Streams / Pub/Sub path. */
-  updateFromSpannerPubSub(message: SpannerPubSubMessage): Promise<void>;
+  updateFromSpannerPubSub(
+    spannerPubSubMessage: SpannerPubSubMessage,
+  ): Promise<void>;
   /** Provider-neutral path. */
   apply(inputs: readonly ReadModelUpdaterInput[]): Promise<void>;
 };
@@ -34,11 +38,15 @@ export namespace ReadModelUpdater {
     }
     return Object.freeze({
       apply,
-      updateReadModel(event: DynamoDBStreamEvent): Promise<void> {
-        return apply(decodeDynamoDBStreamEvent(event));
+      updateFromDynamoDBStream(
+        dynamodbStreamEvent: DynamoDBStreamEvent,
+      ): Promise<void> {
+        return apply(decodeDynamoDBStreamEvent(dynamodbStreamEvent));
       },
-      updateFromSpannerPubSub(message: SpannerPubSubMessage): Promise<void> {
-        return apply(decodeSpannerPubSubMessage(message));
+      updateFromSpannerPubSub(
+        spannerPubSubMessage: SpannerPubSubMessage,
+      ): Promise<void> {
+        return apply(decodeSpannerPubSubMessage(spannerPubSubMessage));
       },
     });
   }

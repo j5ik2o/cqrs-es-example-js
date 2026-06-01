@@ -50,7 +50,7 @@ describe("RMU adapter contract", () => {
     const adminId = UserAccountId.generate();
     const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
 
-    const [fromDynamo] = decodeDynamoDBStreamEvent(
+    const [fromDynamoDBStream] = decodeDynamoDBStreamEvent(
       asDynamoDBStreamEvent(created),
     );
     const [fromSpannerPubSub] = decodeSpannerPubSubMessage(
@@ -58,18 +58,24 @@ describe("RMU adapter contract", () => {
     );
 
     // Same decoded domain event identity across providers.
-    expect(fromDynamo.event.typeName).toEqual(fromSpannerPubSub.event.typeName);
-    expect(fromDynamo.aggregateId).toEqual(fromSpannerPubSub.aggregateId);
-    expect(fromDynamo.sequenceNumber).toEqual(fromSpannerPubSub.sequenceNumber);
-    expect(fromDynamo.aggregateId).toEqual(id.asString());
-    expect(fromDynamo.sequenceNumber).toEqual(1);
+    expect(fromDynamoDBStream.event.typeName).toEqual(
+      fromSpannerPubSub.event.typeName,
+    );
+    expect(fromDynamoDBStream.aggregateId).toEqual(
+      fromSpannerPubSub.aggregateId,
+    );
+    expect(fromDynamoDBStream.sequenceNumber).toEqual(
+      fromSpannerPubSub.sequenceNumber,
+    );
+    expect(fromDynamoDBStream.aggregateId).toEqual(id.asString());
+    expect(fromDynamoDBStream.sequenceNumber).toEqual(1);
 
     // Provider is tracked distinctly for diagnostics.
-    expect(fromDynamo.sourceProvider).toEqual("dynamodb");
+    expect(fromDynamoDBStream.sourceProvider).toEqual("dynamodb");
     expect(fromSpannerPubSub.sourceProvider).toEqual("spanner");
 
     // Both carry a position for ordering/idempotency.
-    expect(fromDynamo.position).toBeDefined();
+    expect(fromDynamoDBStream.position).toBeDefined();
     expect(fromSpannerPubSub.position).toBeDefined();
   });
 
@@ -94,7 +100,7 @@ describe("RMU adapter contract", () => {
   });
 
   test("DynamoDB adapter rejects INSERT records without a journal payload", () => {
-    const event = {
+    const dynamodbStreamEvent = {
       Records: [
         {
           eventName: "INSERT",
@@ -106,7 +112,7 @@ describe("RMU adapter contract", () => {
       ],
     } as unknown as DynamoDBStreamEvent;
 
-    expect(() => decodeDynamoDBStreamEvent(event)).toThrow(
+    expect(() => decodeDynamoDBStreamEvent(dynamodbStreamEvent)).toThrow(
       "DynamoDB INSERT record is missing NewImage.payload.B",
     );
   });
