@@ -4,8 +4,8 @@ import { decodeDynamoDBStreamEvent } from "./dynamodb-adapter";
 import type { GroupChatDao } from "./group-chat-dao";
 import type { ReadModelUpdaterInput } from "./read-model-updater-input";
 import {
-  type PubSubMessage,
-  decodePubSubMessage,
+  type SpannerPubSubMessage,
+  decodeSpannerPubSubMessage,
 } from "./spanner-pubsub-adapter";
 
 /**
@@ -17,8 +17,8 @@ import {
 export type ReadModelUpdater = {
   /** AWS / DynamoDB Streams path (kept for the existing local + Lambda RMU). */
   updateReadModel(event: DynamoDBStreamEvent): Promise<void>;
-  /** GCP / Pub/Sub path. */
-  updateFromPubSub(message: PubSubMessage): Promise<void>;
+  /** Spanner Change Streams / Pub/Sub path. */
+  updateFromSpannerPubSub(message: SpannerPubSubMessage): Promise<void>;
   /** Provider-neutral path. */
   apply(inputs: readonly ReadModelUpdaterInput[]): Promise<void>;
 };
@@ -37,8 +37,8 @@ export namespace ReadModelUpdater {
       updateReadModel(event: DynamoDBStreamEvent): Promise<void> {
         return apply(decodeDynamoDBStreamEvent(event));
       },
-      updateFromPubSub(message: PubSubMessage): Promise<void> {
-        return apply(decodePubSubMessage(message));
+      updateFromSpannerPubSub(message: SpannerPubSubMessage): Promise<void> {
+        return apply(decodeSpannerPubSubMessage(message));
       },
     });
   }

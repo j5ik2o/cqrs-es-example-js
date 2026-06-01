@@ -6,7 +6,7 @@ import type { ReadModelUpdaterInput } from "./read-model-updater-input";
  * payload produced by the Spanner change-stream bridge: the same
  * `{ type, data }` event envelope the event store serializes.
  */
-export type PubSubMessage = {
+export type SpannerPubSubMessage = {
   data: string;
   attributes?: Record<string, string>;
   messageId?: string;
@@ -18,7 +18,9 @@ export type PubSubMessage = {
  * `ReadModelUpdaterInput`. Returns an array for symmetry with the DynamoDB
  * adapter.
  */
-function decodePubSubMessage(message: PubSubMessage): ReadModelUpdaterInput[] {
+function decodeSpannerPubSubMessage(
+  message: SpannerPubSubMessage,
+): ReadModelUpdaterInput[] {
   const json = JSON.parse(
     Buffer.from(message.data, "base64").toString("utf-8"),
   );
@@ -50,4 +52,4 @@ function parseObservedAt(value: string | undefined): Date {
   return parsed;
 }
 
-export { decodePubSubMessage };
+export { decodeSpannerPubSubMessage };

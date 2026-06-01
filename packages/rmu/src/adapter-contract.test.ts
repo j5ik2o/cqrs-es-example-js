@@ -7,7 +7,7 @@ import {
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import { decodeDynamoDBStreamEvent } from "./dynamodb-adapter";
-import { decodePubSubMessage } from "./spanner-pubsub-adapter";
+import { decodeSpannerPubSubMessage } from "./spanner-pubsub-adapter";
 
 // The event-store serializer envelope: JSON.stringify({ type, data }).
 function wirePayload(event: GroupChatEvent): string {
@@ -32,7 +32,7 @@ function asDynamoDBStreamEvent(event: GroupChatEvent): DynamoDBStreamEvent {
   } as unknown as DynamoDBStreamEvent;
 }
 
-function asPubSubMessage(event: GroupChatEvent) {
+function asSpannerPubSubMessage(event: GroupChatEvent) {
   return {
     data: Buffer.from(wirePayload(event), "utf-8").toString("base64"),
     attributes: {
@@ -45,7 +45,7 @@ function asPubSubMessage(event: GroupChatEvent) {
 }
 
 describe("RMU adapter contract", () => {
-  test("DynamoDB and Pub/Sub adapters produce an equivalent wrapper", () => {
+  test("DynamoDB and Spanner Pub/Sub adapters produce an equivalent wrapper", () => {
     const id = GroupChatId.generate();
     const adminId = UserAccountId.generate();
     const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
@@ -53,25 +53,27 @@ describe("RMU adapter contract", () => {
     const [fromDynamo] = decodeDynamoDBStreamEvent(
       asDynamoDBStreamEvent(created),
     );
-    const [fromPubSub] = decodePubSubMessage(asPubSubMessage(created));
+    const [fromSpannerPubSub] = decodeSpannerPubSubMessage(
+      asSpannerPubSubMessage(created),
+    );
 
     // Same decoded domain event identity across providers.
-    expect(fromDynamo.event.typeName).toEqual(fromPubSub.event.typeName);
-    expect(fromDynamo.aggregateId).toEqual(fromPubSub.aggregateId);
-    expect(fromDynamo.sequenceNumber).toEqual(fromPubSub.sequenceNumber);
+    expect(fromDynamo.event.typeName).toEqual(fromSpannerPubSub.event.typeName);
+    expect(fromDynamo.aggregateId).toEqual(fromSpannerPubSub.aggregateId);
+    expect(fromDynamo.sequenceNumber).toEqual(fromSpannerPubSub.sequenceNumber);
     expect(fromDynamo.aggregateId).toEqual(id.asString());
     expect(fromDynamo.sequenceNumber).toEqual(1);
 
     // Provider is tracked distinctly for diagnostics.
     expect(fromDynamo.sourceProvider).toEqual("dynamodb");
-    expect(fromPubSub.sourceProvider).toEqual("spanner");
+    expect(fromSpannerPubSub.sourceProvider).toEqual("spanner");
 
     // Both carry a position for ordering/idempotency.
     expect(fromDynamo.position).toBeDefined();
-    expect(fromPubSub.position).toBeDefined();
+    expect(fromSpannerPubSub.position).toBeDefined();
   });
 
-  test("Pub/Sub adapter reconstructs the full created event payload", () => {
+  test("Spanner Pub/Sub adapter reconstructs the full created event payload", () => {
     const id = GroupChatId.generate();
     const adminId = UserAccountId.generate();
     const [, created] = GroupChat.create(
@@ -80,7 +82,7 @@ describe("RMU adapter contract", () => {
       adminId,
     );
 
-    const [input] = decodePubSubMessage(asPubSubMessage(created));
+    const [input] = decodeSpannerPubSubMessage(asSpannerPubSubMessage(created));
     if (input.event.typeName !== "GroupChatCreated") {
       throw new Error("expected GroupChatCreated");
     }
