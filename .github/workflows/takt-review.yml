@@ -15,12 +15,15 @@ jobs:
   takt-review:
     name: TAKT Review
     if: >
-      github.event_name == 'pull_request' ||
+      vars.TAKT_REVIEW_ENABLED == 'true' &&
       (
-        github.event_name == 'issue_comment' &&
-        github.event.issue.pull_request != null &&
-        startsWith(github.event.comment.body, '@takt') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+        github.event_name == 'pull_request' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request != null &&
+          startsWith(github.event.comment.body, '@takt') &&
+          contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+        )
       )
     uses: j5ik2o/ci/.github/workflows/takt-review.yml@560170b61c74a9a643a483a052ccbad0d6ad409a
     permissions:
