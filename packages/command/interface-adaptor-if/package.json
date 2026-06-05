@@ -8,6 +8,9 @@
     "build": "tsc && rm -f dist/internal/*.test.d.ts && rm -f dist/internal/*.test.js && rm -fr dist/internal/test",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --no-cache",
     "lint": "biome check ./src",
+    "lint:fix": "biome check --write ./src",
+    "format": "biome format ./src",
+    "format:fix": "biome format --write ./src",
     "fix": "biome format --write ./src",
     "clean": "rimraf ./dist"
   },
