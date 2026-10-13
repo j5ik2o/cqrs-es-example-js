@@ -38,7 +38,7 @@
     "@apollo/server": "^5.0.0",
     "@aws-sdk/client-dynamodb": "^3.413.0",
     "@aws-sdk/client-dynamodb-streams": "^3.413.0",
-    "@google-cloud/functions-framework": "^3.4.0",
+    "@google-cloud/functions-framework": "^5.0.0",
     "@google-cloud/pubsub": "^4.9.0",
     "@google-cloud/spanner": "^8.7.1",
     "graphql": "^16.14.0",
