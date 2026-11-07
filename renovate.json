@@ -4,6 +4,11 @@
   "labels": ["renovate"],
   "commitMessagePrefix": "chore(deps):",
   "platformAutomerge": true,
+  "postUpgradeTasks": {
+    "commands": ["pnpm install --frozen-lockfile --ignore-scripts", "pnpm format:fix"],
+    "fileFilters": ["**/*.{ts,tsx,js,jsx,json,jsonc,md,yml,yaml}", "pnpm-lock.yaml"],
+    "executionMode": "branch"
+  },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
