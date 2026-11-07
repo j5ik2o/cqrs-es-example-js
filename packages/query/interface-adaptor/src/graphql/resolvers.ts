@@ -1,7 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { type ILogObj, Logger } from "tslog";
 import { Arg, Ctx, Query, Resolver } from "type-graphql";
-import { GroupChatOutput, MemberOutput, MessageOutput } from "./outputs";
+import { notFoundError, queryReadModel } from "./error-handling";
+import { GroupChat, Member, Message } from "./outputs";
 
 interface QueryContext {
   prisma: PrismaClient;
@@ -11,15 +12,15 @@ interface QueryContext {
 class GroupChatQueryResolver {
   private readonly logger: Logger<ILogObj> = new Logger();
 
-  @Query(() => GroupChatOutput)
+  @Query(() => GroupChat)
   async getGroupChat(
     @Ctx() { prisma }: QueryContext,
     @Arg("groupChatId") groupChatId: string,
     @Arg("userAccountId") userAccountId: string,
-  ): Promise<GroupChatOutput> {
-    const groupChats: GroupChatOutput[] = await prisma.$queryRaw<
-      GroupChatOutput[]
-    >`
+  ): Promise<GroupChat> {
+    const groupChats = await queryReadModel(
+      "GroupChat",
+      prisma.$queryRaw<GroupChat[]>`
         SELECT
             gc.id as id,
             gc.name as name,
@@ -27,71 +28,50 @@ class GroupChatQueryResolver {
             gc.created_at as createdAt,
             gc.updated_at as updatedAt
         FROM
-            group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id 
+            group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
-            gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
-    this.logger.debug("getGroupChats:", groupChats);
+            gc.disabled = false AND m.disabled = false AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`,
+    );
+    this.logger.debug("getGroupChat:", groupChats);
     if (!groupChats.length) {
-      throw new Error("not found");
+      throw notFoundError("GroupChat");
     }
-    this.logger.debug("getGroupChat:", groupChats[0]);
     return groupChats[0];
   }
 
-  @Query(() => [GroupChatOutput])
+  @Query(() => [GroupChat])
   async getGroupChats(
     @Ctx() { prisma }: QueryContext,
     @Arg("userAccountId") userAccountId: string,
-  ): Promise<GroupChatOutput[]> {
-    const groupChats: GroupChatOutput[] = await prisma.$queryRaw<
-      GroupChatOutput[]
-    >`
+  ): Promise<GroupChat[]> {
+    const groupChats = await queryReadModel(
+      "GroupChat",
+      prisma.$queryRaw<GroupChat[]>`
         SELECT
             gc.id as id,
             gc.name as name,
             gc.owner_id as ownerId,
             gc.created_at as createdAt,
             gc.updated_at as updatedAt
-	FROM
-	    group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
+        FROM
+            group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
-            gc.disabled = 'false' AND m.disabled = 'false' AND m.user_account_id = ${userAccountId}`;
+            gc.disabled = false AND m.disabled = false AND m.user_account_id = ${userAccountId}
+        ORDER BY gc.created_at, gc.id`,
+    );
     this.logger.debug("getGroupChats:", groupChats);
     return groupChats;
   }
 
-  @Query(() => MemberOutput)
+  @Query(() => Member)
   async getMember(
     @Ctx() { prisma }: QueryContext,
     @Arg("groupChatId") groupChatId: string,
     @Arg("userAccountId") userAccountId: string,
-  ): Promise<MemberOutput> {
-    const members: MemberOutput[] = await prisma.$queryRaw<MemberOutput[]>`
-        SELECT
-            m.id as id,
-            m.group_chat_id as groupChatId,
-            m.user_account_id as userAccountId,
-            m.role as role,
-            m.created_at as createdAt,
-            m.updated_at as updatedAt
-	FROM
-	    group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
-	WHERE
-	    gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`;
-    if (!members.length) {
-      throw new Error("not found");
-    }
-    this.logger.debug("member:", members[0]);
-    return members[0];
-  }
-
-  @Query(() => [MemberOutput])
-  async getMembers(
-    @Ctx() { prisma }: QueryContext,
-    @Arg("groupChatId") groupChatId: string,
-    @Arg("userAccountId") userAccountId: string,
-  ): Promise<MemberOutput[]> {
-    const members: MemberOutput[] = await prisma.$queryRaw<MemberOutput[]>`
+  ): Promise<Member> {
+    const members = await queryReadModel(
+      "Member",
+      prisma.$queryRaw<Member[]>`
         SELECT
             m.id as id,
             m.group_chat_id as groupChatId,
@@ -102,55 +82,56 @@ class GroupChatQueryResolver {
         FROM
             group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
         WHERE
-            gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId}
-		    AND EXISTS (
-		        SELECT 1 
-		        FROM
-		            members AS m2
-		        WHERE
-		            m2.disabled = 'false' AND m2.group_chat_id = m.group_chat_id AND m2.user_account_id = ${userAccountId})`;
+            gc.disabled = false AND m.disabled = false AND m.group_chat_id = ${groupChatId} AND m.user_account_id = ${userAccountId}`,
+    );
+    if (!members.length) {
+      throw notFoundError("Member");
+    }
+    this.logger.debug("member:", members[0]);
+    return members[0];
+  }
+
+  @Query(() => [Member])
+  async getMembers(
+    @Ctx() { prisma }: QueryContext,
+    @Arg("groupChatId") groupChatId: string,
+    @Arg("userAccountId") userAccountId: string,
+  ): Promise<Member[]> {
+    const members = await queryReadModel(
+      "Member",
+      prisma.$queryRaw<Member[]>`
+        SELECT
+            m.id as id,
+            m.group_chat_id as groupChatId,
+            m.user_account_id as userAccountId,
+            m.role as role,
+            m.created_at as createdAt,
+            m.updated_at as updatedAt
+        FROM
+            group_chats AS gc JOIN members AS m ON gc.id = m.group_chat_id
+        WHERE
+            gc.disabled = false AND m.disabled = false AND m.group_chat_id = ${groupChatId}
+            AND EXISTS (
+                SELECT 1
+                FROM
+                    members AS m2
+                WHERE
+                    m2.disabled = false AND m2.group_chat_id = m.group_chat_id AND m2.user_account_id = ${userAccountId})
+        ORDER BY m.created_at, m.id`,
+    );
     this.logger.debug("members:", members);
     return members;
   }
 
-  @Query(() => MessageOutput)
+  @Query(() => Message)
   async getMessage(
     @Ctx() { prisma }: QueryContext,
     @Arg("messageId") messageId: string,
     @Arg("userAccountId") userAccountId: string,
-  ): Promise<MessageOutput> {
-    const messages: MessageOutput[] = await prisma.$queryRaw<MessageOutput[]>`
-        SELECT
-	    m.id as id,
-            m.group_chat_id as groupChatId,
-            m.user_account_id as userAccountId,
-            m.text as text,
-            m.created_at as createdAt,
-            m.updated_at as updatedAt
-	FROM
-	    group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
-        WHERE
-            gc.disabled = 'false' AND m.disabled = 'false' AND m.id = ${messageId}
-            AND EXISTS (
-                SELECT 1
-                FROM
-                    members AS mem
-                WHERE
-                    mem.disabled = 'false' AND mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`;
-    if (!messages.length) {
-      throw new Error("not found");
-    }
-    this.logger.debug("message:", messages[0]);
-    return messages[0];
-  }
-
-  @Query(() => [MessageOutput])
-  async getMessages(
-    @Ctx() { prisma }: QueryContext,
-    @Arg("groupChatId") groupChatId: string,
-    @Arg("userAccountId") userAccountId: string,
-  ): Promise<MessageOutput[]> {
-    const messages: MessageOutput[] = await prisma.$queryRaw<MessageOutput[]>`
+  ): Promise<Message> {
+    const messages = await queryReadModel(
+      "Message",
+      prisma.$queryRaw<Message[]>`
         SELECT
             m.id as id,
             m.group_chat_id as groupChatId,
@@ -158,16 +139,52 @@ class GroupChatQueryResolver {
             m.text as text,
             m.created_at as createdAt,
             m.updated_at as updatedAt
-	FROM
-	    group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
+        FROM
+            group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
         WHERE
-            gc.disabled = 'false' AND m.disabled = 'false' AND m.group_chat_id = ${groupChatId}
+            gc.disabled = false AND m.disabled = false AND m.id = ${messageId}
             AND EXISTS (
                 SELECT 1
                 FROM
                     members AS mem
                 WHERE
-                    mem.disabled = 'false' AND mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`;
+                    mem.disabled = false AND mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})`,
+    );
+    if (!messages.length) {
+      throw notFoundError("Message");
+    }
+    this.logger.debug("message:", messages[0]);
+    return messages[0];
+  }
+
+  @Query(() => [Message])
+  async getMessages(
+    @Ctx() { prisma }: QueryContext,
+    @Arg("groupChatId") groupChatId: string,
+    @Arg("userAccountId") userAccountId: string,
+  ): Promise<Message[]> {
+    const messages = await queryReadModel(
+      "Message",
+      prisma.$queryRaw<Message[]>`
+        SELECT
+            m.id as id,
+            m.group_chat_id as groupChatId,
+            m.user_account_id as userAccountId,
+            m.text as text,
+            m.created_at as createdAt,
+            m.updated_at as updatedAt
+        FROM
+            group_chats AS gc JOIN messages AS m ON gc.id = m.group_chat_id
+        WHERE
+            gc.disabled = false AND m.disabled = false AND m.group_chat_id = ${groupChatId}
+            AND EXISTS (
+                SELECT 1
+                FROM
+                    members AS mem
+                WHERE
+                    mem.disabled = false AND mem.group_chat_id = m.group_chat_id AND mem.user_account_id = ${userAccountId})
+        ORDER BY m.created_at, m.id`,
+    );
     this.logger.debug("messages:", messages);
     return messages;
   }
