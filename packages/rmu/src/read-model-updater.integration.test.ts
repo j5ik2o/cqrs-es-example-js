@@ -4,10 +4,14 @@ import { PrismaClient } from "@prisma/client";
 import type { DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
-  type GroupChatEvent,
+  GroupChatEvent,
+  type GroupChatEvent as GroupChatEventType,
   GroupChatId,
   GroupChatName,
+  Message,
+  MessageId,
   UserAccountId,
+  manifestOf,
 } from "cqrs-es-example-js-command-domain";
 import {
   GenericContainer,
@@ -19,9 +23,8 @@ import { ReadModelUpdater } from "./update-read-model";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../tools/migrate/migrations");
 
-// Serialize an event the way the event store's default serializer does, then
-// wrap it as a DynamoDB Streams record (B field carries the raw JSON payload, as
-// LocalStack delivers it).
+// Serialize an event the way the v5 event store does: the journal item carries
+// the envelope metadata and the B field holds the pure domain JSON payload.
 type PayloadEncoding = "raw" | "base64" | "bytes";
 
 function encodePayload(json: string, encoding: PayloadEncoding): string {
@@ -38,13 +41,17 @@ function encodePayload(json: string, encoding: PayloadEncoding): string {
 }
 
 function asDynamoDBStreamEvent(
-  event: GroupChatEvent,
+  event: GroupChatEventType,
+  aggregateId: string,
+  sequenceNumber: number,
+  occurredAt: Date,
   encoding: PayloadEncoding = "raw",
 ): DynamoDBStreamEvent {
   const payload = encodePayload(
-    JSON.stringify({ type: event.typeName, data: event }),
+    JSON.stringify(GroupChatEvent.toJSON(event)),
     encoding,
   );
+  const nanos = (BigInt(occurredAt.getTime()) * BigInt(1_000_000)).toString();
   return {
     Records: [
       {
@@ -52,7 +59,13 @@ function asDynamoDBStreamEvent(
         dynamodb: {
           // LocalStack / dynamodb-local-rmu deliver this in epoch MILLISECONDS.
           ApproximateCreationDateTime: 1_780_000_000_000,
-          NewImage: { payload: { B: payload } },
+          NewImage: {
+            aid: { S: aggregateId },
+            seq_nr: { N: String(sequenceNumber) },
+            occurred_at: { N: nanos },
+            manifest: { S: manifestOf(event.typeName) },
+            payload: { B: payload },
+          },
           SequenceNumber: "1",
         },
       },
@@ -109,19 +122,66 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
 
       const id = GroupChatId.generate();
       const adminId = UserAccountId.generate();
+      const occurredAt = new Date();
       const [gc0, created] = GroupChat.create(
         id,
         GroupChatName.of("name"),
         adminId,
       );
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          created,
+          id.asString(),
+          gc0.sequenceNumber,
+          occurredAt,
+        ),
+      );
 
       const memberId = UserAccountId.generate();
       const [gc1, memberAdded] = unwrap(
         gc0.addMember(memberId, "member", adminId),
       );
       await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+        asDynamoDBStreamEvent(
+          memberAdded,
+          id.asString(),
+          gc1.sequenceNumber,
+          occurredAt,
+        ),
+      );
+
+      const message = Message.of(
+        MessageId.generate(),
+        "hello",
+        memberId,
+        occurredAt,
+      );
+      const [gc2, messagePosted] = unwrap(gc1.postMessage(message, memberId));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          messagePosted,
+          id.asString(),
+          gc2.sequenceNumber,
+          occurredAt,
+        ),
+      );
+
+      const editedMessage = Message.of(
+        message.id,
+        "edited",
+        memberId,
+        occurredAt,
+      );
+      const [gc3, messageEdited] = unwrap(
+        gc2.editMessage(editedMessage, memberId),
+      );
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          messageEdited,
+          id.asString(),
+          gc3.sequenceNumber,
+          occurredAt,
+        ),
       );
 
       const groupChat = await prisma.groupChats.findUnique({
@@ -141,16 +201,52 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
       // admin (from GroupChatCreated) + added member
       expect(members.length).toEqual(2);
 
-      // Idempotency: replaying the same event must not error or duplicate.
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
+      const storedMessage = await prisma.messages.findUnique({
+        where: { id: message.id.asString() },
+      });
+      expect(storedMessage?.text).toEqual("edited");
+
+      // Idempotency: replaying the same events must not error or duplicate.
       await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+        asDynamoDBStreamEvent(
+          created,
+          id.asString(),
+          gc0.sequenceNumber,
+          occurredAt,
+        ),
+      );
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          memberAdded,
+          id.asString(),
+          gc1.sequenceNumber,
+          occurredAt,
+        ),
+      );
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          messagePosted,
+          id.asString(),
+          gc2.sequenceNumber,
+          occurredAt,
+        ),
+      );
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          messageEdited,
+          id.asString(),
+          gc3.sequenceNumber,
+          occurredAt,
+        ),
       );
       const membersAfter = await prisma.members.findMany({
         where: { groupChatId: id.asString() },
       });
       expect(membersAfter.length).toEqual(2);
-      void gc1;
+      const messageAfter = await prisma.messages.findUnique({
+        where: { id: message.id.asString() },
+      });
+      expect(messageAfter?.text).toEqual("edited");
     },
     TIMEOUT,
   );
@@ -170,13 +266,19 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
       for (const encoding of encodings) {
         const id = GroupChatId.generate();
         const adminId = UserAccountId.generate();
-        const [, created] = GroupChat.create(
+        const [groupChat, created] = GroupChat.create(
           id,
           GroupChatName.of(`gc-${encoding}`),
           adminId,
         );
         await updater.updateFromDynamoDBStream(
-          asDynamoDBStreamEvent(created, encoding),
+          asDynamoDBStreamEvent(
+            created,
+            id.asString(),
+            groupChat.sequenceNumber,
+            new Date(),
+            encoding,
+          ),
         );
         const row = await prisma.groupChats.findUnique({
           where: { id: id.asString() },
@@ -206,18 +308,45 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
       const [gc1, memberAdded] = unwrap(
         gc0.addMember(memberId, "member", adminId),
       );
-      const [, renamed] = unwrap(
+      const [gc2, renamed] = unwrap(
         gc1.rename(GroupChatName.of("after"), adminId),
       );
+      const occurredAt = new Date();
 
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          created,
+          id.asString(),
+          gc0.sequenceNumber,
+          occurredAt,
+        ),
+      );
       await expect(
-        updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed)),
+        updater.updateFromDynamoDBStream(
+          asDynamoDBStreamEvent(
+            renamed,
+            id.asString(),
+            gc2.sequenceNumber,
+            occurredAt,
+          ),
+        ),
       ).rejects.toThrow("Read model projection gap");
       await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+        asDynamoDBStreamEvent(
+          memberAdded,
+          id.asString(),
+          gc1.sequenceNumber,
+          occurredAt,
+        ),
       );
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed));
+      await updater.updateFromDynamoDBStream(
+        asDynamoDBStreamEvent(
+          renamed,
+          id.asString(),
+          gc2.sequenceNumber,
+          occurredAt,
+        ),
+      );
 
       const groupChat = await prisma.groupChats.findUnique({
         where: { id: id.asString() },

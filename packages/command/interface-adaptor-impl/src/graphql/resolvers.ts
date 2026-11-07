@@ -18,11 +18,13 @@ import {
   CreateGroupChatInput,
   DeleteGroupChatInput,
   DeleteMessageInput,
+  EditMessageInput,
   PostMessageInput,
   RemoveMemberInput,
   RenameGroupChatInput,
+  Role,
 } from "./inputs";
-import { GroupChatOutput, HealthCheckOutput, MessageOutput } from "./outputs";
+import { GroupChatOutput, MessageOutput } from "./outputs";
 
 interface CommandContext {
   groupChatCommandProcessor: GroupChatCommandProcessor;
@@ -30,9 +32,9 @@ interface CommandContext {
 
 @Resolver()
 class GroupChatCommandResolver {
-  @Query(() => HealthCheckOutput)
-  async healthCheck(): Promise<HealthCheckOutput> {
-    return { value: "OK" };
+  @Query(() => String)
+  async healthCheck(): Promise<string> {
+    return "OK";
   }
 
   @Mutation(() => GroupChatOutput)
@@ -42,10 +44,10 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatOutput> {
     const name = orThrow(GroupChatName.validate(input.name));
     const executorId = orThrow(UserAccountId.validate(input.executorId));
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.createGroupChat(name, executorId),
     );
-    return { groupChatId: event.aggregateId.asString() };
+    return { groupChatId: groupChat.id.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -55,10 +57,10 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatOutput> {
     const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
     const executorId = orThrow(UserAccountId.validate(input.executorId));
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.deleteGroupChat(groupChatId, executorId),
     );
-    return { groupChatId: event.aggregateId.asString() };
+    return { groupChatId: groupChat.id.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -69,14 +71,14 @@ class GroupChatCommandResolver {
     const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
     const name = orThrow(GroupChatName.validate(input.name));
     const executorId = orThrow(UserAccountId.validate(input.executorId));
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.renameGroupChat(
         groupChatId,
         name,
         executorId,
       ),
     );
-    return { groupChatId: event.aggregateId.asString() };
+    return { groupChatId: groupChat.id.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -86,9 +88,9 @@ class GroupChatCommandResolver {
   ): Promise<GroupChatOutput> {
     const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
     const userAccountId = orThrow(UserAccountId.validate(input.userAccountId));
-    const role = validateRole(input.role);
+    const role = toMemberRole(input.role);
     const executorId = orThrow(UserAccountId.validate(input.executorId));
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.addMemberToGroupChat(
         groupChatId,
         userAccountId,
@@ -96,7 +98,7 @@ class GroupChatCommandResolver {
         executorId,
       ),
     );
-    return { groupChatId: event.aggregateId.asString() };
+    return { groupChatId: groupChat.id.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -107,14 +109,14 @@ class GroupChatCommandResolver {
     const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
     const userAccountId = orThrow(UserAccountId.validate(input.userAccountId));
     const executorId = orThrow(UserAccountId.validate(input.executorId));
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.removeMemberFromGroupChat(
         groupChatId,
         userAccountId,
         executorId,
       ),
     );
-    return { groupChatId: event.aggregateId.asString() };
+    return { groupChatId: groupChat.id.asString() };
   }
 
   @Mutation(() => MessageOutput)
@@ -132,7 +134,7 @@ class GroupChatCommandResolver {
         new Date(),
       ),
     );
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.postMessageToGroupChat(
         groupChatId,
         message,
@@ -140,9 +142,30 @@ class GroupChatCommandResolver {
       ),
     );
     return {
-      groupChatId: event.aggregateId.asString(),
+      groupChatId: groupChat.id.asString(),
       messageId: message.id.asString(),
     };
+  }
+
+  @Mutation(() => GroupChatOutput)
+  async editMessage(
+    @Ctx() { groupChatCommandProcessor }: CommandContext,
+    @Arg("input", () => EditMessageInput) input: EditMessageInput,
+  ): Promise<GroupChatOutput> {
+    const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
+    const messageId = orThrow(MessageId.validate(input.messageId));
+    const executorId = orThrow(UserAccountId.validate(input.executorId));
+    const message = orThrow(
+      Message.validate(messageId, input.content, executorId, new Date()),
+    );
+    const [groupChat] = unwrap(
+      await groupChatCommandProcessor.editMessageInGroupChat(
+        groupChatId,
+        message,
+        executorId,
+      ),
+    );
+    return { groupChatId: groupChat.id.asString() };
   }
 
   @Mutation(() => GroupChatOutput)
@@ -153,14 +176,14 @@ class GroupChatCommandResolver {
     const groupChatId = orThrow(GroupChatId.validate(input.groupChatId));
     const messageId = orThrow(MessageId.validate(input.messageId));
     const executorId = orThrow(UserAccountId.validate(input.executorId));
-    const event = unwrap(
+    const [groupChat] = unwrap(
       await groupChatCommandProcessor.deleteMessageFromGroupChat(
         groupChatId,
         messageId,
         executorId,
       ),
     );
-    return { groupChatId: event.aggregateId.asString() };
+    return { groupChatId: groupChat.id.asString() };
   }
 }
 
@@ -171,14 +194,17 @@ function orThrow<T>(result: Result<T, string>): T {
   return result.value;
 }
 
-function validateRole(value: string): MemberRole {
-  const role = value.toLowerCase();
-  if (role !== "administrator" && role !== "member") {
-    throw new ValidationGraphQLError(
-      `Invalid role: ${value}. Must be "administrator" or "member".`,
-    );
+function toMemberRole(role: Role): MemberRole {
+  switch (role) {
+    case Role.ADMIN:
+      return "administrator";
+    case Role.MEMBER:
+      return "member";
+    default: {
+      const exhaustive: never = role;
+      throw new ValidationGraphQLError(`Invalid role: ${String(exhaustive)}`);
+    }
   }
-  return role;
 }
 
 function unwrap<T>(result: Result<T, ProcessError>): T {

@@ -8,6 +8,7 @@ import {
   GroupChatMemberAdded,
   GroupChatMemberRemoved,
   GroupChatMessageDeleted,
+  GroupChatMessageEdited,
   GroupChatMessagePosted,
   GroupChatRenamed,
 } from "./group-chat-events";
@@ -37,25 +38,30 @@ type GroupChatParams = {
   members: Members;
   messages: Messages;
   sequenceNumber: number;
-  version: number;
 };
 
 export type GroupChatSnapshotJson = {
-  typeName: "GroupChat";
   id: GroupChatIdJson;
   deleted: boolean;
   name: GroupChatNameJson;
   members: MembersJson;
   messages: MessagesJson;
   sequenceNumber: number;
-  version: number;
+};
+
+/**
+ * An event together with the `seq_nr` carried by its envelope. Replay needs the
+ * sequence number because the v5 event payload does not contain it.
+ */
+export type GroupChatEventRecord = {
+  event: GroupChatEvent;
+  seqNr: number;
 };
 
 export type GroupChat = {
   typeName: "GroupChat";
   id: GroupChatId;
   sequenceNumber: number;
-  version: number;
   deleted: boolean;
   name: GroupChatName;
   members: Members;
@@ -77,6 +83,10 @@ export type GroupChat = {
     message: Message,
     executorId: UserAccountId,
   ): Result<[GroupChat, GroupChatMessagePosted], GroupChatError>;
+  editMessage(
+    message: Message,
+    executorId: UserAccountId,
+  ): Result<[GroupChat, GroupChatMessageEdited], GroupChatError>;
   deleteMessage(
     messageId: MessageId,
     executorId: UserAccountId,
@@ -84,8 +94,6 @@ export type GroupChat = {
   delete(
     executorId: UserAccountId,
   ): Result<[GroupChat, GroupChatDeleted], GroupChatError>;
-  withVersion(version: number): GroupChat;
-  updateVersion(version: (value: number) => number): GroupChat;
   readonly [GROUP_CHAT_BRAND]: true;
 };
 
@@ -97,7 +105,6 @@ function paramsOf(self: GroupChat): GroupChatParams {
     members: self.members,
     messages: self.messages,
     sequenceNumber: self.sequenceNumber,
-    version: self.version,
   };
 }
 
@@ -111,14 +118,6 @@ function make(params: GroupChatParams): GroupChat {
     members: params.members,
     messages: params.messages,
     sequenceNumber: params.sequenceNumber,
-    version: params.version,
-
-    withVersion(version: number): GroupChat {
-      return make({ ...params, version });
-    },
-    updateVersion(version: (value: number) => number): GroupChat {
-      return make({ ...params, version: version(params.version) });
-    },
 
     rename(
       name: GroupChatName,
@@ -141,12 +140,7 @@ function make(params: GroupChatParams): GroupChat {
       }
       const sequenceNumber = params.sequenceNumber + 1;
       const newGroupChat = make({ ...params, name, sequenceNumber });
-      const event = GroupChatRenamed.of(
-        params.id,
-        name,
-        executorId,
-        sequenceNumber,
-      );
+      const event = GroupChatRenamed.of(name, executorId);
       return Result.ok([newGroupChat, event]);
     },
 
@@ -182,12 +176,7 @@ function make(params: GroupChatParams): GroupChat {
       const members = Members.addMember(params.members, newMember);
       const sequenceNumber = params.sequenceNumber + 1;
       const newGroupChat = make({ ...params, members, sequenceNumber });
-      const event = GroupChatMemberAdded.of(
-        params.id,
-        newMember,
-        executorId,
-        sequenceNumber,
-      );
+      const event = GroupChatMemberAdded.of(newMember, executorId);
       return Result.ok([newGroupChat, event]);
     },
 
@@ -211,12 +200,7 @@ function make(params: GroupChatParams): GroupChat {
       const [members, removedMember] = removed;
       const sequenceNumber = params.sequenceNumber + 1;
       const newGroupChat = make({ ...params, members, sequenceNumber });
-      const event = GroupChatMemberRemoved.of(
-        params.id,
-        removedMember,
-        executorId,
-        sequenceNumber,
-      );
+      const event = GroupChatMemberRemoved.of(removedMember, executorId);
       return Result.ok([newGroupChat, event]);
     },
 
@@ -253,12 +237,45 @@ function make(params: GroupChatParams): GroupChat {
       const messages = Messages.addMessage(params.messages, message);
       const sequenceNumber = params.sequenceNumber + 1;
       const newGroupChat = make({ ...params, messages, sequenceNumber });
-      const event = GroupChatMessagePosted.of(
-        params.id,
-        message,
-        executorId,
-        sequenceNumber,
-      );
+      const event = GroupChatMessagePosted.of(message, executorId);
+      return Result.ok([newGroupChat, event]);
+    },
+
+    editMessage(
+      message: Message,
+      executorId: UserAccountId,
+    ): Result<[GroupChat, GroupChatMessageEdited], GroupChatError> {
+      if (params.deleted) {
+        return Result.err(
+          GroupChatError.editMessage("The group chat is deleted"),
+        );
+      }
+      if (!Members.containsById(params.members, executorId)) {
+        return Result.err(
+          GroupChatError.editMessage(
+            "The executorId is not the member of the group chat",
+          ),
+        );
+      }
+      const existing = Messages.findById(params.messages, message.id);
+      if (existing === undefined) {
+        return Result.err(
+          GroupChatError.editMessage(
+            "The message id is not exists in the group chat",
+          ),
+        );
+      }
+      if (existing.senderId.value !== executorId.value) {
+        return Result.err(
+          GroupChatError.editMessage(
+            "The executorId is not the senderId of the message",
+          ),
+        );
+      }
+      const messages = Messages.addMessage(params.messages, message);
+      const sequenceNumber = params.sequenceNumber + 1;
+      const newGroupChat = make({ ...params, messages, sequenceNumber });
+      const event = GroupChatMessageEdited.of(message, executorId);
       return Result.ok([newGroupChat, event]);
     },
 
@@ -289,12 +306,7 @@ function make(params: GroupChatParams): GroupChat {
       const [messages, removedMessage] = removed;
       const sequenceNumber = params.sequenceNumber + 1;
       const newGroupChat = make({ ...params, messages, sequenceNumber });
-      const event = GroupChatMessageDeleted.of(
-        params.id,
-        removedMessage,
-        executorId,
-        sequenceNumber,
-      );
+      const event = GroupChatMessageDeleted.of(removedMessage, executorId);
       return Result.ok([newGroupChat, event]);
     },
 
@@ -315,13 +327,21 @@ function make(params: GroupChatParams): GroupChat {
       }
       const sequenceNumber = params.sequenceNumber + 1;
       const newGroupChat = make({ ...params, deleted: true, sequenceNumber });
-      const event = GroupChatDeleted.of(params.id, executorId, sequenceNumber);
+      const event = GroupChatDeleted.of(executorId);
       return Result.ok([newGroupChat, event]);
     },
   });
 }
 
-function applyEvent(self: GroupChat, event: GroupChatEvent): GroupChat {
+/**
+ * Applies one event to the aggregate state. The sequence number comes from the
+ * event envelope, because the v5 event payload no longer carries it.
+ */
+function applyEvent(
+  self: GroupChat,
+  event: GroupChatEvent,
+  seqNr: number,
+): GroupChat {
   const base = paramsOf(self);
   switch (event.typeName) {
     case "GroupChatCreated":
@@ -330,13 +350,13 @@ function applyEvent(self: GroupChat, event: GroupChatEvent): GroupChat {
       return make({
         ...base,
         name: event.name,
-        sequenceNumber: event.sequenceNumber,
+        sequenceNumber: seqNr,
       });
     case "GroupChatMemberAdded":
       return make({
         ...base,
         members: Members.addMember(base.members, event.member),
-        sequenceNumber: event.sequenceNumber,
+        sequenceNumber: seqNr,
       });
     case "GroupChatMemberRemoved": {
       const removed = Members.removeMemberById(
@@ -346,14 +366,20 @@ function applyEvent(self: GroupChat, event: GroupChatEvent): GroupChat {
       return make({
         ...base,
         members: removed === undefined ? base.members : removed[0],
-        sequenceNumber: event.sequenceNumber,
+        sequenceNumber: seqNr,
       });
     }
     case "GroupChatMessagePosted":
       return make({
         ...base,
         messages: Messages.addMessage(base.messages, event.message),
-        sequenceNumber: event.sequenceNumber,
+        sequenceNumber: seqNr,
+      });
+    case "GroupChatMessageEdited":
+      return make({
+        ...base,
+        messages: Messages.addMessage(base.messages, event.message),
+        sequenceNumber: seqNr,
       });
     case "GroupChatMessageDeleted": {
       const removed = Messages.removeMessageById(
@@ -363,14 +389,14 @@ function applyEvent(self: GroupChat, event: GroupChatEvent): GroupChat {
       return make({
         ...base,
         messages: removed === undefined ? base.messages : removed[0],
-        sequenceNumber: event.sequenceNumber,
+        sequenceNumber: seqNr,
       });
     }
     case "GroupChatDeleted":
       return make({
         ...base,
         deleted: true,
-        sequenceNumber: event.sequenceNumber,
+        sequenceNumber: seqNr,
       });
     default: {
       const exhaustive: never = event;
@@ -391,7 +417,6 @@ export namespace GroupChat {
   ): [GroupChat, GroupChatCreated] {
     const members = Members.ofSingle(executorId);
     const sequenceNumber = 1;
-    const version = 1;
     const groupChat = make({
       id,
       deleted: false,
@@ -399,45 +424,44 @@ export namespace GroupChat {
       members,
       messages: Messages.ofEmpty(),
       sequenceNumber,
-      version,
     });
-    const event = GroupChatCreated.of(
-      id,
-      name,
-      members,
-      executorId,
-      sequenceNumber,
-    );
+    const event = GroupChatCreated.of(name, members, executorId);
     return [groupChat, event];
   }
 
   export function replay(
-    events: readonly GroupChatEvent[],
+    records: readonly GroupChatEventRecord[],
     snapshot: GroupChat,
   ): GroupChat {
-    return events.reduce((self, event) => applyEvent(self, event), snapshot);
+    return records.reduce(
+      (self, record) => applyEvent(self, record.event, record.seqNr),
+      snapshot,
+    );
   }
 
   export function replayFromEvents(
-    events: readonly GroupChatEvent[],
+    id: GroupChatId,
+    records: readonly GroupChatEventRecord[],
   ): GroupChat | undefined {
-    const [first, ...rest] = events;
+    const [first, ...rest] = records;
     if (first === undefined) {
       return undefined;
     }
-    if (first.typeName !== "GroupChatCreated") {
+    if (first.event.typeName !== "GroupChatCreated") {
       throw new Error("GroupChat history must start with GroupChatCreated");
     }
     const initial = make({
-      id: first.aggregateId,
+      id,
       deleted: false,
-      name: first.name,
-      members: first.members,
+      name: first.event.name,
+      members: first.event.members,
       messages: Messages.ofEmpty(),
-      sequenceNumber: first.sequenceNumber,
-      version: 1,
+      sequenceNumber: first.seqNr,
     });
-    return rest.reduce((self, event) => applyEvent(self, event), initial);
+    return rest.reduce(
+      (self, record) => applyEvent(self, record.event, record.seqNr),
+      initial,
+    );
   }
 
   export function is(value: unknown): value is GroupChat {
@@ -449,27 +473,28 @@ export namespace GroupChat {
 
   export function toJSON(self: GroupChat): GroupChatSnapshotJson {
     return {
-      typeName: "GroupChat",
       id: { value: self.id.value },
       deleted: self.deleted,
       name: { value: self.name.value },
       members: { values: self.members.values.map((m) => Member.toJSON(m)) },
       messages: Messages.toJSON(self.messages),
       sequenceNumber: self.sequenceNumber,
-      version: self.version,
     };
   }
 
   export function fromJSON(json: unknown): GroupChat {
     const data = unwrapSnapshot(json);
+    const sequenceNumber = Number(data.sequenceNumber);
+    if (!Number.isSafeInteger(sequenceNumber) || sequenceNumber < 0) {
+      throw new Error("Invalid GroupChat JSON: sequenceNumber is invalid");
+    }
     return make({
       id: convertJSONToGroupChatId(data.id),
       deleted: Boolean(data.deleted),
       name: convertJSONToGroupChatName(data.name),
       members: convertJSONToMembers(data.members),
       messages: convertJSONToMessages(data.messages),
-      sequenceNumber: Number(data.sequenceNumber),
-      version: Number(data.version),
+      sequenceNumber,
     });
   }
 }
@@ -481,6 +506,7 @@ function unwrapSnapshot(json: unknown): any {
   if (typeof json !== "object" || json === null) {
     throw new Error("Invalid GroupChat JSON");
   }
+  // Legacy serializer envelope: { type, data }.
   if ("type" in json && "data" in json) {
     return json.data;
   }

@@ -60,6 +60,26 @@ wait_for_read_model_group_chat() {
   exit 1
 }
 
+# メッセージ編集がリードモデルへ反映されるまで待つ（editMessage → RMU → MySQL）
+wait_for_read_model_message_text() {
+  local expect_text="$1"
+  local i
+  local r
+  for i in $(seq 1 "${WAIT_READ_MODEL_ATTEMPTS}"); do
+    r=$(curl -s -X POST -H "Content-Type: application/json" \
+      "${READ_API_SERVER_BASE_URL}/" \
+      -d "{\"query\": \"{ getMessage(messageId: \\\"${MESSAGE_ID}\\\", userAccountId: \\\"${USER_ACCOUNT_ID}\\\") { id text } }\"}") || true
+
+    if echo "$r" | jq -e --arg t "$expect_text" '.data.getMessage != null and .data.getMessage.text == $t' >/dev/null 2>&1; then
+      echo "Read model OK (message text=${expect_text})"
+      return 0
+    fi
+    sleep "${WAIT_READ_MODEL_SLEEP_SEC}"
+  done
+  echo "Timeout waiting for read model (message text=${expect_text})" >&2
+  exit 1
+}
+
 wait_for_graphql "${WRITE_API_SERVER_BASE_URL}" "write-api"
 wait_for_graphql "${READ_API_SERVER_BASE_URL}" "read-api"
 
@@ -142,7 +162,34 @@ echo "Result: $POST_MESSAGE_RESULT"
 
 MESSAGE_ID=$(echo $POST_MESSAGE_RESULT | jq -r .data.postMessage.messageId)
 
+# メッセージ編集
+echo -e "\nEdit Message(${GROUP_CHAT_ID}, ${MESSAGE_ID}, ${USER_ACCOUNT_ID}):"
+EDIT_MESSAGE_RESULT=$(curl -s -X POST -H "Content-Type: application/json" \
+	${WRITE_API_SERVER_BASE_URL}/ \
+	-d @- <<EOS
+{
+  "query": "mutation EditMessage(\$input: EditMessageInput!) { editMessage(input: \$input) { groupChatId } }",
+  "variables": {
+    "input": {
+      "groupChatId": "${GROUP_CHAT_ID}",
+      "messageId": "${MESSAGE_ID}",
+      "content": "Text1-edited",
+      "executorId": "${USER_ACCOUNT_ID}"
+    }
+  }
+}
+EOS
+)
+
+if echo $EDIT_MESSAGE_RESULT | jq -e .errors > /dev/null; then
+  echo "Error: $EDIT_MESSAGE_RESULT"
+  exit 1
+fi
+
+echo "Result: $EDIT_MESSAGE_RESULT"
+
 wait_for_read_model_group_chat ""
+wait_for_read_model_message_text "Text1-edited"
 
 # グループチャット取得
 echo -e "\nGet GroupChat(${GROUP_CHAT_ID}, ${ADMIN_ID}):"

@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/repository/group-chat/*.test.* && rimraf dist/test/*.test.*",
+    "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/repository/group-chat/*.test.* && rimraf dist/graphql/*.test.* && rimraf dist/test/*.test.*",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --no-cache",
     "lint": "biome check ./src",
     "lint:fix": "biome check --write ./src",

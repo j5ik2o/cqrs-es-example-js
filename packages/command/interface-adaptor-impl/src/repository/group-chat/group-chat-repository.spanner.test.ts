@@ -77,7 +77,7 @@ describe("GroupChatRepository (Spanner)", () => {
       }
       expect(GroupChatId.equals(found.id, id)).toEqual(true);
       expect(GroupChatName.equals(found.name, name2)).toEqual(true);
-      expect(found.version).toEqual(2);
+      expect(found.sequenceNumber).toEqual(2);
     },
     TIMEOUT,
   );
@@ -93,18 +93,15 @@ describe("GroupChatRepository (Spanner)", () => {
       const [groupChat1, created] = GroupChat.create(id, name, adminId);
       ok(await repository.storeEventAndSnapshot(created, groupChat1));
 
-      const [, renamedA] = ok(
+      const [groupChatA, renamedA] = ok(
         groupChat1.rename(GroupChatName.of("a"), adminId),
       );
-      const [, renamedB] = ok(
+      const [groupChatB, renamedB] = ok(
         groupChat1.rename(GroupChatName.of("b"), adminId),
       );
-      ok(await repository.storeEvent(renamedA, groupChat1.version));
+      ok(await repository.storeEvent(renamedA, groupChatA));
 
-      const conflict = await repository.storeEvent(
-        renamedB,
-        groupChat1.version,
-      );
+      const conflict = await repository.storeEvent(renamedB, groupChatB);
       expect(conflict.type).toEqual("err");
       if (conflict.type === "err") {
         expect(conflict.error.type).toEqual("optimistic-lock-conflict");
