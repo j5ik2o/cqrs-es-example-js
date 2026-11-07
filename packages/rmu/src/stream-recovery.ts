@@ -142,6 +142,7 @@ export async function processStream(
   let processedRecords = 0;
   let stoppedOnFailure = false;
   let reachedEnd = true;
+  let trimmedResynchronized = false;
 
   for (const shard of shards) {
     let lastSequenceNumber: string | undefined =
@@ -186,10 +187,13 @@ export async function processStream(
         }
         if (isTrimmedDataAccessError(error)) {
           // Records are gone, so reconcile the head table and resume from the
-          // oldest retained record. Duplicates are dropped by the position row.
-          await options.resynchronize();
-          resynchronizations += 1;
-          options.onResynchronize?.("trimmed");
+          // oldest retained record. One scan per pass covers every shard.
+          if (!trimmedResynchronized) {
+            await options.resynchronize();
+            resynchronizations += 1;
+            options.onResynchronize?.("trimmed");
+            trimmedResynchronized = true;
+          }
           lastProcessedAt = now();
           delete lastSequenceNumbers[shard.shardId];
           lastSequenceNumber = undefined;
