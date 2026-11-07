@@ -13,6 +13,7 @@ import type {
  * projection tolerates duplicate and delayed provider deliveries.
  */
 export type GroupChatDao = {
+  getPosition(aggregateId: string): Promise<number>;
   insertGroupChat(
     aggregateId: GroupChatId,
     name: GroupChatName,
@@ -66,6 +67,13 @@ export type GroupChatDao = {
 export namespace GroupChatDao {
   export function create(prismaClient: PrismaClient): GroupChatDao {
     return Object.freeze({
+      async getPosition(aggregateId: string): Promise<number> {
+        const current = await prismaClient.readModelPositions.findUnique({
+          where: { aggregateId },
+        });
+        return current?.lastProcessedSequenceNumber ?? 0;
+      },
+
       async insertGroupChat(
         aggregateId: GroupChatId,
         name: GroupChatName,

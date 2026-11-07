@@ -53,10 +53,9 @@ if [ "${ENV_NAME}" = "dev" ]; then
   done
 fi
 
-# ESA v5 layout: journal is keyed by aid + seq_nr and has no GSI. Its Streams
-# stay enabled only while the legacy journal-subscribing RMU runs; the M2
-# head-stream migration disables them (journal Streams do not preserve
-# per-aggregate order, DY-3).
+# ESA v5 layout: journal is keyed by aid + seq_nr and has no GSI. Journal
+# Streams stay disabled because per-aggregate order is not guaranteed there
+# (DY-3); the head table is the change feed.
 # shellcheck disable=SC2086
 aws dynamodb create-table \
   ${ENDPOINT_URL_OPTION} \
@@ -68,8 +67,7 @@ aws dynamodb create-table \
     AttributeName=aid,KeyType=HASH \
     AttributeName=seq_nr,KeyType=RANGE \
   --provisioned-throughput \
-    ReadCapacityUnits=10,WriteCapacityUnits=10 \
-  --stream-specification StreamEnabled=true,StreamViewType=NEW_IMAGE
+    ReadCapacityUnits=10,WriteCapacityUnits=10
 
 # shellcheck disable=SC2086
 aws dynamodb create-table \

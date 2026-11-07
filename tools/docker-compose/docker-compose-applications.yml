@@ -41,9 +41,9 @@ services:
       AWS_DYNAMODB_ENDPOINT_URL: http://localstack:4566
       AWS_DYNAMODB_ACCESS_KEY_ID: x
       AWS_DYNAMODB_SECRET_ACCESS_KEY: x
-      # Temporary: the RMU still subscribes to the journal Streams until the
-      # head-stream migration (#828) lands. Journal Streams stay enabled in
-      # dynamodb-setup for this reason.
+      # Subscribe to the aggregate head Streams; the journal table is only read
+      # with strong consistency to fill a sequence gap.
+      STREAM_HEAD_TABLE_NAME: head
       STREAM_JOURNAL_TABLE_NAME: journal
       STREAM_MAX_ITEM_COUNT: 32
       DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer

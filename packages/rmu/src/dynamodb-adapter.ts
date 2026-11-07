@@ -1,70 +1,183 @@
 import { TextDecoder } from "node:util";
-import type { DynamoDBStreamEvent } from "aws-lambda";
+import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import { convertJSONToGroupChatEvent } from "cqrs-es-example-js-command-domain";
 import type { ReadModelUpdaterInput } from "./read-model-updater-input";
 
 const decoder = new TextDecoder("utf-8");
 
 const CONFIG_AGGREGATE_ID = "__config__";
+const GROUP_CHAT_TYPE_NAME = "GroupChat";
+
+type HeadEvent = {
+  seqNr: number;
+  occurredAt: Date;
+  manifest: string;
+  payload: Uint8Array;
+};
 
 /**
- * AWS adapter: decodes a DynamoDB Streams event (journal inserts) into one or
- * more provider-neutral `ReadModelUpdaterInput` values.
+ * AWS adapter: decodes a DynamoDB Streams event from the **head** table into
+ * provider-neutral `ReadModelUpdaterInput` values.
  *
- * ESA v5 keeps the aggregate id, `seq_nr`, `occurred_at` and manifest in the
- * journal item, and writes only domain data to `payload`. The adapter therefore
- * reads metadata from the item and passes the pure payload to the domain
- * decoder. Journal Streams stay enabled until the RMU moves to the head Streams
- * (#828).
+ * INSERT and MODIFY records both carry the events written by one transaction
+ * (head.events). A REMOVE never happens because the event store does not delete
+ * heads; skipping it keeps the adapter tolerant of stray records. `__config__`
+ * is the store's configuration item and is not an aggregate.
  */
-function decodeDynamoDBStreamEvent(
+function decodeHeadStreamEvent(
   dynamodbStreamEvent: DynamoDBStreamEvent,
 ): ReadModelUpdaterInput[] {
   const inputs: ReadModelUpdaterInput[] = [];
-  for (const dynamodbStreamRecord of dynamodbStreamEvent.Records) {
-    // The journal is append-only; only INSERTs carry new domain events. Ignore
-    // MODIFY/REMOVE so an item change is never replayed as a fresh event.
-    if (dynamodbStreamRecord.eventName !== "INSERT") {
+  for (const record of dynamodbStreamEvent.Records) {
+    if (record.eventName === "REMOVE") {
       continue;
     }
-    const dynamodbStreamImage = dynamodbStreamRecord.dynamodb?.NewImage;
-    const aggregateId = dynamodbStreamImage?.aid?.S;
-    // The v5 store writes its configuration item into the journal table too.
-    // Journal Streams stay enabled until the RMU moves to the head Streams
-    // (#828), so this reserved item must never be decoded as a domain event.
+    if (record.eventName !== "INSERT" && record.eventName !== "MODIFY") {
+      throw new Error(
+        `Unexpected DynamoDB stream event name: ${String(record.eventName)}`,
+      );
+    }
+    const image = record.dynamodb?.NewImage;
+    if (image === undefined) {
+      throw new Error("Head stream record is missing NewImage");
+    }
+    const aggregateId = requireString(image, "aid", "head image");
     if (aggregateId === CONFIG_AGGREGATE_ID) {
       continue;
     }
-    const rawPayload = dynamodbStreamImage?.payload?.B;
-    if (rawPayload === undefined) {
-      throw new Error(
-        `DynamoDB INSERT record is missing NewImage.payload.B (sequenceNumber=${String(
-          dynamodbStreamRecord.dynamodb?.SequenceNumber ?? "",
-        )})`,
-      );
+    if (!isGroupChatHead(image, aggregateId)) {
+      continue;
     }
-    if (aggregateId === undefined) {
-      throw new Error("DynamoDB INSERT record is missing NewImage.aid.S");
-    }
-    const sequenceNumber = parseNumber(dynamodbStreamImage?.seq_nr?.N);
-    const manifest = dynamodbStreamImage?.manifest?.S ?? "";
-    const groupChatEvent = convertJSONToGroupChatEvent(
-      attachManifestType(parseDynamoDBStreamPayload(rawPayload), manifest),
-    );
+    const headEvents = parseHeadEvents(image);
     const observedAt = parseDynamoDBApproximateCreationDate(
-      dynamodbStreamRecord.dynamodb?.ApproximateCreationDateTime,
+      record.dynamodb?.ApproximateCreationDateTime,
     );
-    inputs.push({
-      event: groupChatEvent,
-      aggregateId,
-      sequenceNumber,
-      sourceProvider: "dynamodb",
-      observedAt,
-      occurredAt: parseOccurredAt(dynamodbStreamImage?.occurred_at?.N),
-      position: dynamodbStreamRecord.dynamodb?.SequenceNumber,
-    });
+    for (const headEvent of headEvents) {
+      inputs.push({
+        event: decodePayload(headEvent),
+        aggregateId,
+        sequenceNumber: headEvent.seqNr,
+        sourceProvider: "dynamodb",
+        observedAt,
+        occurredAt: headEvent.occurredAt,
+        position: `${String(record.dynamodb?.SequenceNumber ?? "")}:${headEvent.seqNr}`,
+      });
+    }
   }
   return inputs;
+}
+
+function isGroupChatHead(
+  image: Record<string, AttributeValue>,
+  aggregateId: string,
+): boolean {
+  // The aid prefix is the authoritative type discriminator: the adapter must
+  // never project another aggregate type into the GroupChat read model, even
+  // if a malformed record carries a misleading type_name.
+  if (!aggregateId.startsWith(`${GROUP_CHAT_TYPE_NAME}-`)) {
+    return false;
+  }
+  const typeName = image.type_name?.S;
+  return typeName === undefined || typeName === GROUP_CHAT_TYPE_NAME;
+}
+
+function parseHeadEvents(image: Record<string, AttributeValue>): HeadEvent[] {
+  const list = image.events?.L;
+  if (list === undefined) {
+    throw new Error("Head stream record is missing NewImage.events");
+  }
+  const events = list.map((item, index) => {
+    const fields = item.M;
+    if (fields === undefined) {
+      throw new Error(`Head event at index ${index} is not a map`);
+    }
+    return {
+      seqNr: parseNumber(fields.seq_nr?.N, `events[${index}].seq_nr`),
+      occurredAt: new Date(
+        Number(
+          parseBigInt(fields.occurred_at?.N, `events[${index}].occurred_at`) /
+            BigInt(1_000_000),
+        ),
+      ),
+      manifest: requireString(fields, "manifest", `head event ${index}`),
+      payload: requireBinary(fields, "payload", `head event ${index}`),
+    };
+  });
+  // The head item's events are already in write order, but sorting makes the
+  // projection independent of the provider's list order.
+  return events.sort((a, b) => a.seqNr - b.seqNr);
+}
+
+function decodePayload(headEvent: HeadEvent) {
+  const json = parseJSONBytes(headEvent.payload);
+  return convertJSONToGroupChatEvent(
+    attachManifestType(json, headEvent.manifest),
+  );
+}
+
+/**
+ * A v5 payload should carry only the domain value. When the domain serializer
+ * omits the type discriminator, the manifest (`<type>@<version>` or `<type>`)
+ * supplies it so the same decoder serves both envelope shapes.
+ */
+function attachManifestType(json: unknown, manifest: string): unknown {
+  if (typeof json !== "object" || json === null) {
+    return json;
+  }
+  if ("type" in json || "typeName" in json) {
+    return json;
+  }
+  const typeName = manifest.split("@")[0];
+  if (typeName === "") {
+    return json;
+  }
+  return { ...json, typeName };
+}
+
+function requireString(
+  attributes: Record<string, AttributeValue>,
+  name: string,
+  context: string,
+): string {
+  const value = attributes[name]?.S;
+  if (value === undefined) {
+    throw new Error(`${context} is missing ${name} string`);
+  }
+  return value;
+}
+
+function requireBinary(
+  attributes: Record<string, AttributeValue>,
+  name: string,
+  context: string,
+): Uint8Array {
+  const value = attributes[name]?.B;
+  if (value === undefined) {
+    throw new Error(`${context} is missing ${name} binary`);
+  }
+  return parsePayloadBytes(value);
+}
+
+function parseNumber(value: string | undefined, context: string): number {
+  if (value === undefined) {
+    throw new Error(`${context} is missing`);
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`${context} is not a non-negative safe integer: ${value}`);
+  }
+  return parsed;
+}
+
+function parseBigInt(value: string | undefined, context: string): bigint {
+  if (value === undefined) {
+    throw new Error(`${context} is missing`);
+  }
+  try {
+    return BigInt(value);
+  } catch {
+    throw new Error(`${context} is not an integer: ${value}`);
+  }
 }
 
 /**
@@ -82,53 +195,27 @@ function parseDynamoDBApproximateCreationDate(value: number | undefined): Date {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
-function parseNumber(value: string | undefined): number {
-  if (value === undefined) {
-    throw new Error("DynamoDB journal record is missing NewImage.seq_nr.N");
-  }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new Error(`DynamoDB journal record has an invalid seq_nr: ${value}`);
-  }
-  return parsed;
-}
-
-/** The journal stores `occurred_at` as Unix epoch nanoseconds (D-3). */
-function parseOccurredAt(value: string | undefined): Date | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
+function parsePayloadBytes(rawPayload: string): Uint8Array {
+  // LocalStack: the B field carries a raw JSON string.
   try {
-    const millis = Number(BigInt(value) / BigInt(1_000_000));
-    const date = new Date(millis);
-    return Number.isNaN(date.getTime()) ? undefined : date;
-  } catch {
-    return undefined;
-  }
-}
-
-function attachManifestType(json: unknown, manifest: string): unknown {
-  if (typeof json !== "object" || json === null) {
-    return json;
-  }
-  if ("type" in json || "typeName" in json) {
-    return json;
-  }
-  const typeName = manifest.split("@")[0];
-  return typeName === "" ? json : { ...json, typeName };
-}
-
-function parseDynamoDBStreamPayload(rawPayload: string): unknown {
-  try {
-    // LocalStack: the B field carries a raw JSON string.
-    return JSON.parse(rawPayload);
+    JSON.parse(rawPayload);
+    return new TextEncoder().encode(rawPayload);
   } catch {
     // AWS Lambda: base64; dynamodb-local-rmu bridge: comma-separated byte string.
-    const bytes = /^\d+(,\d+)*$/.test(rawPayload)
+    return /^\d+(,\d+)*$/.test(rawPayload)
       ? new Uint8Array(rawPayload.split(",").map(Number))
       : new Uint8Array(Buffer.from(rawPayload, "base64"));
-    return JSON.parse(decoder.decode(bytes));
   }
 }
 
-export { decodeDynamoDBStreamEvent };
+function parseJSONBytes(payload: Uint8Array): unknown {
+  try {
+    return JSON.parse(decoder.decode(payload));
+  } catch (error) {
+    throw new Error(
+      `Head event payload is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+export { decodeHeadStreamEvent };

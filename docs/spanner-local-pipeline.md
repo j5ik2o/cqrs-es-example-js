@@ -37,7 +37,7 @@ optional provider position), and the shared `applyReadModel` service applies it
 through an idempotent `GroupChatDao` (so the projection tolerates at-least-once /
 duplicate delivery).
 
-- **AWS** (`decodeDynamoDBStreamEvent`): DynamoDB Streams → `ReadModelUpdaterInput`.
+- **AWS** (`decodeHeadStreamEvent`): DynamoDB head Streams → `ReadModelUpdaterInput`.
 - **GCP** (`decodeSpannerPubSubMessage`): Pub/Sub message → `ReadModelUpdaterInput`.
 
 The AWS Lambda handler and the GCP Functions Framework handler are thin: they
@@ -49,11 +49,11 @@ only decode the trigger and forward to the shared service.
 LocalStack DynamoDB -> DynamoDB Streams -> local RMU / Lambda -> MySQL -> read API
 ```
 
-The store now uses the ESA v5 three-table layout (`journal`, `snapshot`,
-`head`). Journal Streams remain enabled in `tools/dynamodb-setup` only while the
-RMU still subscribes to the journal; the M2 head-stream migration switches the
-RMU to `head` and disables them (journal Streams do not preserve per-aggregate
-order).
+The store uses the ESA v5 three-table layout (`journal`, `snapshot`, `head`).
+The RMU subscribes to the **head** Streams, skips the `__config__` item, and
+applies the events written by each head transition. Journal Streams stay
+disabled because they do not preserve per-aggregate order (DY-3); the RMU reads
+the journal with strong consistency only to fill a sequence gap.
 
 Start it with `pnpm docker-compose-up` and verify with
 `tools/e2e-test/verify-group-chat.sh`.
