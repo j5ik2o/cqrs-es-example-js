@@ -1,4 +1,14 @@
-import { Field, InputType } from "type-graphql";
+import { Field, InputType, registerEnumType } from "type-graphql";
+
+export enum Role {
+  MEMBER = "MEMBER",
+  ADMIN = "ADMIN",
+}
+
+registerEnumType(Role, {
+  name: "Role",
+  description: "The role of a group chat member.",
+});
 
 @InputType()
 class CreateGroupChatInput {
@@ -38,8 +48,8 @@ export class AddMemberInput {
   @Field()
   userAccountId!: string;
 
-  @Field()
-  role!: string;
+  @Field(() => Role)
+  role!: Role;
 
   @Field()
   executorId!: string;
@@ -70,6 +80,21 @@ class PostMessageInput {
 }
 
 @InputType()
+class EditMessageInput {
+  @Field()
+  groupChatId!: string;
+
+  @Field()
+  messageId!: string;
+
+  @Field()
+  content!: string;
+
+  @Field()
+  executorId!: string;
+}
+
+@InputType()
 class DeleteMessageInput {
   @Field()
   groupChatId!: string;
@@ -87,5 +112,6 @@ export {
   RenameGroupChatInput,
   RemoveMemberInput,
   PostMessageInput,
+  EditMessageInput,
   DeleteMessageInput,
 };

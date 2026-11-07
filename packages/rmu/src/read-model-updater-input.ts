@@ -18,5 +18,10 @@ export type ReadModelUpdaterInput = {
   sequenceNumber: number;
   sourceProvider: SourceProvider;
   observedAt: Date;
+  /**
+   * The event's `occurred_at` from the storage envelope. The v5 payload does
+   * not carry it, so the adapter supplies it from the journal/head record.
+   */
+  occurredAt?: Date;
   position?: string;
 };

@@ -1,7 +1,9 @@
 import {
   GroupChat,
   type GroupChatEvent,
+  type GroupChatEventRecord,
   type GroupChatId,
+  manifestOf,
 } from "cqrs-es-example-js-command-domain";
 import type {
   GroupChatRepository as GroupChatRepositoryContract,
@@ -17,6 +19,9 @@ import {
 
 type GroupChatEventStore = EventStore<GroupChatEvent, GroupChat>;
 
+/** Manifest for the aggregate-state payload written to the snapshot table. */
+export const SNAPSHOT_MANIFEST = manifestOf("GroupChat");
+
 function create(
   eventStore: GroupChatEventStore,
   snapshotDecider?: SnapshotDecider,
@@ -30,11 +35,13 @@ function create(
       event: GroupChatEvent,
       snapshot: GroupChat,
     ): Promise<Result<void, EventStoreError>> {
-      const eventEnvelope = toEventEnvelope(event);
+      const eventEnvelope = toEventEnvelope(event, snapshot);
       if (eventEnvelope.type === "err") {
         return eventEnvelope;
       }
-      if (event.isCreated || snapshotDecider?.(event, snapshot)) {
+      // The first event creates the aggregate; `seq_nr === 1` replaces the old
+      // `isCreated` flag, which is no longer part of the v5 payload.
+      if (snapshot.sequenceNumber === 1 || snapshotDecider?.(event, snapshot)) {
         const snapshotEnvelope = toSnapshotEnvelope(snapshot);
         if (snapshotEnvelope.type === "err") {
           return snapshotEnvelope;
@@ -49,9 +56,9 @@ function create(
 
     storeEvent(
       event: GroupChatEvent,
-      _version: number,
+      snapshot: GroupChat,
     ): Promise<Result<void, EventStoreError>> {
-      const eventEnvelope = toEventEnvelope(event);
+      const eventEnvelope = toEventEnvelope(event, snapshot);
       if (eventEnvelope.type === "err") {
         return Promise.resolve(eventEnvelope);
       }
@@ -62,7 +69,7 @@ function create(
       event: GroupChatEvent,
       snapshot: GroupChat,
     ): Promise<Result<void, EventStoreError>> {
-      const eventEnvelope = toEventEnvelope(event);
+      const eventEnvelope = toEventEnvelope(event, snapshot);
       if (eventEnvelope.type === "err") {
         return Promise.resolve(eventEnvelope);
       }
@@ -94,31 +101,34 @@ function create(
       if (eventsResult.type === "err") {
         throw new Error(eventsResult.error.message);
       }
-      const events = eventsResult.value.map((envelope) => envelope.payload);
-      // ESA v5 has no separate aggregate version: the journal's head seq_nr is
-      // the write counter. A snapshot and the head are read non-atomically, so
-      // the snapshot can be newer than the head read; take the larger position.
-      const version = Math.max(latest.headSeqNr, snapshot?.seqNr ?? 0);
+      const records: GroupChatEventRecord[] = eventsResult.value.map(
+        (envelope) => ({
+          event: envelope.payload,
+          seqNr: envelope.seqNr,
+        }),
+      );
       if (snapshot === undefined) {
-        return GroupChat.replayFromEvents(events)?.withVersion(version);
+        return GroupChat.replayFromEvents(id, records);
       }
-      return GroupChat.replay(events, snapshot.aggregate).withVersion(version);
+      return GroupChat.replay(records, snapshot.aggregate);
     },
   });
 }
 
 /**
  * ESA v5 locks on the journal's continuous `seq_nr` and compares it with the
- * head, so the domain event's own sequence number is the concurrency token.
+ * head, so the aggregate's own sequence number is the concurrency token. The
+ * event payload stays pure; the envelope carries the metadata.
  */
 function toEventEnvelope(
   event: GroupChatEvent,
+  snapshot: GroupChat,
 ): Result<EventEnvelope<GroupChatEvent>, EventStoreError> {
   return EventEnvelope.create({
-    aggregateId: event.aggregateId,
-    seqNr: event.sequenceNumber,
-    occurredAt: event.occurredAt,
-    manifest: event.typeName,
+    aggregateId: snapshot.id,
+    seqNr: snapshot.sequenceNumber,
+    occurredAt: new Date(),
+    manifest: manifestOf(event.typeName),
     payload: event,
   });
 }
@@ -128,7 +138,7 @@ function toSnapshotEnvelope(
 ): Result<SnapshotEnvelope<GroupChat>, EventStoreError> {
   return SnapshotEnvelope.create({
     seqNr: snapshot.sequenceNumber,
-    manifest: snapshot.typeName,
+    manifest: SNAPSHOT_MANIFEST,
     aggregate: snapshot,
   });
 }
@@ -139,7 +149,8 @@ function retentionCriteriaOf(numberOfEvents: number): SnapshotDecider {
       `withRetention(numberOfEvents) requires a positive integer, got ${numberOfEvents}`,
     );
   }
-  return (event: GroupChatEvent) => event.sequenceNumber % numberOfEvents === 0;
+  return (_event: GroupChatEvent, snapshot: GroupChat) =>
+    snapshot.sequenceNumber % numberOfEvents === 0;
 }
 
 export const GroupChatRepository = Object.freeze({

@@ -80,41 +80,53 @@ function fromEventStoreError(error: EventStoreError): ProcessError {
 
 // --- Processor ------------------------------------------------------------
 
+/**
+ * The new aggregate state and the event that produced it. The repository needs
+ * the aggregate to derive the envelope's aggregate id and sequence number,
+ * which are no longer part of the event payload.
+ */
+export type GroupChatWithEvent = readonly [GroupChat, GroupChatEvent];
+
 export type GroupChatCommandProcessor = {
   createGroupChat(
     name: GroupChatName,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
   deleteGroupChat(
     id: GroupChatId,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
   renameGroupChat(
     id: GroupChatId,
     name: GroupChatName,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
   addMemberToGroupChat(
     id: GroupChatId,
     memberId: UserAccountId,
     memberRole: MemberRole,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
   removeMemberFromGroupChat(
     id: GroupChatId,
     memberId: UserAccountId,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
   postMessageToGroupChat(
     id: GroupChatId,
     message: Message,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
+  editMessageInGroupChat(
+    id: GroupChatId,
+    message: Message,
+    executorId: UserAccountId,
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
   deleteMessageFromGroupChat(
     id: GroupChatId,
     messageId: MessageId,
     executorId: UserAccountId,
-  ): Promise<Result<GroupChatEvent, ProcessError>>;
+  ): Promise<Result<GroupChatWithEvent, ProcessError>>;
 };
 
 export namespace GroupChatCommandProcessor {
@@ -124,7 +136,7 @@ export namespace GroupChatCommandProcessor {
     async function persist(
       event: GroupChatEvent,
       snapshot: GroupChat,
-    ): Promise<Result<GroupChatEvent, ProcessError>> {
+    ): Promise<Result<GroupChatWithEvent, ProcessError>> {
       let storeResult: Result<void, EventStoreError>;
       try {
         storeResult = await repository.store(event, snapshot);
@@ -136,7 +148,7 @@ export namespace GroupChatCommandProcessor {
       if (storeResult.type === "err") {
         return Result.err(fromEventStoreError(storeResult.error));
       }
-      return Result.ok(event);
+      return Result.ok([snapshot, event] as const);
     }
 
     async function mutate(
@@ -144,7 +156,7 @@ export namespace GroupChatCommandProcessor {
       operate: (
         groupChat: GroupChat,
       ) => Result<[GroupChat, GroupChatEvent], GroupChatError>,
-    ): Promise<Result<GroupChatEvent, ProcessError>> {
+    ): Promise<Result<GroupChatWithEvent, ProcessError>> {
       let groupChat: GroupChat | undefined;
       try {
         groupChat = await repository.findById(id);
@@ -168,7 +180,7 @@ export namespace GroupChatCommandProcessor {
       async createGroupChat(
         name: GroupChatName,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         const id = GroupChatId.generate();
         const [groupChat, event] = GroupChat.create(id, name, executorId);
         return persist(event, groupChat);
@@ -177,7 +189,7 @@ export namespace GroupChatCommandProcessor {
       deleteGroupChat(
         id: GroupChatId,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         return mutate(id, (groupChat) => groupChat.delete(executorId));
       },
 
@@ -185,7 +197,7 @@ export namespace GroupChatCommandProcessor {
         id: GroupChatId,
         name: GroupChatName,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         return mutate(id, (groupChat) => groupChat.rename(name, executorId));
       },
 
@@ -194,7 +206,7 @@ export namespace GroupChatCommandProcessor {
         memberId: UserAccountId,
         memberRole: MemberRole,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         return mutate(id, (groupChat) =>
           groupChat.addMember(memberId, memberRole, executorId),
         );
@@ -204,7 +216,7 @@ export namespace GroupChatCommandProcessor {
         id: GroupChatId,
         memberId: UserAccountId,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         return mutate(id, (groupChat) =>
           groupChat.removeMemberById(memberId, executorId),
         );
@@ -214,9 +226,19 @@ export namespace GroupChatCommandProcessor {
         id: GroupChatId,
         message: Message,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         return mutate(id, (groupChat) =>
           groupChat.postMessage(message, executorId),
+        );
+      },
+
+      editMessageInGroupChat(
+        id: GroupChatId,
+        message: Message,
+        executorId: UserAccountId,
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
+        return mutate(id, (groupChat) =>
+          groupChat.editMessage(message, executorId),
         );
       },
 
@@ -224,7 +246,7 @@ export namespace GroupChatCommandProcessor {
         id: GroupChatId,
         messageId: MessageId,
         executorId: UserAccountId,
-      ): Promise<Result<GroupChatEvent, ProcessError>> {
+      ): Promise<Result<GroupChatWithEvent, ProcessError>> {
         return mutate(id, (groupChat) =>
           groupChat.deleteMessage(messageId, executorId),
         );

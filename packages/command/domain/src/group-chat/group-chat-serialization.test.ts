@@ -1,9 +1,13 @@
 import type { Result } from "event-store-adapter-js";
 import { UserAccountId } from "../user-account";
-import { GroupChat, convertJSONToGroupChat } from "./group-chat";
+import {
+  GroupChat,
+  type GroupChatEventRecord,
+  convertJSONToGroupChat,
+} from "./group-chat";
 import type { GroupChatError } from "./group-chat-errors";
 import {
-  type GroupChatEvent,
+  GroupChatEvent,
   convertJSONToGroupChatEvent,
 } from "./group-chat-events";
 import { GroupChatId } from "./group-chat-id";
@@ -13,17 +17,12 @@ import { Message } from "./message";
 import { MessageId } from "./message-id";
 import { Messages } from "./messages";
 
-// Mimic the event-store default serializer: JSON.stringify({ type, data }).
-function wire(typeName: string, value: unknown): unknown {
-  return JSON.parse(JSON.stringify({ type: typeName, data: value }));
-}
-
 function roundTripEvent(event: GroupChatEvent): GroupChatEvent {
-  return convertJSONToGroupChatEvent(wire(event.typeName, event));
+  return convertJSONToGroupChatEvent(GroupChatEvent.toJSON(event));
 }
 
 function roundTripSnapshot(groupChat: GroupChat): GroupChat {
-  return convertJSONToGroupChat(wire(groupChat.typeName, groupChat));
+  return convertJSONToGroupChat(GroupChat.toJSON(groupChat));
 }
 
 function ok<E extends GroupChatError, Ev extends GroupChatEvent>(
@@ -39,7 +38,11 @@ describe("GroupChat serialization round-trip", () => {
   const adminId = UserAccountId.generate();
   const memberId = UserAccountId.generate();
 
-  function buildHistory(): { snapshot: GroupChat; events: GroupChatEvent[] } {
+  function buildHistory(): {
+    id: GroupChatId;
+    snapshot: GroupChat;
+    events: GroupChatEvent[];
+  } {
     const id = GroupChatId.generate();
     const [g0, created] = GroupChat.create(
       id,
@@ -55,16 +58,25 @@ describe("GroupChat serialization round-trip", () => {
       new Date("2026-05-30T00:00:00.000Z"),
     );
     const [g3, messagePosted] = ok(g2.postMessage(message, memberId));
-    const [g4, messageDeleted] = ok(g3.deleteMessage(message.id, memberId));
-    const [g5, memberRemoved] = ok(g4.removeMemberById(memberId, adminId));
-    const [g6, deleted] = ok(g5.delete(adminId));
+    const edited = Message.of(
+      message.id,
+      "hello-edited",
+      memberId,
+      new Date("2026-05-30T00:00:01.000Z"),
+    );
+    const [g4, messageEdited] = ok(g3.editMessage(edited, memberId));
+    const [g5, messageDeleted] = ok(g4.deleteMessage(message.id, memberId));
+    const [g6, memberRemoved] = ok(g5.removeMemberById(memberId, adminId));
+    const [g7, deleted] = ok(g6.delete(adminId));
     return {
-      snapshot: g6,
+      id,
+      snapshot: g7,
       events: [
         created,
         renamed,
         memberAdded,
         messagePosted,
+        messageEdited,
         messageDeleted,
         memberRemoved,
         deleted,
@@ -72,17 +84,35 @@ describe("GroupChat serialization round-trip", () => {
     };
   }
 
-  test("each event round-trips through the serializer envelope", () => {
+  test("each event round-trips through the serializer payload", () => {
     const { events } = buildHistory();
     for (const event of events) {
       const restored = roundTripEvent(event);
       expect(restored.typeName).toEqual(event.typeName);
       expect(restored.id).toEqual(event.id);
-      expect(restored.aggregateId.value).toEqual(event.aggregateId.value);
       expect(restored.executorId.value).toEqual(event.executorId.value);
-      expect(restored.sequenceNumber).toEqual(event.sequenceNumber);
-      expect(restored.occurredAt.getTime()).toEqual(event.occurredAt.getTime());
-      expect(restored.isCreated).toEqual(event.isCreated);
+    }
+  });
+
+  test("event payloads do not carry envelope metadata", () => {
+    const { events } = buildHistory();
+    for (const event of events) {
+      const json = GroupChatEvent.toJSON(event) as unknown as Record<
+        string,
+        unknown
+      >;
+      expect(json.typeName).toEqual(event.typeName);
+      for (const key of [
+        "aggregateId",
+        "aggregate_id",
+        "sequenceNumber",
+        "seq_nr",
+        "occurredAt",
+        "occurred_at",
+        "isCreated",
+      ]) {
+        expect(json).not.toHaveProperty(key);
+      }
     }
   });
 
@@ -116,16 +146,25 @@ describe("GroupChat serialization round-trip", () => {
     expect(restored.name.value).toEqual(snapshot.name.value);
     expect(restored.deleted).toEqual(true);
     expect(restored.sequenceNumber).toEqual(snapshot.sequenceNumber);
-    expect(restored.version).toEqual(snapshot.version);
     expect(Members.equals(restored.members, snapshot.members)).toEqual(true);
     expect(Messages.size(restored.messages)).toEqual(
       Messages.size(snapshot.messages),
     );
+    const json = GroupChat.toJSON(snapshot) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(json).not.toHaveProperty("version");
+    expect(json).not.toHaveProperty("manifest");
   });
 
   test("replaying events from history reconstructs the aggregate", () => {
-    const { snapshot, events } = buildHistory();
-    const replayed = GroupChat.replayFromEvents(events);
+    const { id, snapshot, events } = buildHistory();
+    const records: GroupChatEventRecord[] = events.map((event, index) => ({
+      event,
+      seqNr: index + 1,
+    }));
+    const replayed = GroupChat.replayFromEvents(id, records);
     if (replayed === undefined) {
       throw new Error("replay returned undefined");
     }

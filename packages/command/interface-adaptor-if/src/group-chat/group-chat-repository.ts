@@ -29,7 +29,7 @@ export type GroupChatRepository = {
 
   storeEvent(
     event: GroupChatEvent,
-    version: number,
+    snapshot: GroupChat,
   ): Promise<Result<void, EventStoreError>>;
 
   storeEventAndSnapshot(

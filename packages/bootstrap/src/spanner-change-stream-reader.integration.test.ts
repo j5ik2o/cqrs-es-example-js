@@ -126,9 +126,11 @@ describe("Spanner change-stream reader (write -> change stream -> event)", () =>
         databaseId: DATABASE_ID,
         streamName: STREAM,
       });
-      let createdEvent: GroupChatEvent | undefined;
+      let createdRecord:
+        | { event: GroupChatEvent; aggregateId: string }
+        | undefined;
       try {
-        createdEvent = await readUntilEvent(
+        createdRecord = await readUntilEvent(
           reader,
           JOURNAL,
           start,
@@ -138,8 +140,9 @@ describe("Spanner change-stream reader (write -> change stream -> event)", () =>
         await reader.close();
       }
 
-      expect(createdEvent).toBeDefined();
-      expect(createdEvent?.aggregateId.asString()).toEqual(id.asString());
+      expect(createdRecord).toBeDefined();
+      expect(createdRecord?.event.typeName).toEqual("GroupChatCreated");
+      expect(createdRecord?.aggregateId).toEqual(id.asString());
     },
     TIMEOUT,
   );
@@ -150,21 +153,24 @@ async function readUntilEvent(
   journalTableName: string,
   start: Date,
   predicate: (event: GroupChatEvent) => boolean,
-): Promise<GroupChatEvent | undefined> {
+): Promise<{ event: GroupChatEvent; aggregateId: string } | undefined> {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
     const records = await reader.readWindow(
       start.toISOString(),
       new Date(Date.now() + 1_000).toISOString(),
     );
-    const event = records
+    const record = records
       .filter((r) => r.tableName === journalTableName && r.modType === "INSERT")
-      .map((r) =>
-        decodeEventPayload(Buffer.from(String(r.newValues.payload), "base64")),
-      )
-      .find(predicate);
-    if (event !== undefined) {
-      return event;
+      .map((r) => ({
+        event: decodeEventPayload(
+          Buffer.from(String(r.newValues.payload), "base64"),
+        ),
+        aggregateId: String(r.keys.aid ?? ""),
+      }))
+      .find((candidate) => predicate(candidate.event));
+    if (record !== undefined) {
+      return record;
     }
     await new Promise((r) => setTimeout(r, 250));
   }
