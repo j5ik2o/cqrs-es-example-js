@@ -61,7 +61,7 @@ services:
       EAGER_SERVICE_LOADING: ${LOCALSTACK_EAGER_SERVICE_LOADING:-1}
       # The e2e only needs DynamoDB and its Streams. Set LOCALSTACK_SERVICES to
       # the Lambda list when using deploy-dynamodb-read-model-updater-localstack.
-      SERVICES: ${LOCALSTACK_SERVICES:-cloudwatch,dynamodb,dynamodbstreams,lambda,iam}
+      SERVICES: ${LOCALSTACK_SERVICES:-cloudwatch,dynamodb,dynamodbstreams,lambda,iam,sqs}
       LAMBDA_DOCKER_NETWORK: ${LAMBDA_DOCKER_NETWORK:-cqrs-es-example-js_default}
       MAIN_CONTAINER_NAME: localstack-main
       HOSTNAME_EXTERNAL: localstack-local

@@ -1,6 +1,6 @@
 import type { AttributeValue } from "aws-lambda";
 import { decodeHeadScanItems } from "./dynamodb-adapter";
-import type { ReadModelUpdaterInput } from "./read-model-updater-input";
+import type { ReadModelInput } from "./read-model-updater-input";
 
 /** DynamoDB Streams keeps records for 24 hours (DY-15). */
 export const STREAM_RETENTION_MS = 24 * 60 * 60 * 1000;
@@ -248,7 +248,7 @@ export async function processStream(
 
 export type HeadResynchronizeOptions = {
   scan: () => Promise<readonly Record<string, AttributeValue>[]>;
-  apply: (inputs: readonly ReadModelUpdaterInput[]) => Promise<unknown>;
+  apply: (inputs: readonly ReadModelInput[]) => Promise<unknown>;
 };
 
 /**

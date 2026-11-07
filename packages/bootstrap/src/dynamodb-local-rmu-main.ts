@@ -19,6 +19,7 @@ import {
   processStream,
   scanHeadTable,
 } from "cqrs-es-example-js-rmu";
+import { createDeadLetterNotifier } from "./dead-letter-notifier-factory";
 import { createDynamoDBClients } from "./dynamodb-clients";
 import { createDynamoDBStreamClient } from "./dynamodb-stream-client";
 import { logger } from "./index";
@@ -65,6 +66,12 @@ async function dynamodbLocalRmuMain() {
     {
       retry: config.retry,
       deadLetters: DeadLetterStore.createSql(prisma),
+      notifier: createDeadLetterNotifier(config),
+      onNotificationError: (error, record) => {
+        logger.warn(
+          `Dead-letter notification failed for ${record.aggregateId} seq_nr ${record.seqNr}: ${String(error)}`,
+        );
+      },
       storeId: config.storeId,
       projectionName: config.projectionName,
       projectionVersion: config.projectionVersion,

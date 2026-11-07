@@ -12,6 +12,7 @@ export type FailureType =
   | "journal-gap"
   | "projection-gap"
   | "projection-error"
+  | "payload-decode"
   | "transient";
 
 export type FailureClassification = {
@@ -27,6 +28,25 @@ export class JournalGapError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "JournalGapError";
+  }
+}
+
+/**
+ * The storage envelope identified the event, but its domain payload could not
+ * be decoded. The read model must not advance past the event, so the projection
+ * records a recovery task and re-reads the payload from the journal.
+ */
+export class PayloadDecodeError extends Error {
+  readonly aggregateId: string;
+  readonly seqNr: number;
+
+  constructor(aggregateId: string, seqNr: number, message: string) {
+    super(
+      `Payload decode failed for ${aggregateId} seq_nr ${seqNr}: ${message}`,
+    );
+    this.name = "PayloadDecodeError";
+    this.aggregateId = aggregateId;
+    this.seqNr = seqNr;
   }
 }
 
@@ -118,6 +138,10 @@ export function classifyFailure(error: unknown): FailureClassification {
   }
   if (error instanceof ProjectionGapError) {
     return { type: "projection-gap", retryable: true, transient: false };
+  }
+  if (error instanceof PayloadDecodeError) {
+    // The bytes will not change by retrying; recovery re-reads the journal.
+    return { type: "payload-decode", retryable: false, transient: false };
   }
   if (isTransientError(error)) {
     return { type: "transient", retryable: true, transient: true };

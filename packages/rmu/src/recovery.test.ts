@@ -1,4 +1,4 @@
-import type { AttributeValue } from "aws-lambda";
+import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
   GroupChatEvent,
@@ -9,16 +9,21 @@ import {
   type MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
+import type { DeadLetterNotifier } from "./dead-letter-notifier";
 import type { DeadLetterRecord, DeadLetterStore } from "./dead-letter-store";
 import { decodeHeadScanItems } from "./dynamodb-adapter";
 import {
   DeadLetterWriteError,
+  PayloadDecodeError,
   ProjectionGapError,
   classifyFailure,
 } from "./failures";
 import type { GroupChatDao } from "./group-chat-dao";
 import type { JournalEvent, JournalReader } from "./journal-reader";
-import type { ReadModelUpdaterInput } from "./read-model-updater-input";
+import type {
+  ReadModelDecodeFailure,
+  ReadModelUpdaterInput,
+} from "./read-model-updater-input";
 import { DeadLetterRecovery } from "./recovery";
 import { RetryExhaustedError, type RetryPolicy } from "./retry";
 import {
@@ -72,6 +77,7 @@ function inputOf(
     throw new Error(`missing fixture event ${seqNr}`);
   }
   return {
+    kind: "event",
     event,
     aggregateId: fixture.aggregateId,
     sequenceNumber: seqNr,
@@ -294,10 +300,15 @@ function updaterOf(
   journal: JournalReader,
   deadLetters?: DeadLetterStore,
   retry: RetryPolicy = FAST_RETRY,
+  extra: {
+    notifier?: DeadLetterNotifier;
+    onNotificationError?: (error: unknown, record: DeadLetterRecord) => void;
+  } = {},
 ): ReadModelUpdater {
   return ReadModelUpdater.create(dao, journal, {
     retry,
     deadLetters,
+    ...extra,
     sleep: noSleep,
     random: () => 0.5,
     storeId: "test-store",
@@ -501,6 +512,226 @@ describe("batch handling", () => {
     expect(record?.attempts).toEqual(1);
     expect(sleeps).toEqual([]);
     expect(await dao.getPosition(fixture.aggregateId)).toEqual(0);
+  });
+});
+
+describe("payload decode failures", () => {
+  test("dead-letters an undecodable head payload and recovers it from the journal", async () => {
+    const fixture = newFixture(2);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    const emitted: DeadLetterRecord[] = [];
+    const notifier: DeadLetterNotifier = {
+      async notify(record) {
+        emitted.push(record);
+      },
+    };
+    const journal = new MemoryJournalReader([
+      journalEventOf(fixture, 1),
+      journalEventOf(fixture, 2),
+    ]);
+    const updater = updaterOf(dao, journal, deadLetters, FAST_RETRY, {
+      notifier,
+    });
+    const image = headImageWithEvents(fixture, [1, 2]);
+    corruptPayload(image, 2);
+
+    const result = await updater.updateFromHeadStream(
+      headStream(image, "record-1"),
+      { reportBatchItemFailures: true },
+    );
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-1" }],
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(1);
+    const [record] = await deadLetters.list(10);
+    expect(record).toMatchObject({
+      storeId: "test-store",
+      projectionName: "group-chat-read-model",
+      projectionVersion: "7",
+      aggregateId: fixture.aggregateId,
+      seqNr: 2,
+      failureType: "payload-decode",
+      attempts: 1,
+      manifest: `${fixture.events[1].typeName}@1`,
+      recordIdentifier: "record-1",
+    });
+    // Delivery records the task; only recovery reads the journal payload.
+    expect(journal.calls).toEqual([]);
+    expect(emitted).toEqual([record]);
+
+    const recovery = DeadLetterRecovery.create(updater, journal, deadLetters);
+    expect(await recovery.recoverAll()).toMatchObject({
+      recovered: 1,
+      failed: 0,
+      remaining: 0,
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(2);
+    expect(await deadLetters.list(10)).toEqual([]);
+
+    // Recovery is idempotent and a redelivered head record converges.
+    expect(await recovery.recoverAll()).toMatchObject({
+      recovered: 0,
+      failed: 0,
+      remaining: 0,
+    });
+    const replay = await updater.updateFromHeadStream(
+      headStream(image, "record-1"),
+      { reportBatchItemFailures: true },
+    );
+    expect(replay).toEqual({ batchItemFailures: [] });
+    expect(await deadLetters.list(10)).toEqual([]);
+    expect(dao.applied.map((event) => event.seqNr)).toEqual([1, 2]);
+  });
+
+  test("stops the aggregate and leaves later events for redelivery", async () => {
+    const fixture = newFixture(3);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    const updater = updaterOf(dao, new MemoryJournalReader([]), deadLetters);
+    const image = headImageWithEvents(fixture, [2, 3]);
+    corruptPayload(image, 2);
+
+    const result = await updater.updateFromHeadStream(
+      headStream(image, "record-2"),
+      { reportBatchItemFailures: true },
+    );
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-2" }],
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(0);
+    expect(dao.applied).toEqual([]);
+    const records = await deadLetters.list(10);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      aggregateId: fixture.aggregateId,
+      seqNr: 2,
+      failureType: "payload-decode",
+    });
+  });
+
+  test("keeps the task when the journal payload is also undecodable", async () => {
+    const fixture = newFixture(2);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    const updater = updaterOf(dao, new MemoryJournalReader([]), deadLetters);
+    const image = headImageWithEvents(fixture, [1, 2]);
+    corruptPayload(image, 2);
+    await updater.updateFromHeadStream(headStream(image, "record-1"), {
+      reportBatchItemFailures: true,
+    });
+
+    const brokenJournal: JournalReader = {
+      async readEvents() {
+        throw new PayloadDecodeError(
+          fixture.aggregateId,
+          2,
+          "journal payload is corrupt",
+        );
+      },
+    };
+    const recovery = DeadLetterRecovery.create(
+      updater,
+      brokenJournal,
+      deadLetters,
+    );
+    const outcome = await recovery.recoverAll();
+
+    expect(outcome).toMatchObject({ recovered: 0, failed: 1 });
+    expect(outcome.failures[0].record).toMatchObject({
+      aggregateId: fixture.aggregateId,
+      seqNr: 2,
+      failureType: "payload-decode",
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(1);
+    expect(await deadLetters.list(10)).toHaveLength(1);
+  });
+
+  test("fails the delivery when a decode failure cannot be persisted", async () => {
+    const fixture = newFixture(1);
+    const dao = new MemoryGroupChatDao();
+    const updater = updaterOf(dao, new MemoryJournalReader([]));
+    const input: ReadModelDecodeFailure = {
+      kind: "decode-failure",
+      aggregateId: fixture.aggregateId,
+      sequenceNumber: 1,
+      sourceProvider: "dynamodb",
+      observedAt: occurredAtOf(1),
+      errorMessage: "invalid payload",
+    };
+
+    await expect(
+      updater.apply([input], { reportBatchItemFailures: true }),
+    ).rejects.toBeInstanceOf(PayloadDecodeError);
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(0);
+  });
+
+  test("keeps the recovery task when the notification transport fails", async () => {
+    const fixture = newFixture(1);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    dao.fail(fixture.aggregateId, 1, new Error("permanent"), 10);
+    const notificationErrors: unknown[] = [];
+    const updater = updaterOf(
+      dao,
+      new MemoryJournalReader([]),
+      deadLetters,
+      FAST_RETRY,
+      {
+        notifier: {
+          async notify() {
+            throw new Error("sqs unavailable");
+          },
+        },
+        onNotificationError: (error) => {
+          notificationErrors.push(error);
+        },
+      },
+    );
+
+    const result = await updater.apply([inputOf(fixture, 1, "record-1")], {
+      reportBatchItemFailures: true,
+    });
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-1" }],
+    });
+    expect(notificationErrors).toHaveLength(1);
+    expect(await deadLetters.list(10)).toHaveLength(1);
+  });
+
+  test("survives an onNotificationError hook that throws", async () => {
+    const fixture = newFixture(1);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    dao.fail(fixture.aggregateId, 1, new Error("permanent"), 10);
+    const updater = updaterOf(
+      dao,
+      new MemoryJournalReader([]),
+      deadLetters,
+      FAST_RETRY,
+      {
+        notifier: {
+          async notify() {
+            throw new Error("sqs unavailable");
+          },
+        },
+        onNotificationError: () => {
+          throw new Error("hook bug");
+        },
+      },
+    );
+
+    const result = await updater.apply([inputOf(fixture, 1, "record-1")], {
+      reportBatchItemFailures: true,
+    });
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-1" }],
+    });
+    expect(await deadLetters.list(10)).toHaveLength(1);
   });
 });
 
@@ -802,17 +1033,28 @@ function headImage(
   fixture: Fixture,
   seqNr: number,
 ): Record<string, AttributeValue> {
-  const event = fixture.events[seqNr - 1];
-  if (event === undefined) {
-    throw new Error(`missing fixture event ${seqNr}`);
+  return headImageWithEvents(fixture, [seqNr]);
+}
+
+function headImageWithEvents(
+  fixture: Fixture,
+  seqNrs: readonly number[],
+): Record<string, AttributeValue> {
+  const last = seqNrs[seqNrs.length - 1];
+  if (last === undefined) {
+    throw new Error("a head image needs at least one event");
   }
   return {
     aid: { S: fixture.aggregateId },
     type_name: { S: "GroupChat" },
-    seq_nr: { N: String(seqNr) },
+    seq_nr: { N: String(last) },
     events: {
-      L: [
-        {
+      L: seqNrs.map((seqNr) => {
+        const event = fixture.events[seqNr - 1];
+        if (event === undefined) {
+          throw new Error(`missing fixture event ${seqNr}`);
+        }
+        return {
           M: {
             seq_nr: { N: String(seqNr) },
             occurred_at: {
@@ -825,10 +1067,41 @@ function headImage(
               B: JSON.stringify(GroupChatEvent.toJSON(event)),
             },
           },
-        },
-      ],
+        };
+      }),
     },
   };
+}
+
+function headStream(
+  image: Record<string, AttributeValue>,
+  sequenceNumber: string,
+): DynamoDBStreamEvent {
+  return {
+    Records: [
+      {
+        eventName: "MODIFY",
+        dynamodb: {
+          ApproximateCreationDateTime: 1_700_000_000,
+          SequenceNumber: sequenceNumber,
+          NewImage: image,
+        },
+      },
+    ],
+  } as unknown as DynamoDBStreamEvent;
+}
+
+function corruptPayload(
+  image: Record<string, AttributeValue>,
+  seqNr: number,
+): void {
+  const target = image.events?.L?.find(
+    (entry) => entry.M?.seq_nr?.N === String(seqNr),
+  );
+  if (target?.M === undefined) {
+    throw new Error(`missing head event ${seqNr}`);
+  }
+  target.M.payload = { B: "{not-json" };
 }
 
 function streamRecord(sequenceNumber: string) {

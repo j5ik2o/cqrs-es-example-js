@@ -54,13 +54,15 @@ RMU は失敗したイベントを捨てず、再試行・退避・再同期で�
 
 上限を超えた恒久障害は `read_model_dead_letters` に保存します。レコードはストア識別子、投影の名前と版、集約ID、seq_nr、失敗種別、試行回数を持ちます。イベント本文は保存せず、復旧時に journal から読み直します。DB 全体の障害は DLQ に入れず、配信ループの退避に任せます。
 
+payload を復号できない head イベントは、失敗種別 `payload-decode` で保存します。アダプタがエンベロープを残すため、タスクには集約IDと seq_nr が入ります。復旧時は journal から payload を読み直します。`RMU_DEAD_LETTER_QUEUE_URL` を設定すると、タスクの識別情報を SQS にも送ります。この通知が届かなくても復旧が遅れるだけで、イベント本文は含みません。正本は MySQL の行です。メッセージの形、キューの設定、運用の手順は [DEAD_LETTER_RECOVERY.ja.md](DEAD_LETTER_RECOVERY.ja.md) にあります。
+
 復旧タスクは `node dist/index.js recoverReadModel` で実行します。未解決の DLQ を読み、現在位置から対象の seq_nr まで journal を昇順に適用し、位置が到達したことを確認してからレコードを削除します。何度実行しても結果は変わりません。
 
 再同期は、起動時、最後の処理から24時間を超えたとき、`TrimmedDataAccessException` を受けたときに行います。head を `ConsistentRead` で全件 Scan し、位置が遅れている集約だけ journal から補います。`ExpiredIteratorException` はイベントが消えたことを意味しないので、全件を読み直さず、シャードの最後のシーケンス番号から読み直します。
 
 リードモデルの更新と位置行の更新は同じトランザクションで確定します。適用するのは「現在位置+1」のイベントだけで、journal に欠番があれば位置を進めずに失敗させます。
 
-`recovery.test.ts` は再試行、DLQ、再同期、ストリームの失敗種別を確認します。`read-model-updater.integration.test.ts` は実 MySQL で重複、逆順、欠番、途中の失敗、再起動、同時適用を確認します。
+`recovery.test.ts` は再試行、DLQ、payload の復号失敗、再同期、ストリームの失敗種別を確認します。`dead-letter-notifier.test.ts` は SQS のメッセージの形を確認します。`read-model-updater.integration.test.ts` は実 MySQL で重複、逆順、欠番、途中の失敗、再起動、復号失敗、同時適用を確認します。
 
 ## Read Model Updater Lambda（LocalStack）
 

@@ -1,4 +1,4 @@
-import type { DynamoDBStreamEvent } from "aws-lambda";
+import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
   GroupChatEvent,
@@ -6,7 +6,11 @@ import {
   GroupChatName,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import { decodeHeadStreamEvent } from "./dynamodb-adapter";
+import { decodeHeadScanItems, decodeHeadStreamEvent } from "./dynamodb-adapter";
+import type {
+  ReadModelInput,
+  ReadModelUpdaterInput,
+} from "./read-model-updater-input";
 import { decodeSpannerPubSubMessage } from "./spanner-pubsub-adapter";
 
 type PayloadEncoding = "raw" | "base64" | "bytes";
@@ -103,11 +107,15 @@ describe("RMU adapter contract", () => {
     const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
     const createdFixture = fixture(created, 1);
 
-    const [fromHeadStream] = decodeHeadStreamEvent(
-      headRecord("INSERT", id.asString(), [createdFixture]),
+    const fromHeadStream = asEvent(
+      decodeHeadStreamEvent(
+        headRecord("INSERT", id.asString(), [createdFixture]),
+      )[0],
     );
-    const [fromSpannerPubSub] = decodeSpannerPubSubMessage(
-      asSpannerPubSubMessage(id.asString(), createdFixture),
+    const fromSpannerPubSub = asEvent(
+      decodeSpannerPubSubMessage(
+        asSpannerPubSubMessage(id.asString(), createdFixture),
+      )[0],
     );
 
     // Same decoded domain event identity across providers.
@@ -152,7 +160,7 @@ describe("RMU adapter contract", () => {
     } as unknown as DynamoDBStreamEvent);
 
     expect(inputs.map((input) => input.sequenceNumber)).toEqual([1, 2]);
-    expect(inputs.map((input) => input.event.typeName)).toEqual([
+    expect(inputs.map((input) => asEvent(input).event.typeName)).toEqual([
       "GroupChatCreated",
       "GroupChatMemberAdded",
     ]);
@@ -186,7 +194,7 @@ describe("RMU adapter contract", () => {
     const inputs = decodeHeadStreamEvent(streamEvent);
 
     expect(inputs.map((input) => input.sequenceNumber)).toEqual([1, 2, 3]);
-    expect(inputs[2].event.typeName).toEqual("GroupChatRenamed");
+    expect(asEvent(inputs[2]).event.typeName).toEqual("GroupChatRenamed");
     expect(inputs[0].occurredAt).toEqual(createdFixture.occurredAt);
   });
 
@@ -227,10 +235,11 @@ describe("RMU adapter contract", () => {
         headRecord("INSERT", id.asString(), [fixture(created, 1)], encoding),
       );
 
-      if (input.event.typeName !== "GroupChatCreated") {
+      const decoded = asEvent(input);
+      if (decoded.event.typeName !== "GroupChatCreated") {
         throw new Error("expected GroupChatCreated");
       }
-      expect(input.event.name.value).toEqual(`gc-${encoding}`);
+      expect(decoded.event.name.value).toEqual(`gc-${encoding}`);
     }
   });
 
@@ -255,7 +264,88 @@ describe("RMU adapter contract", () => {
       "missing NewImage.events",
     );
   });
+
+  test("emits a decode failure with the envelope identity instead of throwing", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const streamEvent = headRecord("INSERT", id.asString(), [
+      fixture(created, 1),
+    ]);
+    corruptHeadPayload(streamEvent);
+
+    const [input] = decodeHeadStreamEvent(streamEvent);
+
+    expect(input.kind).toEqual("decode-failure");
+    if (input.kind !== "decode-failure") {
+      throw new Error("expected a decode failure");
+    }
+    expect(input.aggregateId).toEqual(id.asString());
+    expect(input.sequenceNumber).toEqual(1);
+    expect(input.recordIdentifier).toEqual("000000000000000000001");
+    expect(input.errorMessage).toContain("not valid JSON");
+  });
+
+  test("keeps the envelope identity for a corrupt head scan item", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const streamEvent = headRecord("INSERT", id.asString(), [
+      fixture(created, 1),
+    ]);
+    corruptHeadPayload(streamEvent);
+    const image = streamEvent.Records[0].dynamodb?.NewImage;
+    if (image === undefined) {
+      throw new Error("expected a head image");
+    }
+
+    const [input] = decodeHeadScanItems([image]);
+
+    expect(input.kind).toEqual("decode-failure");
+    if (input.kind !== "decode-failure") {
+      throw new Error("expected a decode failure");
+    }
+    expect(input.aggregateId).toEqual(id.asString());
+    expect(input.sequenceNumber).toEqual(1);
+  });
+
+  test("emits a decode failure for an undecodable Pub/Sub payload", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const message = asSpannerPubSubMessage(id.asString(), fixture(created, 1));
+    message.data = Buffer.from("{not-json", "utf-8").toString("base64");
+
+    const [input] = decodeSpannerPubSubMessage(message);
+
+    expect(input.kind).toEqual("decode-failure");
+    if (input.kind !== "decode-failure") {
+      throw new Error("expected a decode failure");
+    }
+    expect(input.aggregateId).toEqual(id.asString());
+    expect(input.sequenceNumber).toEqual(1);
+    expect(input.recordIdentifier).toEqual("msg-1");
+  });
 });
+
+function corruptHeadPayload(streamEvent: DynamoDBStreamEvent): void {
+  const headEvent = streamEvent.Records[0].dynamodb?.NewImage?.events?.L?.[0];
+  if (headEvent?.M === undefined) {
+    throw new Error("expected a head event");
+  }
+  const attributes: Record<string, AttributeValue> = headEvent.M;
+  attributes.payload = { B: "{not-json" };
+}
+
+function asEvent(input: ReadModelInput | undefined): ReadModelUpdaterInput {
+  if (input === undefined) {
+    throw new Error("expected a decoded input");
+  }
+  if (input.kind !== "event") {
+    throw new Error(`expected a decoded event: ${input.errorMessage}`);
+  }
+  return input;
+}
 
 function unwrap<E extends { message: string }, Ev extends GroupChatEvent>(
   result: { type: "ok"; value: [GroupChat, Ev] } | { type: "err"; error: E },

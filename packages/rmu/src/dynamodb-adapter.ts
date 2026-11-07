@@ -1,7 +1,7 @@
 import { TextDecoder } from "node:util";
 import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import { convertJSONToGroupChatEvent } from "cqrs-es-example-js-command-domain";
-import type { ReadModelUpdaterInput } from "./read-model-updater-input";
+import type { ReadModelInput } from "./read-model-updater-input";
 
 const decoder = new TextDecoder("utf-8");
 
@@ -26,8 +26,8 @@ type HeadEvent = {
  */
 function decodeHeadStreamEvent(
   dynamodbStreamEvent: DynamoDBStreamEvent,
-): ReadModelUpdaterInput[] {
-  const inputs: ReadModelUpdaterInput[] = [];
+): ReadModelInput[] {
+  const inputs: ReadModelInput[] = [];
   for (const record of dynamodbStreamEvent.Records) {
     if (record.eventName === "REMOVE") {
       continue;
@@ -67,9 +67,9 @@ function decodeHeadStreamEvent(
  */
 function decodeHeadScanItems(
   items: readonly Record<string, AttributeValue>[],
-): ReadModelUpdaterInput[] {
+): ReadModelInput[] {
   const observedAt = new Date();
-  const inputs: ReadModelUpdaterInput[] = [];
+  const inputs: ReadModelInput[] = [];
   for (const item of items) {
     const aggregateId = requireString(item, "aid", "head scan item");
     inputs.push(...decodeHeadImage(aggregateId, item, observedAt));
@@ -82,7 +82,7 @@ function decodeHeadImage(
   image: Record<string, AttributeValue>,
   observedAt: Date,
   recordIdentifier?: string,
-): ReadModelUpdaterInput[] {
+): ReadModelInput[] {
   if (aggregateId === CONFIG_AGGREGATE_ID) {
     return [];
   }
@@ -90,11 +90,27 @@ function decodeHeadImage(
     return [];
   }
   const headEvents = parseHeadEvents(image);
-  return headEvents.map((headEvent) => ({
-    event: decodePayload(headEvent),
+  return headEvents.map((headEvent) =>
+    decodeHeadEvent(aggregateId, headEvent, observedAt, recordIdentifier),
+  );
+}
+
+/**
+ * A head event that cannot be decoded still has its envelope, so it becomes a
+ * decode-failure input rather than an exception. Dropping it would make the
+ * stream record look successful and lose the aggregate id and `seq_nr` the
+ * recovery task needs; throwing would fail every other event in the record.
+ */
+function decodeHeadEvent(
+  aggregateId: string,
+  headEvent: HeadEvent,
+  observedAt: Date,
+  recordIdentifier?: string,
+): ReadModelInput {
+  const envelope = {
     aggregateId,
     sequenceNumber: headEvent.seqNr,
-    sourceProvider: "dynamodb",
+    sourceProvider: "dynamodb" as const,
     observedAt,
     occurredAt: headEvent.occurredAt,
     manifest: headEvent.manifest,
@@ -103,7 +119,16 @@ function decodeHeadImage(
         ? `${recordIdentifier}:${headEvent.seqNr}`
         : `${aggregateId}:${headEvent.seqNr}`,
     recordIdentifier,
-  }));
+  };
+  try {
+    return { kind: "event", ...envelope, event: decodePayload(headEvent) };
+  } catch (error) {
+    return {
+      kind: "decode-failure",
+      ...envelope,
+      errorMessage: errorMessageOf(error),
+    };
+  }
 }
 
 function isGroupChatHead(
@@ -255,6 +280,10 @@ function parseJSONBytes(payload: Uint8Array): unknown {
       `Head event payload is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export { decodeHeadScanItems, decodeHeadStreamEvent, isGroupChatHead };

@@ -10,6 +10,7 @@ import {
   JournalReader,
   ReadModelUpdater,
 } from "cqrs-es-example-js-rmu";
+import { createDeadLetterNotifier } from "./dead-letter-notifier-factory";
 import { createDynamoDBClients } from "./dynamodb-clients";
 import { loadRmuRuntimeConfig } from "./rmu-config";
 
@@ -39,6 +40,15 @@ function getReadModelUpdater(): ReadModelUpdater {
     {
       retry: config.retry,
       deadLetters: DeadLetterStore.createSql(prisma),
+      notifier: createDeadLetterNotifier(config),
+      onNotificationError: (error, record) => {
+        // The recovery task is already durable; a notify failure is logged and
+        // left to the scheduled recovery run rather than retried forever.
+        console.error(
+          `Dead-letter notification failed for ${record.aggregateId} seq_nr ${record.seqNr}`,
+          error,
+        );
+      },
       storeId: config.storeId,
       projectionName: config.projectionName,
       projectionVersion: config.projectionVersion,

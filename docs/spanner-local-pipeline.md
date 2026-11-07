@@ -31,14 +31,16 @@ targeting the emulator.
 ## Read-model update (RMU)
 
 RMU projection logic is **provider-neutral**. Provider adapters decode their
-native payloads into a `ReadModelUpdaterInput` (decoded `GroupChatEvent` plus
-aggregate id, sequence number, source provider, observed timestamp, and an
-optional provider position), and the shared `applyReadModel` service applies it
-through an idempotent `GroupChatDao` (so the projection tolerates at-least-once /
-duplicate delivery).
+native payloads into a `ReadModelInput`: either a `ReadModelUpdaterInput`
+(decoded `GroupChatEvent` plus aggregate id, sequence number, source provider,
+observed timestamp, and an optional provider position) or a decode failure that
+keeps the same envelope. The shared `applyReadModel` service applies decoded
+events through an idempotent `GroupChatDao` (so the projection tolerates
+at-least-once / duplicate delivery); the updater dead-letters a decode failure
+using its aggregate id and `seq_nr`.
 
-- **AWS** (`decodeHeadStreamEvent`): DynamoDB head Streams → `ReadModelUpdaterInput`.
-- **GCP** (`decodeSpannerPubSubMessage`): Pub/Sub message → `ReadModelUpdaterInput`.
+- **AWS** (`decodeHeadStreamEvent`): DynamoDB head Streams → `ReadModelInput`.
+- **GCP** (`decodeSpannerPubSubMessage`): Pub/Sub message → `ReadModelInput`.
 
 The AWS Lambda handler and the GCP Functions Framework handler are thin: they
 only decode the trigger and forward to the shared service.
