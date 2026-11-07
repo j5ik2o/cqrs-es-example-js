@@ -96,15 +96,13 @@ function create(
       }
       const events = eventsResult.value.map((envelope) => envelope.payload);
       // ESA v5 has no separate aggregate version: the journal's head seq_nr is
-      // the write counter. Keep the domain's `version` semantics by exposing it.
+      // the write counter. A snapshot and the head are read non-atomically, so
+      // the snapshot can be newer than the head read; take the larger position.
+      const version = Math.max(latest.headSeqNr, snapshot?.seqNr ?? 0);
       if (snapshot === undefined) {
-        return GroupChat.replayFromEvents(events)?.withVersion(
-          latest.headSeqNr,
-        );
+        return GroupChat.replayFromEvents(events)?.withVersion(version);
       }
-      return GroupChat.replay(events, snapshot.aggregate).withVersion(
-        latest.headSeqNr,
-      );
+      return GroupChat.replay(events, snapshot.aggregate).withVersion(version);
     },
   });
 }
