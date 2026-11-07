@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
-import type { DynamoDBStreamEvent } from "aws-lambda";
+import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
   type GroupChatEvent,
@@ -15,52 +15,107 @@ import {
   Wait,
 } from "testcontainers";
 import { GroupChatDao } from "./group-chat-dao";
+import type { JournalEvent, JournalReader } from "./journal-reader";
 import { ReadModelUpdater } from "./update-read-model";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../tools/migrate/migrations");
 
-// Serialize an event the way the event store's default serializer does, then
-// wrap it as a DynamoDB Streams record (B field carries the raw JSON payload, as
-// LocalStack delivers it).
 type PayloadEncoding = "raw" | "base64" | "bytes";
+
+function wirePayload(event: GroupChatEvent): string {
+  return JSON.stringify({ type: event.typeName, data: event });
+}
 
 function encodePayload(json: string, encoding: PayloadEncoding): string {
   if (encoding === "base64") {
-    // Real AWS Lambda delivers Binary (B) attributes base64-encoded.
     return Buffer.from(json, "utf-8").toString("base64");
   }
   if (encoding === "bytes") {
-    // dynamodb-local-rmu delivers B as a comma-separated byte string (Uint8Array.toString()).
     return Array.from(Buffer.from(json, "utf-8")).join(",");
   }
-  // LocalStack delivers B as a raw JSON string.
   return json;
 }
 
-function asDynamoDBStreamEvent(
+function headEventAttribute(
   event: GroupChatEvent,
-  encoding: PayloadEncoding = "raw",
-): DynamoDBStreamEvent {
-  const payload = encodePayload(
-    JSON.stringify({ type: event.typeName, data: event }),
-    encoding,
-  );
+  encoding: PayloadEncoding,
+): AttributeValue {
   return {
-    Records: [
-      {
-        eventName: "INSERT",
-        dynamodb: {
-          // LocalStack / dynamodb-local-rmu deliver this in epoch MILLISECONDS.
-          ApproximateCreationDateTime: 1_780_000_000_000,
-          NewImage: { payload: { B: payload } },
-          SequenceNumber: "1",
-        },
+    M: {
+      seq_nr: { N: String(event.sequenceNumber) },
+      occurred_at: {
+        N: String(BigInt(event.occurredAt.getTime()) * BigInt(1_000_000)),
       },
-    ],
-  } as unknown as DynamoDBStreamEvent;
+      manifest: { S: event.typeName },
+      payload: { B: encodePayload(wirePayload(event), encoding) },
+    },
+  };
 }
 
-describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
+function asHeadStreamEvent(
+  eventName: "INSERT" | "MODIFY" | "REMOVE",
+  aggregateId: string,
+  events: readonly GroupChatEvent[],
+  encoding: PayloadEncoding = "raw",
+): DynamoDBStreamEvent {
+  const records = [
+    {
+      eventName,
+      dynamodb: {
+        ApproximateCreationDateTime: 1_780_000_000_000,
+        SequenceNumber: "1",
+        NewImage: {
+          aid: { S: aggregateId },
+          type_name: { S: "GroupChat" },
+          seq_nr: {
+            N: String(events[events.length - 1]?.sequenceNumber ?? 0),
+          },
+          events: {
+            L: events.map((event) => headEventAttribute(event, encoding)),
+          },
+        },
+      },
+    },
+  ];
+  return { Records: records } as unknown as DynamoDBStreamEvent;
+}
+
+class FakeJournalReader implements JournalReader {
+  readonly calls: {
+    aggregateId: string;
+    fromSeqNr: number;
+    toSeqNr: number;
+  }[] = [];
+
+  constructor(private readonly events: readonly JournalEvent[]) {}
+
+  async readEvents(
+    aggregateId: string,
+    fromSeqNr: number,
+    toSeqNr: number,
+  ): Promise<JournalEvent[]> {
+    this.calls.push({ aggregateId, fromSeqNr, toSeqNr });
+    return this.events.filter(
+      (event) =>
+        event.aggregateId === aggregateId &&
+        event.seqNr >= fromSeqNr &&
+        event.seqNr <= toSeqNr,
+    );
+  }
+}
+
+function journalEvent(event: GroupChatEvent): JournalEvent {
+  return {
+    aggregateId: event.aggregateId.asString(),
+    seqNr: event.sequenceNumber,
+    occurredAt: event.occurredAt,
+    manifest: event.typeName,
+    payload: new TextEncoder().encode(wirePayload(event)),
+    event,
+  };
+}
+
+describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
   const TIMEOUT = 120 * 1000;
   let container: StartedTestContainer | undefined;
   let prisma: PrismaClient | undefined;
@@ -100,133 +155,302 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
   }, TIMEOUT);
 
   test(
-    "projects GroupChatCreated, MemberAdded and MessagePosted into MySQL",
+    "projects INSERT and MODIFY head records into MySQL",
     async () => {
-      if (prisma === undefined) {
-        throw new Error("prisma not initialized");
-      }
-      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
+      const db = requirePrisma(prisma);
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const fixture = newFixture();
 
-      const id = GroupChatId.generate();
-      const adminId = UserAccountId.generate();
-      const [gc0, created] = GroupChat.create(
-        id,
-        GroupChatName.of("name"),
-        adminId,
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", fixture.aggregateId, [fixture.created]),
       );
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
-
-      const memberId = UserAccountId.generate();
-      const [gc1, memberAdded] = unwrap(
-        gc0.addMember(memberId, "member", adminId),
-      );
-      await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.memberAdded]),
       );
 
-      const groupChat = await prisma.groupChats.findUnique({
-        where: { id: id.asString() },
+      const groupChat = await db.groupChats.findUnique({
+        where: { id: fixture.aggregateId },
       });
       expect(groupChat?.name).toEqual("name");
-      expect(groupChat?.ownerId).toEqual(adminId.asString());
+      expect(groupChat?.ownerId).toEqual(fixture.adminId.asString());
       // The created_at must be a sane date (regression: a millis stream
       // timestamp was multiplied by 1000 into the year 58379).
       const year = groupChat?.createdAt.getUTCFullYear() ?? 0;
       expect(year).toBeGreaterThanOrEqual(2020);
       expect(year).toBeLessThanOrEqual(2100);
 
-      const members = await prisma.members.findMany({
-        where: { groupChatId: id.asString() },
+      const members = await db.members.findMany({
+        where: { groupChatId: fixture.aggregateId },
       });
-      // admin (from GroupChatCreated) + added member
       expect(members.length).toEqual(2);
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(2);
+    },
+    TIMEOUT,
+  );
 
-      // Idempotency: replaying the same event must not error or duplicate.
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
-      await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+  test(
+    "drops duplicate and stale head events",
+    async () => {
+      const db = requirePrisma(prisma);
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const fixture = newFixture();
+      const batch = [fixture.created, fixture.memberAdded, fixture.renamed];
+
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", fixture.aggregateId, batch),
       );
-      const membersAfter = await prisma.members.findMany({
-        where: { groupChatId: id.asString() },
+      // Replaying the same head record simulates a duplicate delivery.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, batch),
+      );
+      // A stale record that arrives after a newer one must be dropped.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.created]),
+      );
+
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(3);
+      const groupChat = await db.groupChats.findUnique({
+        where: { id: fixture.aggregateId },
       });
-      expect(membersAfter.length).toEqual(2);
-      void gc1;
+      expect(groupChat?.name).toEqual("renamed");
+      const members = await db.members.findMany({
+        where: { groupChatId: fixture.aggregateId },
+      });
+      expect(members.length).toEqual(2);
     },
     TIMEOUT,
   );
 
   test(
-    "decodes every stream payload encoding (raw / base64 / bytes)",
+    "fills a sequence gap from the journal",
     async () => {
-      if (prisma === undefined) {
-        throw new Error("prisma not initialized");
-      }
-      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
-      const encodings: ("raw" | "base64" | "bytes")[] = [
-        "raw",
-        "base64",
-        "bytes",
-      ];
-      for (const encoding of encodings) {
-        const id = GroupChatId.generate();
-        const adminId = UserAccountId.generate();
-        const [, created] = GroupChat.create(
-          id,
-          GroupChatName.of(`gc-${encoding}`),
-          adminId,
-        );
-        await updater.updateFromDynamoDBStream(
-          asDynamoDBStreamEvent(created, encoding),
-        );
-        const row = await prisma.groupChats.findUnique({
-          where: { id: id.asString() },
-        });
-        expect(row?.name).toEqual(`gc-${encoding}`);
-      }
+      const db = requirePrisma(prisma);
+      const fixture = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(fixture.created),
+        journalEvent(fixture.memberAdded),
+        journalEvent(fixture.renamed),
+      ]);
+      const updater = updaterOf(db, journal);
+
+      // The head record for seq_nr 3 arrives without 1 and 2.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.renamed]),
+      );
+
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(3);
+      const groupChat = await db.groupChats.findUnique({
+        where: { id: fixture.aggregateId },
+      });
+      expect(groupChat?.name).toEqual("renamed");
+      const members = await db.members.findMany({
+        where: { groupChatId: fixture.aggregateId },
+      });
+      expect(members.length).toEqual(2);
+      expect(journal.calls).toEqual([
+        { aggregateId: fixture.aggregateId, fromSeqNr: 1, toSeqNr: 2 },
+      ]);
     },
     TIMEOUT,
   );
 
   test(
-    "rejects sequence gaps and applies the retried event after the missing event",
+    "applies out-of-order head events without duplicating",
     async () => {
-      if (prisma === undefined) {
-        throw new Error("prisma not initialized");
-      }
-      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
+      const db = requirePrisma(prisma);
+      const fixture = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(fixture.created),
+        journalEvent(fixture.memberAdded),
+        journalEvent(fixture.renamed),
+      ]);
+      const updater = updaterOf(db, journal);
 
-      const id = GroupChatId.generate();
-      const adminId = UserAccountId.generate();
-      const [gc0, created] = GroupChat.create(
-        id,
-        GroupChatName.of("before"),
-        adminId,
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.renamed]),
       );
-      const memberId = UserAccountId.generate();
-      const [gc1, memberAdded] = unwrap(
-        gc0.addMember(memberId, "member", adminId),
-      );
-      const [, renamed] = unwrap(
-        gc1.rename(GroupChatName.of("after"), adminId),
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", fixture.aggregateId, [fixture.created]),
       );
 
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(3);
+      expect(
+        await db.groupChats.count({ where: { id: fixture.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({
+          where: { groupChatId: fixture.aggregateId },
+        }),
+      ).toEqual(2);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "commits the events before a failing record and keeps its position",
+    async () => {
+      const db = requirePrisma(prisma);
+      const fixture = newFixture();
+      // The journal has no seq_nr 2, so the head record for seq_nr 3 fails
+      // after the seq_nr 1 record has committed.
+      const updater = updaterOf(
+        db,
+        new FakeJournalReader([journalEvent(fixture.created)]),
+      );
+
       await expect(
-        updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed)),
-      ).rejects.toThrow("Read model projection gap");
-      await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
-      );
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed));
+        updater.updateFromHeadStream(
+          asHeadStreamEvent("MODIFY", fixture.aggregateId, [
+            fixture.created,
+            fixture.renamed,
+          ]),
+        ),
+      ).rejects.toThrow("Journal is missing seq_nr 2..2");
 
-      const groupChat = await prisma.groupChats.findUnique({
-        where: { id: id.asString() },
-      });
-      expect(groupChat?.name).toEqual("after");
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(1);
+      expect(
+        await db.groupChats.count({ where: { id: fixture.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({
+          where: { groupChatId: fixture.aggregateId },
+        }),
+      ).toEqual(1);
+
+      // Retrying the failed position with the now-available event succeeds.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.memberAdded]),
+      );
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(2);
+      expect(
+        await db.members.count({
+          where: { groupChatId: fixture.aggregateId },
+        }),
+      ).toEqual(2);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "resumes from the committed position after a restart",
+    async () => {
+      const db = requirePrisma(prisma);
+      const fixture = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(fixture.created),
+        journalEvent(fixture.memberAdded),
+      ]);
+
+      const first = updaterOf(db, journal);
+      await first.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", fixture.aggregateId, [fixture.created]),
+      );
+
+      // A new process starts from the beginning of the retained stream.
+      const restarted = updaterOf(db, journal);
+      await restarted.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", fixture.aggregateId, [
+          fixture.created,
+          fixture.memberAdded,
+        ]),
+      );
+
+      expect(await positionOf(db, fixture.aggregateId)).toEqual(2);
+      expect(
+        await db.groupChats.count({ where: { id: fixture.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({
+          where: { groupChatId: fixture.aggregateId },
+        }),
+      ).toEqual(2);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "ignores __config__, other aggregate types and REMOVE records",
+    async () => {
+      const db = requirePrisma(prisma);
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const fixture = newFixture();
+      const groupChatsBefore = await db.groupChats.count();
+      const positionsBefore = await db.readModelPositions.count();
+      const config = asHeadStreamEvent("INSERT", "__config__", [
+        fixture.created,
+      ]);
+      const foreign = asHeadStreamEvent(
+        "INSERT",
+        "UserAccount-01H42K4ABWQ5V2XQEP3A48VE0Z",
+        [fixture.created],
+      );
+      const removed = asHeadStreamEvent("REMOVE", fixture.aggregateId, [
+        fixture.created,
+      ]);
+      removed.Records[0].dynamodb = undefined;
+
+      await updater.updateFromHeadStream({
+        Records: [...config.Records, ...foreign.Records, ...removed.Records],
+      } as unknown as DynamoDBStreamEvent);
+
+      expect(await db.groupChats.count()).toEqual(groupChatsBefore);
+      expect(await db.readModelPositions.count()).toEqual(positionsBefore);
     },
     TIMEOUT,
   );
 });
+
+function requirePrisma(prisma: PrismaClient | undefined): PrismaClient {
+  if (prisma === undefined) {
+    throw new Error("prisma not initialized");
+  }
+  return prisma;
+}
+
+function updaterOf(
+  prisma: PrismaClient,
+  journal: JournalReader,
+): ReadModelUpdater {
+  return ReadModelUpdater.create(GroupChatDao.create(prisma), journal);
+}
+
+async function positionOf(
+  prisma: PrismaClient,
+  aggregateId: string,
+): Promise<number> {
+  const position = await prisma.readModelPositions.findUnique({
+    where: { aggregateId },
+  });
+  return position?.lastProcessedSequenceNumber ?? 0;
+}
+
+type Fixture = {
+  aggregateId: string;
+  adminId: UserAccountId;
+  created: GroupChatEvent;
+  memberAdded: GroupChatEvent;
+  renamed: GroupChatEvent;
+};
+
+function newFixture(): Fixture {
+  const id = GroupChatId.generate();
+  const adminId = UserAccountId.generate();
+  const [gc0, created] = GroupChat.create(
+    id,
+    GroupChatName.of("name"),
+    adminId,
+  );
+  const memberId = UserAccountId.generate();
+  const [gc1, memberAdded] = unwrap(gc0.addMember(memberId, "member", adminId));
+  const [, renamed] = unwrap(gc1.rename(GroupChatName.of("renamed"), adminId));
+  return {
+    aggregateId: id.asString(),
+    adminId,
+    created,
+    memberAdded,
+    renamed,
+  };
+}
 
 function unwrap<E extends { message: string }, Ev extends GroupChatEvent>(
   result: { type: "ok"; value: [GroupChat, Ev] } | { type: "err"; error: E },

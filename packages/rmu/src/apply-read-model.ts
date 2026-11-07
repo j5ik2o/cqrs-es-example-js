@@ -11,10 +11,11 @@ async function applyReadModel(
   input: ReadModelUpdaterInput,
 ): Promise<void> {
   const { event } = input;
-  // Use the event's own occurredAt for the read-model timestamps: it is decoded
-  // from the payload and is always a valid date, unlike the provider stream's
-  // ambiguous ApproximateCreationDateTime.
-  const at = event.occurredAt;
+  // The storage envelope's occurred_at is authoritative for v5 head records;
+  // fall back to the decoded event's timestamp for payloads that still carry
+  // it (and for providers without an envelope).
+  const at = input.occurredAt ?? event.occurredAt;
+  const sequenceNumber = input.sequenceNumber;
   switch (event.typeName) {
     case "GroupChatCreated": {
       const administrator = event.members.values[0];
@@ -26,7 +27,7 @@ async function applyReadModel(
         event.name,
         administrator,
         at,
-        event.sequenceNumber,
+        sequenceNumber,
       );
       break;
     }
@@ -35,7 +36,7 @@ async function applyReadModel(
         event.aggregateId,
         event.name,
         at,
-        event.sequenceNumber,
+        sequenceNumber,
       );
       break;
     case "GroupChatMemberAdded":
@@ -43,7 +44,7 @@ async function applyReadModel(
         event.aggregateId,
         event.member,
         at,
-        event.sequenceNumber,
+        sequenceNumber,
       );
       break;
     case "GroupChatMemberRemoved":
@@ -51,7 +52,7 @@ async function applyReadModel(
         event.aggregateId,
         event.member.userAccountId,
         at,
-        event.sequenceNumber,
+        sequenceNumber,
       );
       break;
     case "GroupChatMessagePosted":
@@ -59,7 +60,7 @@ async function applyReadModel(
         event.aggregateId,
         event.message,
         at,
-        event.sequenceNumber,
+        sequenceNumber,
       );
       break;
     case "GroupChatMessageDeleted":
@@ -67,11 +68,11 @@ async function applyReadModel(
         event.aggregateId,
         event.message.id,
         at,
-        event.sequenceNumber,
+        sequenceNumber,
       );
       break;
     case "GroupChatDeleted":
-      await dao.deleteGroupChat(event.aggregateId, at, event.sequenceNumber);
+      await dao.deleteGroupChat(event.aggregateId, at, sequenceNumber);
       break;
     default: {
       const exhaustive: never = event;

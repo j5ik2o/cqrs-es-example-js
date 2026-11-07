@@ -13,7 +13,11 @@ import type {
   DynamoDBStreamEvent,
   AttributeValue as LambdaAttributeValue,
 } from "aws-lambda";
-import { GroupChatDao, ReadModelUpdater } from "cqrs-es-example-js-rmu";
+import {
+  GroupChatDao,
+  JournalReader,
+  ReadModelUpdater,
+} from "cqrs-es-example-js-rmu";
 import { logger } from "./index";
 import type { PrismaQueryEvent } from "./types";
 
@@ -32,6 +36,10 @@ async function dynamodbLocalRmuMain() {
   const awsDynamodbAccessKeyId = process.env.AWS_DYNAMODB_ACCESS_KEY_ID;
   const awsDynamodbSecretAccessKey = process.env.AWS_DYNAMODB_SECRET_ACCESS_KEY;
 
+  const streamHeadTableName =
+    process.env.STREAM_HEAD_TABLE_NAME !== undefined
+      ? process.env.STREAM_HEAD_TABLE_NAME
+      : "head";
   const streamJournalTableName =
     process.env.STREAM_JOURNAL_TABLE_NAME !== undefined
       ? process.env.STREAM_JOURNAL_TABLE_NAME
@@ -52,6 +60,7 @@ async function dynamodbLocalRmuMain() {
   logger.info(`AWS_DYNAMODB_ENDPOINT_URL: ${awsDynamodbEndpointUrl}`);
   logger.info(`AWS_DYNAMODB_ACCESS_KEY_ID: ${awsDynamodbAccessKeyId}`);
   logger.info(`AWS_DYNAMODB_SECRET_ACCESS_KEY: ${awsDynamodbSecretAccessKey}`);
+  logger.info(`STREAM_HEAD_TABLE_NAME: ${streamHeadTableName}`);
   logger.info(`STREAM_JOURNAL_TABLE_NAME: ${streamJournalTableName}`);
   logger.info(`STREAM_MAX_ITEM_COUNT: ${streamMaxItemCount}`);
   logger.info(`DATABASE_URL: ${databaseUrl}`);
@@ -99,13 +108,17 @@ async function dynamodbLocalRmuMain() {
     logger.info(`Duration: ${e.duration}ms`);
   });
   const dao = GroupChatDao.create(prisma);
-  const readModelUpdater = ReadModelUpdater.create(dao);
+  const journalReader = JournalReader.createDynamoDB(
+    dynamodbClient,
+    streamJournalTableName,
+  );
+  const readModelUpdater = ReadModelUpdater.create(dao, journalReader);
 
   for (;;) {
     await streamDriver(
       dynamodbClient,
       dynamodbStreamsClient,
-      streamJournalTableName,
+      streamHeadTableName,
       streamMaxItemCount,
       readModelUpdater,
     ).catch((error) => {
@@ -115,18 +128,19 @@ async function dynamodbLocalRmuMain() {
         error,
       );
     });
+    await sleep(1000);
   }
 }
 
 async function streamDriver(
   dynamodbClient: DynamoDBClient,
   dynamodbStreamsClient: DynamoDBStreamsClient,
-  streamJournalTableName: string,
+  streamHeadTableName: string,
   streamMaxItemCount: number,
   readModelUpdater: ReadModelUpdater,
 ) {
   const result = await dynamodbClient.send(
-    new DescribeTableCommand({ TableName: streamJournalTableName }),
+    new DescribeTableCommand({ TableName: streamHeadTableName }),
   );
   const streamArn = result.Table?.LatestStreamArn;
   if (!streamArn) {
@@ -154,7 +168,9 @@ async function streamDriver(
         new GetShardIteratorCommand({
           StreamArn: streamArn,
           ShardId: shard.ShardId,
-          ShardIteratorType: "LATEST",
+          // Read every retained record so a restart replays the feed; the
+          // read_model_positions table drops what was already applied.
+          ShardIteratorType: "TRIM_HORIZON",
         }),
       );
       let shardIterator = getShardIterator.ShardIterator;
@@ -172,11 +188,16 @@ async function streamDriver(
           throw new Error("Records is not set");
         }
         for (const record of records) {
+          // The store never deletes a head item; a REMOVE is not a head
+          // transition and carries no NewImage.
+          if (record.eventName === "REMOVE") {
+            continue;
+          }
           const keys = getKeys(record);
           const item = getItem(record);
           logger.info(`keys = ${JSON.stringify(keys)}`);
           logger.info(`item = ${JSON.stringify(item)}`);
-          await readModelUpdater.updateFromDynamoDBStream(
+          await readModelUpdater.updateFromHeadStream(
             convertToEvent(record, keys, item, streamArn),
           );
         }
@@ -212,7 +233,12 @@ function convertToEvent(
           StreamViewType: "NEW_IMAGE",
         },
         eventID: record.eventID,
-        eventName: "INSERT",
+        eventName:
+          record.eventName === "MODIFY"
+            ? "MODIFY"
+            : record.eventName === "REMOVE"
+              ? "REMOVE"
+              : "INSERT",
         eventSource: record.eventSource,
         eventSourceARN: streamArn,
         eventVersion: record.eventVersion,
@@ -303,6 +329,10 @@ function convertTo(value: SDKStreamsAttributeValue): LambdaAttributeValue {
     return { M: result };
   }
   throw new Error("Unexpected attribute value");
+}
+
+function sleep(millis: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, millis));
 }
 
 export { dynamodbLocalRmuMain };

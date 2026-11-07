@@ -18,5 +18,11 @@ export type ReadModelUpdaterInput = {
   sequenceNumber: number;
   sourceProvider: SourceProvider;
   observedAt: Date;
+  /**
+   * The event's `occurred_at` from the storage envelope. For head stream
+   * records this is authoritative; the payload may omit it. Falls back to the
+   * decoded event's own timestamp when the provider has no envelope.
+   */
+  occurredAt?: Date;
   position?: string;
 };
