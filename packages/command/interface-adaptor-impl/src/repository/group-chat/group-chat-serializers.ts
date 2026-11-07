@@ -19,8 +19,10 @@ const groupChatEventSerializer: PayloadSerializer<GroupChatEvent> = {
   serialize(payload: GroupChatEvent): Uint8Array {
     return encoder.encode(JSON.stringify(GroupChatEvent.toJSON(payload)));
   },
-  deserialize(bytes: Uint8Array): GroupChatEvent {
-    return convertJSONToGroupChatEvent(JSON.parse(decoder.decode(bytes)));
+  deserialize(bytes: Uint8Array, manifest: string): GroupChatEvent {
+    return convertJSONToGroupChatEvent(
+      attachManifestType(JSON.parse(decoder.decode(bytes)), manifest),
+    );
   },
 };
 
@@ -32,5 +34,21 @@ const groupChatSnapshotSerializer: PayloadSerializer<GroupChat> = {
     return convertJSONToGroupChat(JSON.parse(decoder.decode(bytes)));
   },
 };
+
+/**
+ * The current payloads carry their own `typeName`. When a future payload drops
+ * the discriminator, the envelope's manifest (`<type>@<version>` or `<type>`)
+ * still identifies the event type.
+ */
+function attachManifestType(json: unknown, manifest: string): unknown {
+  if (typeof json !== "object" || json === null) {
+    return json;
+  }
+  if ("type" in json || "typeName" in json) {
+    return json;
+  }
+  const typeName = manifest.split("@")[0];
+  return typeName === "" ? json : { ...json, typeName };
+}
 
 export { groupChatEventSerializer, groupChatSnapshotSerializer };
