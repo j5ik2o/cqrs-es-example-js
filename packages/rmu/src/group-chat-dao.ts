@@ -7,6 +7,7 @@ import type {
   MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
+import { ProjectionGapError } from "./failures";
 
 /**
  * Read-model write side. Operations are idempotent and monotonic so the
@@ -326,7 +327,7 @@ async function advanceProjection(
     }
     const expected = current.lastProcessedSequenceNumber + 1;
     if (sequenceNumber !== expected) {
-      throw new Error(
+      throw new ProjectionGapError(
         `Read model projection gap for ${aggregateId}: expected sequence ${expected}, got ${sequenceNumber}`,
       );
     }
@@ -341,7 +342,7 @@ async function advanceProjection(
   }
 
   if (sequenceNumber !== 1) {
-    throw new Error(
+    throw new ProjectionGapError(
       `Read model projection gap for ${aggregateId}: expected sequence 1, got ${sequenceNumber}`,
     );
   }

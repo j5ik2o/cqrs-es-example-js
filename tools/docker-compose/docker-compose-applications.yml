@@ -44,6 +44,11 @@ services:
       STREAM_HEAD_TABLE_NAME: head
       STREAM_JOURNAL_TABLE_NAME: journal
       STREAM_MAX_ITEM_COUNT: 32
+      # Recovery identity recorded on every dead letter.
+      RMU_STORE_ID: dynamodb-head
+      RMU_PROJECTION_NAME: group-chat-read-model
+      RMU_PROJECTION_VERSION: "1"
+      STREAM_POLL_INTERVAL_MS: 200
       DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
     depends_on:
       localstack:

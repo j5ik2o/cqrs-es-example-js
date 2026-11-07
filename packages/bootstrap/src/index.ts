@@ -3,6 +3,7 @@ import { type ILogObj, Logger } from "tslog";
 import * as yargs from "yargs";
 import { dynamodbLocalRmuMain } from "./dynamodb-local-rmu-main";
 import { readApiMain } from "./read-api-main";
+import { recoverReadModelMain } from "./recover-read-model-main";
 import { spannerChangeStreamBridgeMain } from "./spanner-change-stream-bridge-main";
 import { spannerSetupMain } from "./spanner-setup-main";
 import { writeApiMain } from "./write-api-main";
@@ -12,6 +13,10 @@ async function main() {
     .command("writeApi", "write api server")
     .command("readApi", "read api server")
     .command("dynamodbLocalRmu", "local read model updater (DynamoDB streams)")
+    .command(
+      "recoverReadModel",
+      "replay dead-lettered projections from the journal",
+    )
     .command("spannerSetup", "create Spanner schema/change-stream + Pub/Sub")
     .command("spannerBridge", "local Spanner change-stream -> Pub/Sub bridge")
     .demandCommand(1)
@@ -27,6 +32,9 @@ async function main() {
       break;
     case "dynamodbLocalRmu":
       await dynamodbLocalRmuMain();
+      break;
+    case "recoverReadModel":
+      await recoverReadModelMain();
       break;
     case "spannerSetup":
       await spannerSetupMain();

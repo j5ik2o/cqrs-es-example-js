@@ -42,29 +42,68 @@ function decodeHeadStreamEvent(
       throw new Error("Head stream record is missing NewImage");
     }
     const aggregateId = requireString(image, "aid", "head image");
-    if (aggregateId === CONFIG_AGGREGATE_ID) {
-      continue;
-    }
-    if (!isGroupChatHead(image, aggregateId)) {
-      continue;
-    }
-    const headEvents = parseHeadEvents(image);
     const observedAt = parseDynamoDBApproximateCreationDate(
       record.dynamodb?.ApproximateCreationDateTime,
     );
-    for (const headEvent of headEvents) {
-      inputs.push({
-        event: decodePayload(headEvent),
+    const recordIdentifier = String(
+      record.dynamodb?.SequenceNumber ?? record.eventID ?? "",
+    );
+    inputs.push(
+      ...decodeHeadImage(
         aggregateId,
-        sequenceNumber: headEvent.seqNr,
-        sourceProvider: "dynamodb",
+        image,
         observedAt,
-        occurredAt: headEvent.occurredAt,
-        position: `${String(record.dynamodb?.SequenceNumber ?? "")}:${headEvent.seqNr}`,
-      });
-    }
+        recordIdentifier === "" ? undefined : recordIdentifier,
+      ),
+    );
   }
   return inputs;
+}
+
+/**
+ * Decodes the full head items returned by a consistent Scan. The scan path has
+ * no stream record identity, so each input is identified by its aggregate and
+ * sequence number.
+ */
+function decodeHeadScanItems(
+  items: readonly Record<string, AttributeValue>[],
+): ReadModelUpdaterInput[] {
+  const observedAt = new Date();
+  const inputs: ReadModelUpdaterInput[] = [];
+  for (const item of items) {
+    const aggregateId = requireString(item, "aid", "head scan item");
+    inputs.push(...decodeHeadImage(aggregateId, item, observedAt));
+  }
+  return inputs;
+}
+
+function decodeHeadImage(
+  aggregateId: string,
+  image: Record<string, AttributeValue>,
+  observedAt: Date,
+  recordIdentifier?: string,
+): ReadModelUpdaterInput[] {
+  if (aggregateId === CONFIG_AGGREGATE_ID) {
+    return [];
+  }
+  if (!isGroupChatHead(image, aggregateId)) {
+    return [];
+  }
+  const headEvents = parseHeadEvents(image);
+  return headEvents.map((headEvent) => ({
+    event: decodePayload(headEvent),
+    aggregateId,
+    sequenceNumber: headEvent.seqNr,
+    sourceProvider: "dynamodb",
+    observedAt,
+    occurredAt: headEvent.occurredAt,
+    manifest: headEvent.manifest,
+    position:
+      recordIdentifier !== undefined
+        ? `${recordIdentifier}:${headEvent.seqNr}`
+        : `${aggregateId}:${headEvent.seqNr}`,
+    recordIdentifier,
+  }));
 }
 
 function isGroupChatHead(
@@ -218,4 +257,4 @@ function parseJSONBytes(payload: Uint8Array): unknown {
   }
 }
 
-export { decodeHeadStreamEvent };
+export { decodeHeadScanItems, decodeHeadStreamEvent, isGroupChatHead };

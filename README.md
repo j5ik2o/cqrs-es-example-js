@@ -23,6 +23,7 @@ Please refer to [here](https://github.com/j5ik2o/cqrs-es-example) for implementa
 - [x] Read Model Updater on Local
 - [x] Docker Compose Support
 - [x] Read Model Updater on AWS Lambda (LocalStack: build/deploy scripts and `common.env`; see [Build and Test](./docs/BUILD_AND_TEST.md))
+- [x] RMU recovery: bounded retry, dead-letter replay from the journal, head resynchronization
 - [x] Pluggable persistence backend: DynamoDB or Cloud Spanner (`PERSISTENCE_BACKEND`)
 - [x] Spanner read-model pipeline (change-stream bridge → Pub/Sub → Functions Framework RMU; see [docs](./docs/spanner-local-pipeline.md))
 - [ ] Deployment to AWS

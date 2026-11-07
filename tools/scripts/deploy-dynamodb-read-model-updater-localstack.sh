@@ -27,6 +27,11 @@ RUNTIME="${LAMBDA_RUNTIME:-nodejs18.x}"
 
 DATABASE_URL_LAMBDA="${DATABASE_URL_LAMBDA:-mysql://ceer:ceer@mysql-local:3306/ceer}"
 STREAM_MAX_ITEM_COUNT="${STREAM_MAX_ITEM_COUNT:-32}"
+# Optional OnFailure destination (SQS or SNS ARN). The application persists its
+# own dead letters in MySQL; this destination is only the provider-level safety
+# net for records the invocation never handled.
+LAMBDA_DEAD_LETTER_ARN="${LAMBDA_DEAD_LETTER_ARN:-}"
+LAMBDA_BATCH_SIZE="${LAMBDA_BATCH_SIZE:-10}"
 
 wait_for_localstack() {
   local i
@@ -85,9 +90,21 @@ print(json.dumps({
     "STREAM_HEAD_TABLE_NAME": "${STREAM_HEAD_TABLE_NAME}",
     "STREAM_JOURNAL_TABLE_NAME": "${STREAM_JOURNAL_TABLE_NAME}",
     "STREAM_MAX_ITEM_COUNT": "${STREAM_MAX_ITEM_COUNT}",
+    "RMU_STORE_ID": "${RMU_STORE_ID:-dynamodb-head}",
+    "RMU_PROJECTION_NAME": "${RMU_PROJECTION_NAME:-group-chat-read-model}",
+    "RMU_PROJECTION_VERSION": "${RMU_PROJECTION_VERSION:-1}",
+    "RMU_RETRY_MAX_ATTEMPTS": "${RMU_RETRY_MAX_ATTEMPTS:-5}",
+    "RMU_RETRY_INITIAL_DELAY_MS": "${RMU_RETRY_INITIAL_DELAY_MS:-200}",
+    "RMU_RETRY_MAX_DELAY_MS": "${RMU_RETRY_MAX_DELAY_MS:-10000}",
+    "RMU_RETRY_MAX_ELAPSED_MS": "${RMU_RETRY_MAX_ELAPSED_MS:-30000}",
   }
 }))
 PY
+
+DEAD_LETTER_OPTION=()
+if [ -n "${LAMBDA_DEAD_LETTER_ARN}" ]; then
+  DEAD_LETTER_OPTION=(--dead-letter-config "TargetArn=${LAMBDA_DEAD_LETTER_ARN}")
+fi
 
 create_or_update_function() {
   set +e
@@ -109,6 +126,7 @@ create_or_update_function() {
       --timeout 120 \
       --memory-size 512 \
       --environment "file://${ENV_FILE}" \
+      ${DEAD_LETTER_OPTION[@]+"${DEAD_LETTER_OPTION[@]}"} \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}"
   else
@@ -122,6 +140,7 @@ create_or_update_function() {
       --environment "file://${ENV_FILE}" \
       --timeout 120 \
       --memory-size 512 \
+      ${DEAD_LETTER_OPTION[@]+"${DEAD_LETTER_OPTION[@]}"} \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}"
   fi
@@ -174,8 +193,10 @@ create_event_source_mapping() {
     ESM_OUTPUT=$(aws lambda create-event-source-mapping \
       --function-name "${FUNCTION_NAME}" \
       --event-source-arn "${STREAM_ARN}" \
-      --batch-size 10 \
+      --batch-size "${LAMBDA_BATCH_SIZE}" \
       --starting-position TRIM_HORIZON \
+      --bisect-batch-on-function-error \
+      --function-response-types ReportBatchItemFailures \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}" 2>&1) && break
     echo "Waiting for DynamoDB stream to become available (attempt ${i}/30)..." >&2

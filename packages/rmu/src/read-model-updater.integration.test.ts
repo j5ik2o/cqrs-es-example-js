@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
@@ -14,6 +14,7 @@ import {
   type StartedTestContainer,
   Wait,
 } from "testcontainers";
+import { DeadLetterStore } from "./dead-letter-store";
 import { GroupChatDao } from "./group-chat-dao";
 import type { JournalEvent, JournalReader } from "./journal-reader";
 import { ReadModelUpdater } from "./update-read-model";
@@ -142,6 +143,10 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
 
   beforeAll(async () => {
     container = await new GenericContainer("mysql:9.7")
+      .withCommand([
+        "--innodb-buffer-pool-size=64M",
+        "--performance-schema=OFF",
+      ])
       .withEnvironment({
         MYSQL_ROOT_PASSWORD: "passwd",
         MYSQL_DATABASE: "ceer",
@@ -158,12 +163,10 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     // MySQL's entrypoint restarts the server after init; retry until the real
     // server accepts connections before running migrations.
     await waitForMysql(prisma);
-    for (const file of [
-      "0_create_read_model_positions.up.sql",
-      "1_create_group_chats.up.sql",
-      "2_create_members.up.sql",
-      "3_create_messages.up.sql",
-    ]) {
+    const migrations = readdirSync(MIGRATIONS_DIR)
+      .filter((file) => file.endsWith(".up.sql"))
+      .sort();
+    for (const file of migrations) {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf-8");
       await prisma.$executeRawUnsafe(sql);
     }
@@ -397,6 +400,141 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
 
       expect(await db.groupChats.count()).toEqual(groupChatsBefore);
       expect(await db.readModelPositions.count()).toEqual(positionsBefore);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "creates the position row once when the first event is delivered concurrently",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const created = asHeadStreamEvent("INSERT", f.aggregateId, [f.created]);
+
+      const results = await Promise.allSettled([
+        updater.updateFromHeadStream(created),
+        updater.updateFromHeadStream(created),
+      ]);
+      // A losing transaction can surface a conflict; retrying must converge.
+      for (const result of results) {
+        if (result.status === "rejected") {
+          await updater.updateFromHeadStream(created);
+        }
+      }
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(1);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.readModelPositions.count({
+          where: { aggregateId: f.aggregateId },
+        }),
+      ).toEqual(1);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "serializes concurrent events for the same aggregate and converges",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+      ]);
+      const updater = updaterOf(db, journal);
+      const created = asHeadStreamEvent("INSERT", f.aggregateId, [f.created]);
+      const memberAdded = asHeadStreamEvent("MODIFY", f.aggregateId, [
+        f.memberAdded,
+      ]);
+
+      await Promise.allSettled([
+        updater.updateFromHeadStream(created),
+        updater.updateFromHeadStream(memberAdded),
+      ]);
+      // Replaying both inputs after the race exercises the dedupe path and must
+      // converge on the same state.
+      await updater.updateFromHeadStream(created);
+      await updater.updateFromHeadStream(memberAdded);
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(2);
+      expect(
+        await db.readModelPositions.count({
+          where: { aggregateId: f.aggregateId },
+        }),
+      ).toEqual(1);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "persists, lists and deletes dead letters idempotently",
+    async () => {
+      const db = requirePrisma(prisma);
+      const store = DeadLetterStore.createSql(db);
+      const aggregateId = `GroupChat-${Date.now()}`;
+      const createdAt = new Date("2026-11-07T12:00:00Z");
+      const record = {
+        storeId: "test-store",
+        projectionName: "group-chat-read-model",
+        projectionVersion: "1",
+        aggregateId,
+        seqNr: 4,
+        failureType: "projection-error" as const,
+        errorMessage: "first failure",
+        attempts: 2,
+        occurredAt: new Date("2026-11-07T11:59:00Z"),
+        manifest: "GroupChatRenamed@1",
+        recordIdentifier: "record-1",
+        createdAt,
+      };
+
+      await store.save(record);
+      await store.save({
+        ...record,
+        attempts: 3,
+        errorMessage: "second failure",
+        createdAt: new Date(createdAt.getTime() + 1000),
+      });
+
+      const saved = (await store.list(100)).find(
+        (candidate) => candidate.aggregateId === aggregateId,
+      );
+      expect(saved).toMatchObject({
+        storeId: "test-store",
+        projectionName: "group-chat-read-model",
+        projectionVersion: "1",
+        aggregateId,
+        seqNr: 4,
+        failureType: "projection-error",
+        errorMessage: "second failure",
+        attempts: 5,
+        manifest: "GroupChatRenamed@1",
+        recordIdentifier: "record-1",
+      });
+      expect(saved?.occurredAt).toBeInstanceOf(Date);
+
+      await store.delete(record);
+      expect(
+        (await store.list(100)).find(
+          (candidate) => candidate.aggregateId === aggregateId,
+        ),
+      ).toBeUndefined();
+
+      // Deleting an already removed task is a no-op, so recovery can be retried.
+      await expect(store.delete(record)).resolves.toBeUndefined();
     },
     TIMEOUT,
   );

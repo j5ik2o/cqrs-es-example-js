@@ -46,6 +46,22 @@ Read Model の反映待ちはポーリングです。`WAIT_READ_MODEL_ATTEMPTS` 
 
 単体テストには、重複、逆順、欠番、処理途中の失敗、再起動の検証が `packages/rmu/src/read-model-updater.integration.test.ts` にあります。compose の e2e では、障害を注入しないと再現できない逆順と欠番は扱いません。
 
+## 復旧
+
+RMU は失敗したイベントを捨てず、再試行・退避・再同期で復旧します。
+
+再試行はイベント単位で行います。試行回数と最大経過時間を決め、上限まで指数バックオフとジッターで間隔を広げます。ローカルの Streams 読み取りは、失敗したパス全体を外側の指数バックオフで繰り返します。Lambda は `BisectBatchOnFunctionError` と `ReportBatchItemFailures` を使い、失敗したレコードだけを再試行します。
+
+上限を超えた恒久障害は `read_model_dead_letters` に保存します。レコードはストア識別子、投影の名前と版、集約ID、seq_nr、失敗種別、試行回数を持ちます。イベント本文は保存せず、復旧時に journal から読み直します。DB 全体の障害は DLQ に入れず、配信ループの退避に任せます。
+
+復旧タスクは `node dist/index.js recoverReadModel` で実行します。未解決の DLQ を読み、現在位置から対象の seq_nr まで journal を昇順に適用し、位置が到達したことを確認してからレコードを削除します。何度実行しても結果は変わりません。
+
+再同期は、起動時、最後の処理から24時間を超えたとき、`TrimmedDataAccessException` を受けたときに行います。head を `ConsistentRead` で全件 Scan し、位置が遅れている集約だけ journal から補います。`ExpiredIteratorException` はイベントが消えたことを意味しないので、全件を読み直さず、シャードの最後のシーケンス番号から読み直します。
+
+リードモデルの更新と位置行の更新は同じトランザクションで確定します。適用するのは「現在位置+1」のイベントだけで、journal に欠番があれば位置を進めずに失敗させます。
+
+`recovery.test.ts` は再試行、DLQ、再同期、ストリームの失敗種別を確認します。`read-model-updater.integration.test.ts` は実 MySQL で重複、逆順、欠番、途中の失敗、再起動、同時適用を確認します。
+
 ## Read Model Updater Lambda（LocalStack）
 
 Rust 版と同様に、Read Model Updater を LocalStack 上の Lambda（DynamoDB ストリーム → Lambda → MySQL）として動かす手順です。
