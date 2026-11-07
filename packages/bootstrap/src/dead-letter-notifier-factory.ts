@@ -15,10 +15,15 @@ export function createDeadLetterNotifier(
     return undefined;
   }
   return DeadLetterNotifier.createSqs(
-    new SQSClient(sqsClientConfig(config)),
+    createSqsClient(config),
     config.deadLetterQueueUrl,
     { messageGroupId: config.deadLetterMessageGroupId },
   );
+}
+
+/** The consumer worker uses the same endpoint and credential rules. */
+export function createSqsClient(config: RmuRuntimeConfig): SQSClient {
+  return new SQSClient(sqsClientConfig(config));
 }
 
 /**

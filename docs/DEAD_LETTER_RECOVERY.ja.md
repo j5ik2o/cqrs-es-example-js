@@ -12,6 +12,7 @@
 | `journal-gap` | head が見せたイベントが journal に無い | しない | する |
 | `projection-gap` | トランザクション中に位置行が動いた | する | 解消しなければ保存する |
 | `projection-error` | 上記以外の恒久的な投影失敗 | する | する |
+| `projection-blocked` | 同じ集約の先行イベントが失敗したため、適用しなかった | しない | する。バッチの上限まで |
 | `payload-decode` | 保存用のエンベロープは読めたが、ドメインの payload を復号できなかった | しない | する |
 
 DLQ の行には、ストア識別子、投影の名前と版、集約 ID、`seq_nr`、失敗種別、エラーメッセージ、試行回数、`occurred_at`、manifest、配信レコード ID を保存します。イベント本文は保存しません。復旧時は journal にある正本の payload を読み直します。
@@ -29,13 +30,32 @@ head の各イベントは、エンベロープ（`seq_nr`、`occurred_at`、`ma
 
 古い重複は無視します。位置が失敗した `seq_nr` 以上になっていれば、再配信された復号失敗は行を追加せずに飛ばすため、復旧後の再試行は成功します。
 
+## バッチ内の記録と上限
+
+head イメージは集約のイベントを全件持つため、投影できないイベントが1つあると、その後のイベントも適用できません。updater は最初の失敗を保存し、そのあとに続く止まったイベントを `projection-blocked` として保存します。`error_message` には元の失敗を書きます。
+
+`RMU_DEAD_LETTER_BATCH_LIMIT`（既定 100）が、1回の `apply` で集約ごとに書く行数の上限です。最初の失敗は必ず保存します。上限を超えた止まったイベントは失敗として報告し、再配信します。次回の配信で、位置が進んだあとに保存します。この上限により、長い head イメージがテーブルを埋めるのを防ぎます。
+
+`projection-blocked` の復旧も他の行と同じです。現在位置から止まった `seq_nr` まで journal を再適用します。先行する失敗を直して適用できれば、止まっていた行は何もせずに削除されます。
+
+## Lambda の起動時照合
+
+ローカルの Streams 読み取りは、開始前に head テーブルを全件照合します。Lambda ハンドラも、コンテナ内の最初の呼び出しで同じ処理を行います。
+
+1. ハンドラは head テーブルを `ConsistentRead` で全ページ Scan します。
+2. 復号した head イベントを、通常と同じ位置ガードで適用します。これにより、各集約のリードモデル位置から journal までを補い、重複を捨てます。
+3. Scan はコンテナごとに1回だけ実行します。成功した実行は記憶し、失敗した実行は忘れて次の呼び出しでやり直します。
+4. Scan が成功してから、ストリームのバッチを処理します。
+
+これにより、イベントソースマッピングの開始前に書かれた集約のイベントと、Streams の保持期間を超えた長い停止を補います。適用できないイベントは通常の配信と同じく DLQ に保存します。一時的な Scan の失敗は呼び出しを失敗させ、Lambda が再試行します。
+
 ## 復旧タスク
 
 ```shell
 $ node dist/index.js recoverReadModel
 ```
 
-未解決の行を古い順に最大 `RMU_RECOVERY_BATCH_SIZE` 件（既定 100）読みます。何度実行しても安全です。適用は冪等で、位置は戻りません。復旧できなかった行があれば終了コードは 0 以外になるので、スケジューラから検知できます。
+未解決の行を古い順に最大 `RMU_RECOVERY_BATCH_SIZE` 件（既定 100）読みます。結果は `recovered`、`failed`、`remaining` で返します。`remaining` は、その回に読んだ件数ではなく、実行後に残っている未解決タスクの総数です。何度実行しても安全です。適用は冪等で、位置は戻りません。復旧できなかった行があれば終了コードは 0 以外になるので、スケジューラから検知できます。
 
 実行するのは次の3つの場面です。
 
@@ -55,6 +75,9 @@ SQS は任意の高速化手段です。MySQL の行が恒久的なタスクで�
 | `RMU_DEAD_LETTER_MESSAGE_GROUP_ID` | FIFO キューのグループ ID。標準キューでは空にする |
 | `RMU_DEAD_LETTER_QUEUE_REGION` | SQS のリージョン。既定は `AWS_REGION` |
 | `AWS_SQS_ENDPOINT_URL` | 接続先の上書き。LocalStack では `AWS_DYNAMODB_ENDPOINT_URL` にフォールバックする |
+| `RMU_DEAD_LETTER_CONSUME_MAX_MESSAGES` | ワーカーが1回に受け取る件数。上限は 10 |
+| `RMU_DEAD_LETTER_CONSUME_WAIT_TIME_SECONDS` | ロングポーリングの待ち時間。上限は 20 秒 |
+| `RMU_DEAD_LETTER_CONSUME_VISIBILITY_TIMEOUT_SECONDS` | 復旧に失敗したメッセージを再配信するまでの時間 |
 
 AWS では SDK の既定の認証情報チェーンを使います。LocalStack では `AWS_DYNAMODB_ACCESS_KEY_ID` と `AWS_DYNAMODB_SECRET_ACCESS_KEY` を使います。
 
@@ -94,13 +117,34 @@ $ aws sqs create-queue \
 
 通知側にはキュー ARN に対する `sqs:SendMessage` が要ります。カスタマー管理の KMS キーを使う場合は `kms:Decrypt` と `kms:GenerateDataKey` も加えます。
 
-### 消費側の選択肢
+### 復旧ワーカー
 
-- `recoverReadModel` を数分ごとに実行するジョブ。最も単純な本番構成で、キューに依存しません。
-- メッセージを1件受け取り、`recoverReadModel` を実行する Lambda または ECS ワーカー。タスクは冪等なので、再配信されても安全です。
-- `ApproximateNumberOfMessagesVisible` が0より大きくなったら通知するアラート。
+消費者は `packages/rmu/src/dead-letter-consumer.ts` です。メッセージは起動の合図だけです。消費者は（投影、集約、`seq_nr`）で永続行を読み、復旧タスクが journal からイベント本文を読み直します。行がすでに無いメッセージは古い通知として確認応答します。復旧に失敗したメッセージは再配信に残します。不正なメッセージはログに残して確認応答します。参照していた行は定期実行が解消します。
 
-キューを消費する仕組みがあっても、定期実行は残します。通知が失われたときの代替になるからです。
+同じ消費者を2つの実行形態が使います。
+
+- Lambda ハンドラ `packages/bootstrap/src/sqs-dead-letter-handler.ts`。イベントソースマッピングで `ReportBatchItemFailures` を有効にし、復旧に失敗したメッセージだけを再試行させます。
+- CLI ワーカー `node dist/index.js sqsDeadLetterWorker`。キューをロングポーリングし、復旧に失敗したメッセージを可視性タイムアウトまで確認応答しません。
+
+ワーカー Lambda は `pnpm build-sqs-dead-letter-worker-lambda` でビルドします。zip は `dist/lambda/sqs-dead-letter-worker/function.zip` です。
+
+```shell
+$ aws lambda create-function \
+    --function-name sqs-dead-letter-worker \
+    --runtime nodejs20.x --handler index.handler \
+    --role <ワーカーのロール> \
+    --zip-file fileb://dist/lambda/sqs-dead-letter-worker/function.zip
+
+$ aws lambda create-event-source-mapping \
+    --function-name sqs-dead-letter-worker \
+    --event-source-arn <キューの ARN> \
+    --function-response-types ReportBatchItemFailures \
+    --batch-size 10
+```
+
+ワーカーにはキューに対する `sqs:ReceiveMessage`、`sqs:DeleteMessage`、`sqs:GetQueueAttributes` が要ります。RMU と同じく head と journal の読み取り、`read_model_dead_letters`、データベースへの接続も必要です。
+
+ワーカーがあっても、定期実行は残します。通知が失われたときの代替になるからです。
 
 ### LocalStack
 
@@ -110,7 +154,13 @@ $ pnpm create-dead-letter-queue-localstack
 RMU_DEAD_LETTER_QUEUE_URL=http://localhost:34566/000000000000/read-model-dead-letters
 ```
 
-ローカルの RMU と Lambda のデプロイスクリプトは、どちらも同じ環境変数を読みます。
+ローカルのワーカーは次のコマンドで起動します。
+
+```shell
+$ docker compose --profile dead-letter-worker up sqs-dead-letter-worker-1
+```
+
+ローカルの RMU、ワーカー、Lambda のデプロイスクリプトは、どれも同じ環境変数を読みます。
 
 ## プロバイダ側の失敗送信先との違い
 
@@ -148,5 +198,6 @@ RMU_DEAD_LETTER_QUEUE_URL=http://localhost:34566/000000000000/read-model-dead-le
 ## 制約
 
 - 1回の実行で処理するのは最大 `RMU_RECOVERY_BATCH_SIZE` 件です。大量にたまっているときは繰り返し実行します。
-- 同じバッチの中では、集約ごとに最初に失敗したイベントだけを DLQ に保存します。後続イベントは失敗として報告し、再配信を待ちます。別のバッチで届いた後続イベントは、それ自身の行になります。`seq_nr N` を復旧するとその行は解消し、プロバイダの再試行か次の head イメージが `N+1` 以降を適用します。head イメージは常にイベントの全件を持つので、その集約に後から書き込みがあれば範囲が再配信されます。
+- 同じバッチの中では、集約ごとに最初の失敗と止まったイベントを合わせて `RMU_DEAD_LETTER_BATCH_LIMIT` 件まで DLQ に保存します。上限を超えたイベントは失敗として報告し、再配信のあとに保存します。`seq_nr N` を復旧するとその行は解消し、プロバイダの再試行か次の head イメージが `N+1` 以降を適用します。head イメージは常にイベントの全件を持つので、その集約に後から書き込みがあれば範囲が再配信されます。
+- Lambda の起動時照合は、head テーブルを強整合で全件読みます。所要時間とメモリはテーブルの大きさに比例するので、想定する最大のテーブルに合わせて関数のタイムアウトとメモリを決めます。
 - 復旧タスクは journal を修復しません。journal にある内容を再適用するだけです。

@@ -15,6 +15,14 @@ export type RmuRuntimeConfig = {
   streamRetentionMs: number;
   maxItemCount: number;
   recoveryBatchSize: number;
+  /** Maximum dead-letter rows written per aggregate in one stream batch. */
+  deadLetterBatchLimit: number;
+  /** SQS receive tuning for the recovery worker. */
+  deadLetterConsume: {
+    maxMessages: number;
+    waitTimeSeconds: number;
+    visibilityTimeoutSeconds: number;
+  };
   headTableName: string;
   journalTableName: string;
   /** SQS queue that receives identity-only dead-letter notifications. */
@@ -97,6 +105,30 @@ export function loadRmuRuntimeConfig(
       1,
       integerFromEnv(env, "RMU_RECOVERY_BATCH_SIZE", 100),
     ),
+    deadLetterBatchLimit: Math.max(
+      1,
+      integerFromEnv(env, "RMU_DEAD_LETTER_BATCH_LIMIT", 100),
+    ),
+    deadLetterConsume: {
+      maxMessages: clamp(
+        integerFromEnv(env, "RMU_DEAD_LETTER_CONSUME_MAX_MESSAGES", 10),
+        1,
+        10,
+      ),
+      waitTimeSeconds: clamp(
+        integerFromEnv(env, "RMU_DEAD_LETTER_CONSUME_WAIT_TIME_SECONDS", 20),
+        0,
+        20,
+      ),
+      visibilityTimeoutSeconds: Math.max(
+        1,
+        integerFromEnv(
+          env,
+          "RMU_DEAD_LETTER_CONSUME_VISIBILITY_TIMEOUT_SECONDS",
+          60,
+        ),
+      ),
+    },
     headTableName: env.STREAM_HEAD_TABLE_NAME ?? "head",
     journalTableName: env.STREAM_JOURNAL_TABLE_NAME ?? "journal",
     deadLetterQueueUrl: optionalValue(env.RMU_DEAD_LETTER_QUEUE_URL),

@@ -527,7 +527,20 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
       });
       expect(saved?.occurredAt).toBeInstanceOf(Date);
 
+      await expect(
+        store.find(record.projectionName, aggregateId, 4),
+      ).resolves.toMatchObject({ seqNr: 4, failureType: "projection-error" });
+      await expect(
+        store.find(record.projectionName, aggregateId, 5),
+      ).resolves.toBeUndefined();
+      expect(await store.count(record.projectionName)).toBeGreaterThanOrEqual(
+        1,
+      );
+
       await store.delete(record);
+      await expect(
+        store.find(record.projectionName, aggregateId, 4),
+      ).resolves.toBeUndefined();
       expect(
         (await store.list(100)).find(
           (candidate) => candidate.aggregateId === aggregateId,

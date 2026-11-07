@@ -56,13 +56,19 @@ A permanent failure that outlives the ceiling is stored in `read_model_dead_lett
 
 A head event whose payload cannot be decoded is dead-lettered as `payload-decode`. The adapter keeps the storage envelope, so the task still has the aggregate id and `seq_nr`; recovery reads the payload from the journal. The task identity can also be published to SQS through `RMU_DEAD_LETTER_QUEUE_URL`. That notification is best effort and carries no event body; the MySQL row remains authoritative. See [DEAD_LETTER_RECOVERY.md](DEAD_LETTER_RECOVERY.md) for the message contract, queue setup and runbook.
 
+Within one batch, the first failure and up to `RMU_DEAD_LETTER_BATCH_LIMIT` blocked events per aggregate are recorded. Events beyond the limit are reported as failed and recorded on a later delivery.
+
+The Lambda handler reconciles the whole head table on its first invocation in a container, using the same position guard as the local reader. The scan runs once per container; a failed scan is retried on the next invocation.
+
+The SQS recovery worker consumes notifications with `node dist/index.js sqsDeadLetterWorker` or the SQS Lambda handler. The message is only a trigger; the worker loads the durable row and replays the journal, so a duplicate or stale message is safe.
+
 Run the recovery task with `node dist/index.js recoverReadModel`. It reads the unresolved dead letters, replays the journal in ascending order from the current position to the target `seq_nr`, verifies the position reached the target, and only then deletes the row. Re-running it is safe.
 
 The RMU reconciles on startup, after 24 hours without progress, and when it receives `TrimmedDataAccessException`. It scans the head table with `ConsistentRead` and fills only the aggregates whose position is behind from the journal. `ExpiredIteratorException` does not mean the records are gone, so the shard resumes after its last processed sequence number instead of forcing a full scan.
 
 The read-model update and the position update commit in the same transaction. Only the event at `current position + 1` is applied, and a journal gap fails the delivery without advancing the position.
 
-`recovery.test.ts` covers retry, dead letters, payload decode failures, resynchronization and stream failure classification. `dead-letter-notifier.test.ts` covers the SQS message contract. `read-model-updater.integration.test.ts` covers duplicates, out-of-order delivery, gaps, mid-batch failure, restart, decode failures and concurrent application against MySQL.
+`recovery.test.ts` covers retry, dead letters, payload decode failures, blocked-event recording, the recovery batch limit, resynchronization and stream failure classification. `dead-letter-notifier.test.ts` and `dead-letter-consumer.test.ts` cover the SQS message contract and idempotent consumption. `startup-resynchronizer.test.ts` covers the Lambda cold-start scan running once and retrying after a failure. `read-model-updater.integration.test.ts` covers duplicates, out-of-order delivery, gaps, mid-batch failure, restart, decode failures and concurrent application against MySQL.
 
 ## Read Model Updater Lambda (LocalStack)
 

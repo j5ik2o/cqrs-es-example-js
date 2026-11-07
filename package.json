@@ -12,6 +12,7 @@
     "docker-compose-up-db": "./tools/scripts/docker-compose-up.sh -d",
     "docker-compose-down": "./tools/scripts/docker-compose-down.sh",
     "build-dynamodb-read-model-updater-lambda": "./tools/scripts/build-dynamodb-read-model-updater-lambda.sh",
+    "build-sqs-dead-letter-worker-lambda": "./tools/scripts/build-sqs-dead-letter-worker-lambda.sh",
     "deploy-dynamodb-read-model-updater-localstack": "./tools/scripts/deploy-dynamodb-read-model-updater-localstack.sh",
     "create-dead-letter-queue-localstack": "./tools/scripts/create-dead-letter-queue-localstack.sh",
     "create-group-chat": "./tools/scripts/curl-create-group-chat.sh",

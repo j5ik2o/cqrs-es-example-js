@@ -1,11 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import {
-  DeadLetterRecovery,
-  DeadLetterStore,
-  GroupChatDao,
-  JournalReader,
-  ReadModelUpdater,
-} from "cqrs-es-example-js-rmu";
+import { JournalReader } from "cqrs-es-example-js-rmu";
+import { createDeadLetterRecoveryRuntime } from "./dead-letter-recovery-runtime";
 import { createDynamoDBClients } from "./dynamodb-clients";
 import { logger } from "./index";
 import { loadRmuRuntimeConfig } from "./rmu-config";
@@ -15,6 +10,9 @@ import { loadRmuRuntimeConfig } from "./rmu-config";
  * authoritative journal for each failed event, replays the range idempotently,
  * verifies the read-model position reached the target, and deletes the task.
  * Run it on a schedule or after an operator fixes the underlying cause.
+ *
+ * At most `RMU_RECOVERY_BATCH_SIZE` tasks are processed per run; the remainder
+ * stays in the table and is reported through `remaining`.
  */
 async function recoverReadModelMain(): Promise<void> {
   const config = loadRmuRuntimeConfig();
@@ -31,25 +29,10 @@ async function recoverReadModelMain(): Promise<void> {
       dynamodbClient,
       config.journalTableName,
     );
-    const updater = ReadModelUpdater.create(
-      GroupChatDao.create(prisma),
+    const { recovery } = createDeadLetterRecoveryRuntime(
+      prisma,
+      config,
       journalReader,
-      {
-        retry: config.retry,
-        storeId: config.storeId,
-        projectionName: config.projectionName,
-        projectionVersion: config.projectionVersion,
-      },
-    );
-    const deadLetters = DeadLetterStore.createSql(prisma);
-    const recovery = DeadLetterRecovery.create(
-      updater,
-      journalReader,
-      deadLetters,
-      {
-        batchSize: config.recoveryBatchSize,
-        projectionName: config.projectionName,
-      },
     );
 
     const outcome = await recovery.recoverAll();

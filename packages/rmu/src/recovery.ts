@@ -27,6 +27,7 @@ export type RecoveryFailure = {
 export type RecoveryOutcome = {
   recovered: number;
   failed: number;
+  /** Tasks still unresolved in the store after this run, beyond the batch. */
   remaining: number;
   failures: RecoveryFailure[];
 };
@@ -75,7 +76,7 @@ export namespace DeadLetterRecovery {
 
     async function recoverAll(): Promise<RecoveryOutcome> {
       const records = await deadLetters.list(
-        options.batchSize ?? DEFAULT_BATCH_SIZE,
+        positiveInteger(options.batchSize, DEFAULT_BATCH_SIZE),
         options.projectionName,
       );
       let recovered = 0;
@@ -91,11 +92,18 @@ export namespace DeadLetterRecovery {
       return {
         recovered,
         failed: failures.length,
-        remaining: records.length - recovered,
+        remaining: await deadLetters.count(options.projectionName),
         failures,
       };
     }
 
     return Object.freeze({ recover, recoverAll });
   }
+}
+
+function positiveInteger(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(1, Math.trunc(value));
 }
