@@ -1,5 +1,6 @@
 import {
   DeleteMessageCommand,
+  type Message,
   ReceiveMessageCommand,
   type SQSClient,
 } from "@aws-sdk/client-sqs";
@@ -53,40 +54,64 @@ async function consumeQueue(
   config: RmuRuntimeConfig,
   consumer: DeadLetterConsumer,
 ): Promise<void> {
+  let failureAttempt = 0;
   for (;;) {
-    const output = await sqs.send(
-      new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
-        MaxNumberOfMessages: config.deadLetterConsume.maxMessages,
-        WaitTimeSeconds: config.deadLetterConsume.waitTimeSeconds,
-        VisibilityTimeout: config.deadLetterConsume.visibilityTimeoutSeconds,
-      }),
-    );
-    for (const message of output.Messages ?? []) {
-      const messageId = message.MessageId ?? "unknown";
-      const outcome = await consumer.consume(message.Body ?? "");
-      if (outcome.status === "failed") {
-        logger.error(
-          `Recovery failed for ${messageId}: ${String(outcome.error)}`,
-        );
-        // Leave the message unacknowledged so SQS redelivers it.
-        continue;
-      }
-      if (outcome.status === "invalid") {
-        logger.warn(
-          `Dropping invalid dead-letter message ${messageId}: ${outcome.reason}`,
-        );
-      }
-      if (message.ReceiptHandle !== undefined) {
-        await sqs.send(
-          new DeleteMessageCommand({
-            QueueUrl: queueUrl,
-            ReceiptHandle: message.ReceiptHandle,
-          }),
-        );
-      }
+    try {
+      const output = await sqs.send(
+        new ReceiveMessageCommand({
+          QueueUrl: queueUrl,
+          MaxNumberOfMessages: config.deadLetterConsume.maxMessages,
+          WaitTimeSeconds: config.deadLetterConsume.waitTimeSeconds,
+          VisibilityTimeout: config.deadLetterConsume.visibilityTimeoutSeconds,
+        }),
+      );
+      failureAttempt = 0;
+      await consumeMessages(sqs, queueUrl, output.Messages ?? [], consumer);
+    } catch (error) {
+      failureAttempt += 1;
+      const delayMs = Math.min(60_000, 1000 * 2 ** (failureAttempt - 1));
+      logger.error(
+        `SQS receive failed; retrying in ${delayMs}ms: ${String(error)}`,
+      );
+      await sleep(delayMs);
     }
   }
+}
+
+async function consumeMessages(
+  sqs: SQSClient,
+  queueUrl: string,
+  messages: readonly Message[],
+  consumer: DeadLetterConsumer,
+): Promise<void> {
+  for (const message of messages) {
+    const messageId = message.MessageId ?? "unknown";
+    const outcome = await consumer.consume(message.Body ?? "");
+    if (outcome.status === "failed") {
+      logger.error(
+        `Recovery failed for ${messageId}: ${String(outcome.error)}`,
+      );
+      // Leave the message unacknowledged so SQS redelivers it.
+      continue;
+    }
+    if (outcome.status === "invalid") {
+      logger.warn(
+        `Dropping invalid dead-letter message ${messageId}: ${outcome.reason}`,
+      );
+    }
+    if (message.ReceiptHandle !== undefined) {
+      await sqs.send(
+        new DeleteMessageCommand({
+          QueueUrl: queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+        }),
+      );
+    }
+  }
+}
+
+function sleep(millis: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, millis));
 }
 
 export { sqsDeadLetterMain };

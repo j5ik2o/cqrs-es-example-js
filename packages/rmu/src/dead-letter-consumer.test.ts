@@ -19,6 +19,7 @@ const RECORD: DeadLetterRecord = {
 
 class MemoryDeadLetterStore implements DeadLetterStore {
   readonly records = new Map<string, DeadLetterRecord>();
+  failFind = false;
 
   async save(record: DeadLetterRecord): Promise<void> {
     this.records.set(keyOf(record), record);
@@ -42,6 +43,9 @@ class MemoryDeadLetterStore implements DeadLetterStore {
     aggregateId: string,
     seqNr: number,
   ): Promise<DeadLetterRecord | undefined> {
+    if (this.failFind) {
+      throw new Error("store unavailable");
+    }
     return this.records.get(`${projectionName}:${aggregateId}:${seqNr}`);
   }
 
@@ -153,6 +157,18 @@ describe("dead-letter consumer", () => {
         JSON.stringify({ projectionName: "p", aggregateId: "a", seqNr: 0 }),
       ),
     ).toMatchObject({ status: "invalid" });
+  });
+
+  test("reports a store error as a retryable failure", async () => {
+    const store = new MemoryDeadLetterStore();
+    await store.save(RECORD);
+    store.failFind = true;
+    const consumer = consumerOf(store, new FakeRecovery(store));
+
+    const outcome = await consumer.consume(notificationBody(RECORD));
+
+    expect(outcome.status).toBe("failed");
+    expect(await store.count()).toBe(1);
   });
 
   test("rejects a notification for another projection", async () => {

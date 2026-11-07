@@ -55,18 +55,20 @@ export namespace DeadLetterConsumer {
             reason: `message projection ${parsed.message.projectionName} does not match ${options.projectionName}`,
           };
         }
-        const record = await deadLetters.find(
-          parsed.message.projectionName,
-          parsed.message.aggregateId,
-          parsed.message.seqNr,
-        );
-        if (record === undefined) {
-          return { status: "ignored", reason: "missing" };
-        }
         try {
+          const record = await deadLetters.find(
+            parsed.message.projectionName,
+            parsed.message.aggregateId,
+            parsed.message.seqNr,
+          );
+          if (record === undefined) {
+            return { status: "ignored", reason: "missing" };
+          }
           await recovery.recover(record);
           return { status: "recovered" };
         } catch (error) {
+          // A store error is retryable like a recovery error: the caller must
+          // leave the message for redelivery rather than lose the batch.
           return { status: "failed", error };
         }
       },
