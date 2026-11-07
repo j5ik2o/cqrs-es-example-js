@@ -59,9 +59,12 @@ async function setupSpanner(input: {
         schema: eventStoreSchema(input.tablePrefix),
       });
       await op.promise();
-      await insertSpannerConfig(database, input.tablePrefix);
       logger.info(`Created Spanner database: ${input.databaseId}`);
     }
+    // A previous run may have created the database and then failed before
+    // writing the config row, so always ensure it exists rather than tying the
+    // insert to the create-database branch.
+    await ensureSpannerConfig(database, input.tablePrefix);
     try {
       const [op] = await database.updateSchema([
         `CREATE CHANGE STREAM ${input.changeStreamName} FOR ${input.tablePrefix}_journal`,
@@ -107,17 +110,22 @@ async function setupPubSub(input: {
   await pubsub.close();
 }
 
-async function insertSpannerConfig(
+async function ensureSpannerConfig(
   database: Database,
   tablePrefix: string,
 ): Promise<void> {
   await database.runTransactionAsync(async (transaction) => {
-    await transaction.run({
-      sql: `INSERT INTO ${tablePrefix}_config (
-        singleton, store_id, layout_version, keep_snapshot_count,
-        retention_mode, ttl_grace_days, change_feed_enabled
-      ) VALUES (1, GENERATE_UUID(), 1, NULL, 'delete', NULL, FALSE)`,
+    const [rows] = await transaction.run({
+      sql: `SELECT singleton FROM ${tablePrefix}_config WHERE singleton = 1`,
     });
+    if (rows.length === 0) {
+      await transaction.run({
+        sql: `INSERT INTO ${tablePrefix}_config (
+          singleton, store_id, layout_version, keep_snapshot_count,
+          retention_mode, ttl_grace_days, change_feed_enabled
+        ) VALUES (1, GENERATE_UUID(), 1, NULL, 'delete', NULL, FALSE)`,
+      });
+    }
     await transaction.commit();
   });
 }
