@@ -46,6 +46,22 @@ On failure, `tools/scripts/docker-compose-e2e-test.sh` prints the Compose state 
 
 Unit tests cover duplicate, out-of-order, gap, mid-batch failure and restart cases in `packages/rmu/src/read-model-updater.integration.test.ts`. The Compose e2e does not cover out-of-order and gap cases because they need fault injection.
 
+## Recovery
+
+The RMU never drops a failed event. It retries, backs off, and resynchronizes.
+
+Retry is per event. Each event gets an attempt ceiling and a maximum elapsed time, with exponential backoff and jitter up to the ceiling. The local stream reader repeats a failed pass with an outer exponential backoff. Lambda uses `BisectBatchOnFunctionError` and `ReportBatchItemFailures` so only the failed records are retried.
+
+A permanent failure that outlives the ceiling is stored in `read_model_dead_letters`. The row carries the store identifier, the projection name and version, the aggregate id, `seq_nr`, the failure type and the attempt count. It does not carry the event body; recovery re-reads that from the journal. A store-wide outage is not dead-lettered; it stays with the delivery loop's backoff.
+
+Run the recovery task with `node dist/index.js recoverReadModel`. It reads the unresolved dead letters, replays the journal in ascending order from the current position to the target `seq_nr`, verifies the position reached the target, and only then deletes the row. Re-running it is safe.
+
+The RMU reconciles on startup, after 24 hours without progress, and when it receives `TrimmedDataAccessException`. It scans the head table with `ConsistentRead` and fills only the aggregates whose position is behind from the journal. `ExpiredIteratorException` does not mean the records are gone, so the shard resumes after its last processed sequence number instead of forcing a full scan.
+
+The read-model update and the position update commit in the same transaction. Only the event at `current position + 1` is applied, and a journal gap fails the delivery without advancing the position.
+
+`recovery.test.ts` covers retry, dead letters, resynchronization and stream failure classification. `read-model-updater.integration.test.ts` covers duplicates, out-of-order delivery, gaps, mid-batch failure, restart and concurrent application against MySQL.
+
 ## Read Model Updater Lambda (LocalStack)
 
 This mirrors the Rust example: run the Read Model Updater as an AWS Lambda on LocalStack (DynamoDB stream → Lambda → MySQL).

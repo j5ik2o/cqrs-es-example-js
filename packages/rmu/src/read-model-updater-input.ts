@@ -23,5 +23,13 @@ export type ReadModelUpdaterInput = {
    * not carry it, so the adapter supplies it from the journal/head record.
    */
   occurredAt?: Date;
+  /** The envelope manifest (`<event-type>@<schema-version>`), for diagnostics. */
+  manifest?: string;
   position?: string;
+  /**
+   * Delivery record identity. A DynamoDB stream record can carry several
+   * events, so the Lambda partial-batch response reports this identifier once
+   * for every event that failed from that record.
+   */
+  recordIdentifier?: string;
 };
