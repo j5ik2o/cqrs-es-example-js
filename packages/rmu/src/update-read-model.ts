@@ -251,7 +251,12 @@ export namespace ReadModelUpdater {
       try {
         await notifier.notify(record);
       } catch (error) {
-        options.onNotificationError?.(error, record);
+        try {
+          options.onNotificationError?.(error, record);
+        } catch {
+          // The durable task is already committed; a failing hook must not
+          // change the delivery outcome either.
+        }
       }
     }
 

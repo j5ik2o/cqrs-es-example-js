@@ -701,6 +701,38 @@ describe("payload decode failures", () => {
     expect(notificationErrors).toHaveLength(1);
     expect(await deadLetters.list(10)).toHaveLength(1);
   });
+
+  test("survives an onNotificationError hook that throws", async () => {
+    const fixture = newFixture(1);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    dao.fail(fixture.aggregateId, 1, new Error("permanent"), 10);
+    const updater = updaterOf(
+      dao,
+      new MemoryJournalReader([]),
+      deadLetters,
+      FAST_RETRY,
+      {
+        notifier: {
+          async notify() {
+            throw new Error("sqs unavailable");
+          },
+        },
+        onNotificationError: () => {
+          throw new Error("hook bug");
+        },
+      },
+    );
+
+    const result = await updater.apply([inputOf(fixture, 1, "record-1")], {
+      reportBatchItemFailures: true,
+    });
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-1" }],
+    });
+    expect(await deadLetters.list(10)).toHaveLength(1);
+  });
 });
 
 describe("resynchronization", () => {
