@@ -3,7 +3,7 @@ services:
   mysql:
     image: mysql:9.7
     hostname: mysql-local
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --ngram_token_size=2
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --ngram_token_size=2 --performance-schema=OFF --innodb-buffer-pool-size=128M
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-ppasswd"]
       interval: 10s
@@ -17,6 +17,9 @@ services:
       MYSQL_USER: ceer
       MYSQL_PASSWORD: ceer
       MYSQL_DATABASE: ceer
+      # Skip loading the timezone tables; the e2e does not use named zones and
+      # the load inflates MySQL's memory use during container initialization.
+      MYSQL_INITDB_SKIP_TZINFO: 1
   migration:
     image: migrate/migrate:v4.19.1
     volumes:
@@ -53,10 +56,12 @@ services:
       - "34566:4566"
       - "34571:4571"
     environment:
-      DEBUG: 1
+      DEBUG: ${LOCALSTACK_DEBUG:-1}
       LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY- }
-      EAGER_SERVICE_LOADING: 1
-      SERVICES: cloudwatch,dynamodb,dynamodbstreams,lambda,iam
+      EAGER_SERVICE_LOADING: ${LOCALSTACK_EAGER_SERVICE_LOADING:-1}
+      # The e2e only needs DynamoDB and its Streams. Set LOCALSTACK_SERVICES to
+      # the Lambda list when using deploy-dynamodb-read-model-updater-localstack.
+      SERVICES: ${LOCALSTACK_SERVICES:-cloudwatch,dynamodb,dynamodbstreams,lambda,iam}
       LAMBDA_DOCKER_NETWORK: ${LAMBDA_DOCKER_NETWORK:-cqrs-es-example-js_default}
       MAIN_CONTAINER_NAME: localstack-main
       HOSTNAME_EXTERNAL: localstack-local

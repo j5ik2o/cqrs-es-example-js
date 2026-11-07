@@ -48,8 +48,7 @@ jobs:
   e2e:
     runs-on: ubuntu-24.04
     needs: test
-    env:
-      TEST_TIME_FACTOR: 10.0
+    timeout-minutes: 40
     strategy:
       matrix:
         node-version: [20.x]
@@ -58,9 +57,6 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 9.15.9
-      - uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: "2"
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
         with:
@@ -74,26 +70,15 @@ jobs:
           pnpm docker-compose-e2e-test
       - name: Dump e2e diagnostics
         if: failure()
-        env:
-          AWS_ACCESS_KEY_ID: x
-          AWS_SECRET_ACCESS_KEY: x
-          AWS_DEFAULT_REGION: ap-northeast-1
-          LOCALSTACK_ENDPOINT_URL: http://localhost:34566
         run: |
-          echo "=== Lambda event source mappings ==="
-          aws lambda list-event-source-mappings \
-            --function-name read-model-updater-rmu \
-            --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" || true
-          echo "=== Lambda log groups ==="
-          aws logs describe-log-groups \
-            --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" || true
-          echo "=== Lambda logs ==="
-          aws logs filter-log-events \
-            --log-group-name /aws/lambda/read-model-updater-rmu \
-            --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
-            --limit 200 || true
+          docker compose -p cqrs-es-example-js \
+            -f tools/docker-compose/docker-compose-databases.yml \
+            -f tools/docker-compose/docker-compose-applications.yml \
+            -f tools/docker-compose/docker-compose-e2e-test.yml \
+            ps || true
           echo "=== Compose logs ==="
           docker compose -p cqrs-es-example-js \
             -f tools/docker-compose/docker-compose-databases.yml \
             -f tools/docker-compose/docker-compose-applications.yml \
-            logs --no-color --tail=300 || true
+            -f tools/docker-compose/docker-compose-e2e-test.yml \
+            logs --no-color --tail=400 || true

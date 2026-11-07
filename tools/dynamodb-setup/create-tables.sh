@@ -110,3 +110,26 @@ aws dynamodb create-table \
   --provisioned-throughput \
     ReadCapacityUnits=10,WriteCapacityUnits=10 \
   --stream-specification StreamEnabled=true,StreamViewType=NEW_IMAGE
+
+# ESA v5 reads one configuration item from each table and requires the same
+# store_id and layout_version=1 in all three. Creating them here makes the
+# precondition explicit instead of relying on the first write to create them.
+STORE_ID="${STORE_ID:-local-e2e}"
+for table in "${JOURNAL_TABLE_NAME}" "${SNAPSHOT_TABLE_NAME}" "${HEAD_TABLE_NAME}"; do
+  case "${table}" in
+  "${JOURNAL_TABLE_NAME}")
+    item="{\"aid\":{\"S\":\"__config__\"},\"seq_nr\":{\"N\":\"0\"},\"store_id\":{\"S\":\"${STORE_ID}\"},\"layout_version\":{\"N\":\"1\"}}"
+    ;;
+  "${SNAPSHOT_TABLE_NAME}")
+    item="{\"aid\":{\"S\":\"__config__\"},\"skey\":{\"N\":\"0\"},\"store_id\":{\"S\":\"${STORE_ID}\"},\"layout_version\":{\"N\":\"1\"}}"
+    ;;
+  *)
+    item="{\"aid\":{\"S\":\"__config__\"},\"store_id\":{\"S\":\"${STORE_ID}\"},\"layout_version\":{\"N\":\"1\"}}"
+    ;;
+  esac
+  # shellcheck disable=SC2086
+  aws dynamodb put-item \
+    ${ENDPOINT_URL_OPTION} \
+    --table-name "${table}" \
+    --item "${item}"
+done
