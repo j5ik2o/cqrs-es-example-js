@@ -9,7 +9,7 @@
 
 これは、TypeScriptで実装されたCQRS/イベントソーシングおよびGraphQLの例です。
 
-このプロジェクトはイベントソーシングのために[j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js)を使用しています。
+このプロジェクトはイベントソーシングのために[j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) **v5.2.0**を使用しています。Write API は **DynamoDB**（3テーブル）と **Cloud Spanner**（5テーブル）のどちらにも永続化できます（`PERSISTENCE_BACKEND=dynamodb|spanner`）。詳しくは [Persistence backends & the Spanner read-model pipeline](./docs/spanner-local-pipeline.md) を参照してください。
 
 [English](./README.md)
 

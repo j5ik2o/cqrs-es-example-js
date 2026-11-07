@@ -99,6 +99,27 @@ describe("RMU adapter contract", () => {
     expect(input.observedAt.toISOString()).toEqual("2026-05-30T00:00:00.000Z");
   });
 
+  test("DynamoDB adapter skips the store's __config__ journal item", () => {
+    const configRecord = {
+      Records: [
+        {
+          eventName: "INSERT",
+          dynamodb: {
+            NewImage: {
+              aid: { S: "__config__" },
+              seq_nr: { N: "0" },
+              store_id: { S: "store" },
+              layout_version: { N: "1" },
+            },
+            SequenceNumber: "000000000000000000001",
+          },
+        },
+      ],
+    } as unknown as DynamoDBStreamEvent;
+
+    expect(decodeDynamoDBStreamEvent(configRecord)).toEqual([]);
+  });
+
   test("DynamoDB adapter rejects INSERT records without a journal payload", () => {
     const dynamodbStreamEvent = {
       Records: [

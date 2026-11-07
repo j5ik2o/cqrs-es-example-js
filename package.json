@@ -16,7 +16,7 @@
     "create-group-chat": "./tools/scripts/curl-create-group-chat.sh",
     "verify-group-chat": "./tools/e2e-test/verify-group-chat.sh",
     "build": "turbo build",
-    "test": "turbo test",
+    "test": "turbo test --concurrency=1",
     "lint": "turbo lint --concurrency=1",
     "lint:fix": "turbo lint:fix",
     "format": "turbo format",

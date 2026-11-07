@@ -1,5 +1,4 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { Event } from "event-store-adapter-js/dist/event";
 import {
   type UserAccountId,
   type UserAccountIdJson,
@@ -43,7 +42,13 @@ const GROUP_CHAT_DELETED_BRAND: unique symbol = Symbol("GroupChatDeleted");
 
 // --- Common shape ---------------------------------------------------------
 
-type GroupChatEventBase = Event<GroupChatId> & {
+type GroupChatEventBase = {
+  typeName: string;
+  id: string;
+  aggregateId: GroupChatId;
+  sequenceNumber: number;
+  occurredAt: Date;
+  isCreated: boolean;
   executorId: UserAccountId;
 };
 
