@@ -19,6 +19,7 @@ export AWS_DEFAULT_REGION="${AWS_REGION:-ap-northeast-1}"
 
 LOCALSTACK_ENDPOINT_URL="${LOCALSTACK_ENDPOINT_URL:-http://localhost:34566}"
 FUNCTION_NAME="${FUNCTION_NAME:-read-model-updater-rmu}"
+STREAM_HEAD_TABLE_NAME="${STREAM_HEAD_TABLE_NAME:-head}"
 STREAM_JOURNAL_TABLE_NAME="${STREAM_JOURNAL_TABLE_NAME:-journal}"
 ROLE_ARN="${LAMBDA_ROLE_ARN:-arn:aws:iam::000000000000:role/lambda-role}"
 # LocalStack 2.x community image may not list nodejs20.x; use nodejs18.x unless overridden.
@@ -58,14 +59,14 @@ if ! aws iam get-role \
 fi
 
 STREAM_ARN="$(aws dynamodb describe-table \
-  --table-name "${STREAM_JOURNAL_TABLE_NAME}" \
+  --table-name "${STREAM_HEAD_TABLE_NAME}" \
   --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
   --region "${AWS_DEFAULT_REGION}" \
   --query 'Table.LatestStreamArn' \
   --output text)"
 
 if [ "${STREAM_ARN}" = "None" ] || [ -z "${STREAM_ARN}" ]; then
-  echo "Could not read DynamoDB stream ARN for table ${STREAM_JOURNAL_TABLE_NAME}" >&2
+  echo "Could not read DynamoDB stream ARN for table ${STREAM_HEAD_TABLE_NAME}" >&2
   exit 1
 fi
 
@@ -81,6 +82,7 @@ print(json.dumps({
     "AWS_DYNAMODB_ENDPOINT_URL": "http://localstack:4566",
     "AWS_DYNAMODB_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
     "AWS_DYNAMODB_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+    "STREAM_HEAD_TABLE_NAME": "${STREAM_HEAD_TABLE_NAME}",
     "STREAM_JOURNAL_TABLE_NAME": "${STREAM_JOURNAL_TABLE_NAME}",
     "STREAM_MAX_ITEM_COUNT": "${STREAM_MAX_ITEM_COUNT}",
   }

@@ -19,9 +19,8 @@ export type ReadModelUpdaterInput = {
   sourceProvider: SourceProvider;
   observedAt: Date;
   /**
-   * The event's `occurred_at` from the storage envelope. For head stream
-   * records this is authoritative; the payload may omit it. Falls back to the
-   * decoded event's own timestamp when the provider has no envelope.
+   * The event's `occurred_at` from the storage envelope. The v5 payload does
+   * not carry it, so the adapter supplies it from the journal/head record.
    */
   occurredAt?: Date;
   position?: string;

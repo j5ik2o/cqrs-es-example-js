@@ -6,9 +6,20 @@
     "module": "CommonJS",
     "target": "es6",
     "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "event-store-adapter-js/spanner": [
+        "node_modules/event-store-adapter-js/dist/spanner"
+      ]
+    },
     "esModuleInterop": true,
-    "lib": ["ESNext"],
-    "types": ["node", "jest"],
+    "lib": [
+      "ESNext"
+    ],
+    "types": [
+      "node",
+      "jest"
+    ],
     "skipLibCheck": true,
     "declaration": true,
     "noUnusedLocals": true,
@@ -18,6 +29,10 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

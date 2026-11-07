@@ -50,6 +50,12 @@ export type GroupChatDao = {
     createdAt: Date,
     sequenceNumber: number,
   ): Promise<void>;
+  updateMessage(
+    aggregateId: GroupChatId,
+    message: Message,
+    updatedAt: Date,
+    sequenceNumber: number,
+  ): Promise<void>;
   deleteMessage(
     aggregateId: GroupChatId,
     messageId: MessageId,
@@ -251,6 +257,30 @@ export namespace GroupChatDao {
                 })
                 .catch(ignoreUniqueConstraint);
             }
+          },
+        );
+      },
+
+      async updateMessage(
+        aggregateId: GroupChatId,
+        message: Message,
+        updatedAt: Date,
+        sequenceNumber: number,
+      ): Promise<void> {
+        await prismaClient.$transaction(
+          async (tx: Prisma.TransactionClient) => {
+            const groupChatId = aggregateId.asString();
+            if (!(await advanceProjection(tx, groupChatId, sequenceNumber))) {
+              return;
+            }
+            await tx.messages.updateMany({
+              where: { id: message.id.asString(), groupChatId },
+              data: {
+                text: message.content,
+                updatedAt,
+                lastProcessedSequenceNumber: sequenceNumber,
+              },
+            });
           },
         );
       },

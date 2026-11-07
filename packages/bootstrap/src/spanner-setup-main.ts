@@ -1,12 +1,12 @@
 import { PubSub } from "@google-cloud/pubsub";
-import { Spanner } from "@google-cloud/spanner";
+import { type Database, Spanner } from "@google-cloud/spanner";
 import { logger } from "./index";
 
 /**
  * Idempotent bootstrap of the local Spanner + Pub/Sub topology used by the
  * Spanner read-model pipeline:
- *  - Spanner instance + database with the event-store journal/snapshot tables
- *    and a change stream watching `journal`.
+ *  - Spanner instance + database with the ESA v5 five-table layout and a
+ *    change stream watching `<prefix>_journal`.
  *  - Pub/Sub topic + push subscription delivering to the Functions Framework
  *    RMU endpoint.
  *
@@ -16,8 +16,7 @@ async function spannerSetupMain(): Promise<void> {
   const projectId = env("PERSISTENCE_SPANNER_PROJECT_ID", "local-project");
   const instanceId = env("PERSISTENCE_SPANNER_INSTANCE_ID", "local-instance");
   const databaseId = env("PERSISTENCE_SPANNER_DATABASE_ID", "local-database");
-  const journalTableName = env("PERSISTENCE_JOURNAL_TABLE_NAME", "journal");
-  const snapshotTableName = env("PERSISTENCE_SNAPSHOT_TABLE_NAME", "snapshot");
+  const tablePrefix = env("PERSISTENCE_SPANNER_TABLE_PREFIX", "esa");
   const changeStreamName = env("SPANNER_CHANGE_STREAM_NAME", "journal_stream");
   const topicName = env("PUBSUB_TOPIC", "group-chat-journal");
   const subscriptionName = env("PUBSUB_SUBSCRIPTION", "group-chat-journal-sub");
@@ -28,8 +27,7 @@ async function spannerSetupMain(): Promise<void> {
     projectId,
     instanceId,
     databaseId,
-    journalTableName,
-    snapshotTableName,
+    tablePrefix,
     changeStreamName,
   });
   await setupPubSub({ projectId, topicName, subscriptionName, pushEndpoint });
@@ -40,8 +38,7 @@ async function setupSpanner(input: {
   projectId: string;
   instanceId: string;
   databaseId: string;
-  journalTableName: string;
-  snapshotTableName: string;
+  tablePrefix: string;
   changeStreamName: string;
 }): Promise<void> {
   const spanner = new Spanner({ projectId: input.projectId });
@@ -59,17 +56,18 @@ async function setupSpanner(input: {
     const database = instance.database(input.databaseId);
     if (!(await database.exists())[0]) {
       const [, op] = await instance.createDatabase(input.databaseId, {
-        schema: eventStoreSchema(
-          input.journalTableName,
-          input.snapshotTableName,
-        ),
+        schema: eventStoreSchema(input.tablePrefix),
       });
       await op.promise();
       logger.info(`Created Spanner database: ${input.databaseId}`);
     }
+    // A previous run may have created the database and then failed before
+    // writing the config row, so always ensure it exists rather than tying the
+    // insert to the create-database branch.
+    await ensureSpannerConfig(database, input.tablePrefix);
     try {
       const [op] = await database.updateSchema([
-        `CREATE CHANGE STREAM ${input.changeStreamName} FOR ${input.journalTableName}`,
+        `CREATE CHANGE STREAM ${input.changeStreamName} FOR ${input.tablePrefix}_journal`,
       ]);
       await op.promise();
       logger.info(`Created change stream: ${input.changeStreamName}`);
@@ -112,26 +110,69 @@ async function setupPubSub(input: {
   await pubsub.close();
 }
 
-function eventStoreSchema(
-  journalTableName: string,
-  snapshotTableName: string,
-): string[] {
+async function ensureSpannerConfig(
+  database: Database,
+  tablePrefix: string,
+): Promise<void> {
+  await database.runTransactionAsync(async (transaction) => {
+    const [rows] = await transaction.run({
+      sql: `SELECT singleton FROM ${tablePrefix}_config WHERE singleton = 1`,
+    });
+    if (rows.length === 0) {
+      await transaction.run({
+        sql: `INSERT INTO ${tablePrefix}_config (
+          singleton, store_id, layout_version, keep_snapshot_count,
+          retention_mode, ttl_grace_days, change_feed_enabled
+        ) VALUES (1, GENERATE_UUID(), 1, NULL, 'delete', NULL, FALSE)`,
+      });
+    }
+    await transaction.commit();
+  });
+}
+
+function eventStoreSchema(tablePrefix: string): string[] {
   return [
-    `CREATE TABLE ${journalTableName} (
-      shard_id INT64 NOT NULL,
-      aggregate_id STRING(MAX) NOT NULL,
-      sequence_number INT64 NOT NULL,
+    `CREATE TABLE ${tablePrefix}_journal (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      occurred_at_ns INT64 NOT NULL,
+      manifest STRING(MAX) NOT NULL,
+      payload BYTES(MAX) NOT NULL
+    ) PRIMARY KEY (hash_prefix, aid, seq_nr)`,
+    `CREATE TABLE ${tablePrefix}_head (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      type_name STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      event_occurred_at_ns INT64 NOT NULL,
+      event_manifest STRING(MAX) NOT NULL,
+      event_payload BYTES(MAX) NOT NULL
+    ) PRIMARY KEY (hash_prefix, aid)`,
+    `CREATE TABLE ${tablePrefix}_snapshot_current (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      manifest STRING(MAX) NOT NULL,
+      payload BYTES(MAX) NOT NULL
+    ) PRIMARY KEY (hash_prefix, aid)`,
+    `CREATE TABLE ${tablePrefix}_snapshot_history (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      manifest STRING(MAX) NOT NULL,
       payload BYTES(MAX) NOT NULL,
-      occurred_at TIMESTAMP NOT NULL
-    ) PRIMARY KEY (shard_id, aggregate_id, sequence_number)`,
-    `CREATE TABLE ${snapshotTableName} (
-      shard_id INT64 NOT NULL,
-      aggregate_id STRING(MAX) NOT NULL,
-      sequence_number INT64 NOT NULL,
-      version INT64 NOT NULL,
-      payload BYTES(MAX) NOT NULL,
-      updated_at TIMESTAMP NOT NULL
-    ) PRIMARY KEY (shard_id, aggregate_id, sequence_number)`,
+      expired_at TIMESTAMP
+    ) PRIMARY KEY (hash_prefix, aid, seq_nr)`,
+    `CREATE TABLE ${tablePrefix}_config (
+      singleton INT64 NOT NULL,
+      store_id STRING(36) NOT NULL,
+      layout_version INT64 NOT NULL,
+      keep_snapshot_count INT64,
+      retention_mode STRING(8) NOT NULL,
+      ttl_grace_days INT64,
+      change_feed_enabled BOOL NOT NULL
+    ) PRIMARY KEY (singleton)`,
   ];
 }
 

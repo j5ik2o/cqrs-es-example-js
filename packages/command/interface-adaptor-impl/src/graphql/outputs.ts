@@ -14,10 +14,4 @@ class MessageOutput {
   messageId!: string;
 }
 
-@ObjectType()
-class HealthCheckOutput {
-  @Field()
-  value!: string;
-}
-
-export { GroupChatOutput, MessageOutput, HealthCheckOutput };
+export { GroupChatOutput, MessageOutput };

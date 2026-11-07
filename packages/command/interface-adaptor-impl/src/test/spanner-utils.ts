@@ -12,16 +12,21 @@ const SPANNER_EMULATOR_REST_PORT = 9020;
 let spannerEnvLock: Promise<void> = Promise.resolve();
 
 /**
- * Boots the Cloud Spanner emulator, creates an instance + database with the
- * event-store journal/snapshot schema, and returns a ready-to-use `Database`.
+ * Boots the Cloud Spanner emulator and creates an instance + database with the
+ * ESA v5 five-table layout for `tablePrefix`. When `changeStreamName` is given,
+ * creates a change stream on `<prefix>_journal` for the CDC bridge tests.
  * Mirrors the upstream event-store-adapter-js example harness.
  */
 async function startSpannerContainer(input: {
   instanceId: string;
   databaseId: string;
-  journalTableName: string;
-  snapshotTableName: string;
-}): Promise<{ database: Database; stop: () => Promise<void> }> {
+  tablePrefix: string;
+  changeStreamName?: string;
+}): Promise<{
+  database: Database;
+  spanner: Spanner;
+  stop: () => Promise<void>;
+}> {
   const releaseLock = await acquireSpannerEnvLock();
   const container = new GenericContainer(
     "gcr.io/cloud-spanner-emulator/emulator",
@@ -44,6 +49,7 @@ async function startSpannerContainer(input: {
   let stopped = false;
   return {
     database: context.database,
+    spanner: context.spanner,
     stop: async () => {
       if (stopped) {
         return;
@@ -77,8 +83,8 @@ async function createSpannerDatabase(input: {
   startedContainer: StartedTestContainer;
   instanceId: string;
   databaseId: string;
-  journalTableName: string;
-  snapshotTableName: string;
+  tablePrefix: string;
+  changeStreamName?: string;
 }): Promise<{
   spanner: Spanner;
   database: Database;
@@ -115,15 +121,17 @@ async function createSpannerDatabase(input: {
     await instanceOperation.promise();
     const [database, databaseOperation] = await instance.createDatabase(
       input.databaseId,
-      {
-        schema: createSpannerEventStoreSchema(
-          input.journalTableName,
-          input.snapshotTableName,
-        ),
-      },
+      { schema: createSpannerEventStoreSchema(input.tablePrefix) },
     );
     createdDatabase = database;
     await databaseOperation.promise();
+    await insertSpannerConfig(database, input.tablePrefix);
+    if (input.changeStreamName !== undefined) {
+      const [changeStreamOperation] = await database.updateSchema([
+        `CREATE CHANGE STREAM ${input.changeStreamName} FOR ${input.tablePrefix}_journal`,
+      ]);
+      await changeStreamOperation.promise();
+    }
     return { spanner, database, restoreEmulatorHost };
   } catch (error) {
     if (createdDatabase !== undefined) {
@@ -154,27 +162,65 @@ function restoreEnvValue(name: string, value: string | undefined): void {
   process.env[name] = value;
 }
 
-function createSpannerEventStoreSchema(
-  journalTableName: string,
-  snapshotTableName: string,
-): string[] {
+async function insertSpannerConfig(
+  database: Database,
+  tablePrefix: string,
+): Promise<void> {
+  await database.runTransactionAsync(async (transaction) => {
+    await transaction.run({
+      sql: `INSERT INTO ${tablePrefix}_config (
+        singleton, store_id, layout_version, keep_snapshot_count,
+        retention_mode, ttl_grace_days, change_feed_enabled
+      ) VALUES (1, GENERATE_UUID(), 1, NULL, 'delete', NULL, FALSE)`,
+    });
+    await transaction.commit();
+  });
+}
+
+function createSpannerEventStoreSchema(tablePrefix: string): string[] {
   return [
-    `CREATE TABLE ${journalTableName} (
-      shard_id INT64 NOT NULL,
-      aggregate_id STRING(MAX) NOT NULL,
-      sequence_number INT64 NOT NULL,
+    `CREATE TABLE ${tablePrefix}_journal (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      occurred_at_ns INT64 NOT NULL,
+      manifest STRING(MAX) NOT NULL,
+      payload BYTES(MAX) NOT NULL
+    ) PRIMARY KEY (hash_prefix, aid, seq_nr)`,
+    `CREATE TABLE ${tablePrefix}_head (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      type_name STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      event_occurred_at_ns INT64 NOT NULL,
+      event_manifest STRING(MAX) NOT NULL,
+      event_payload BYTES(MAX) NOT NULL
+    ) PRIMARY KEY (hash_prefix, aid)`,
+    `CREATE TABLE ${tablePrefix}_snapshot_current (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      manifest STRING(MAX) NOT NULL,
+      payload BYTES(MAX) NOT NULL
+    ) PRIMARY KEY (hash_prefix, aid)`,
+    `CREATE TABLE ${tablePrefix}_snapshot_history (
+      hash_prefix BYTES(8) NOT NULL,
+      aid STRING(1024) NOT NULL,
+      seq_nr INT64 NOT NULL,
+      manifest STRING(MAX) NOT NULL,
       payload BYTES(MAX) NOT NULL,
-      occurred_at TIMESTAMP NOT NULL
-    ) PRIMARY KEY (shard_id, aggregate_id, sequence_number)`,
-    `CREATE TABLE ${snapshotTableName} (
-      shard_id INT64 NOT NULL,
-      aggregate_id STRING(MAX) NOT NULL,
-      sequence_number INT64 NOT NULL,
-      version INT64 NOT NULL,
-      payload BYTES(MAX) NOT NULL,
-      updated_at TIMESTAMP NOT NULL
-    ) PRIMARY KEY (shard_id, aggregate_id, sequence_number)`,
+      expired_at TIMESTAMP
+    ) PRIMARY KEY (hash_prefix, aid, seq_nr)`,
+    `CREATE TABLE ${tablePrefix}_config (
+      singleton INT64 NOT NULL,
+      store_id STRING(36) NOT NULL,
+      layout_version INT64 NOT NULL,
+      keep_snapshot_count INT64,
+      retention_mode STRING(8) NOT NULL,
+      ttl_grace_days INT64,
+      change_feed_enabled BOOL NOT NULL
+    ) PRIMARY KEY (singleton)`,
   ];
 }
 
-export { startSpannerContainer };
+export { createSpannerEventStoreSchema, startSpannerContainer };

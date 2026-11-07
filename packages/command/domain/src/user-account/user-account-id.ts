@@ -1,6 +1,6 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { AggregateId } from "event-store-adapter-js/dist/aggregate-id";
-import { Result } from "event-store-adapter-js/dist/result";
+import type { AggregateId } from "event-store-adapter-js";
+import { Result } from "event-store-adapter-js";
 import * as U from "ulidx";
 
 const USER_ACCOUNT_PREFIX = "UserAccount";
@@ -12,6 +12,7 @@ export type UserAccountIdJson = {
 
 export type UserAccountId = AggregateId & {
   typeName: typeof USER_ACCOUNT_PREFIX;
+  asString(): string;
   readonly [USER_ACCOUNT_ID_BRAND]: true;
 };
 

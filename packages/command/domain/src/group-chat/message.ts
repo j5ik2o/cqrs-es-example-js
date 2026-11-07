@@ -1,4 +1,4 @@
-import { Result } from "event-store-adapter-js/dist/result";
+import { Result } from "event-store-adapter-js";
 import {
   type UserAccountId,
   type UserAccountIdJson,

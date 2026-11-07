@@ -1,7 +1,7 @@
 import type { DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
-  type GroupChatEvent,
+  GroupChatEvent,
   GroupChatId,
   GroupChatName,
   UserAccountId,
@@ -11,9 +11,24 @@ import { decodeSpannerPubSubMessage } from "./spanner-pubsub-adapter";
 
 type PayloadEncoding = "raw" | "base64" | "bytes";
 
-// The event-store serializer envelope: JSON.stringify({ type, data }).
+type HeadFixture = {
+  event: GroupChatEvent;
+  seqNr: number;
+  occurredAt: Date;
+};
+
+// ESA v5 serializes only the domain payload; aggregate id, seq_nr and
+// occurred_at live in the head event envelope.
 function wirePayload(event: GroupChatEvent): string {
-  return JSON.stringify({ type: event.typeName, data: event });
+  return JSON.stringify(GroupChatEvent.toJSON(event));
+}
+
+function fixture(event: GroupChatEvent, seqNr: number): HeadFixture {
+  return {
+    event,
+    seqNr,
+    occurredAt: new Date(1_700_000_000_000 + seqNr * 1_000),
+  };
 }
 
 function encodePayload(json: string, encoding: PayloadEncoding): string {
@@ -29,9 +44,10 @@ function encodePayload(json: string, encoding: PayloadEncoding): string {
 function headRecord(
   eventName: "INSERT" | "MODIFY" | "REMOVE",
   aggregateId: string,
-  events: readonly GroupChatEvent[],
+  events: readonly HeadFixture[],
   encoding: PayloadEncoding = "raw",
 ): DynamoDBStreamEvent {
+  const last = events[events.length - 1];
   return {
     Records: [
       {
@@ -42,20 +58,21 @@ function headRecord(
           NewImage: {
             aid: { S: aggregateId },
             type_name: { S: "GroupChat" },
-            seq_nr: {
-              N: String(events[events.length - 1]?.sequenceNumber ?? 0),
-            },
+            seq_nr: { N: String(last?.seqNr ?? 0) },
             events: {
-              L: events.map((event) => ({
+              L: events.map((headEvent) => ({
                 M: {
-                  seq_nr: { N: String(event.sequenceNumber) },
+                  seq_nr: { N: String(headEvent.seqNr) },
                   occurred_at: {
                     N: String(
-                      BigInt(event.occurredAt.getTime()) * BigInt(1_000_000),
+                      BigInt(headEvent.occurredAt.getTime()) *
+                        BigInt(1_000_000),
                     ),
                   },
-                  manifest: { S: event.typeName },
-                  payload: { B: encodePayload(wirePayload(event), encoding) },
+                  manifest: { S: `${headEvent.event.typeName}@1` },
+                  payload: {
+                    B: encodePayload(wirePayload(headEvent.event), encoding),
+                  },
                 },
               })),
             },
@@ -66,13 +83,14 @@ function headRecord(
   } as unknown as DynamoDBStreamEvent;
 }
 
-function asSpannerPubSubMessage(event: GroupChatEvent) {
+function asSpannerPubSubMessage(aggregateId: string, headEvent: HeadFixture) {
   return {
-    data: Buffer.from(wirePayload(event), "utf-8").toString("base64"),
+    data: Buffer.from(wirePayload(headEvent.event), "utf-8").toString("base64"),
     attributes: {
-      aggregateId: event.aggregateId.asString(),
-      sequenceNumber: String(event.sequenceNumber),
-      commitTimestamp: "2026-05-30T00:00:00.000Z",
+      aggregateId,
+      sequenceNumber: String(headEvent.seqNr),
+      commitTimestamp: headEvent.occurredAt.toISOString(),
+      manifest: `${headEvent.event.typeName}@1`,
     },
     messageId: "msg-1",
   };
@@ -83,12 +101,13 @@ describe("RMU adapter contract", () => {
     const id = GroupChatId.generate();
     const adminId = UserAccountId.generate();
     const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const createdFixture = fixture(created, 1);
 
     const [fromHeadStream] = decodeHeadStreamEvent(
-      headRecord("INSERT", id.asString(), [created]),
+      headRecord("INSERT", id.asString(), [createdFixture]),
     );
     const [fromSpannerPubSub] = decodeSpannerPubSubMessage(
-      asSpannerPubSubMessage(created),
+      asSpannerPubSubMessage(id.asString(), createdFixture),
     );
 
     // Same decoded domain event identity across providers.
@@ -101,6 +120,8 @@ describe("RMU adapter contract", () => {
     );
     expect(fromHeadStream.aggregateId).toEqual(id.asString());
     expect(fromHeadStream.sequenceNumber).toEqual(1);
+    expect(fromHeadStream.occurredAt).toEqual(createdFixture.occurredAt);
+    expect(fromSpannerPubSub.occurredAt).toEqual(createdFixture.occurredAt);
 
     // Provider is tracked distinctly for diagnostics.
     expect(fromHeadStream.sourceProvider).toEqual("dynamodb");
@@ -124,8 +145,9 @@ describe("RMU adapter contract", () => {
 
     const inputs = decodeHeadStreamEvent({
       Records: [
-        ...headRecord("INSERT", id.asString(), [created]).Records,
-        ...headRecord("MODIFY", id.asString(), [memberAdded]).Records,
+        ...headRecord("INSERT", id.asString(), [fixture(created, 1)]).Records,
+        ...headRecord("MODIFY", id.asString(), [fixture(memberAdded, 2)])
+          .Records,
       ],
     } as unknown as DynamoDBStreamEvent);
 
@@ -151,11 +173,12 @@ describe("RMU adapter contract", () => {
     const [, renamed] = unwrap(
       gc1.rename(GroupChatName.of("renamed"), adminId),
     );
+    const createdFixture = fixture(created, 1);
 
     const streamEvent = headRecord("MODIFY", id.asString(), [
-      renamed,
-      created,
-      memberAdded,
+      fixture(renamed, 3),
+      createdFixture,
+      fixture(memberAdded, 2),
     ]);
     const image = streamEvent.Records[0].dynamodb?.NewImage;
     image?.events?.L?.reverse();
@@ -164,21 +187,22 @@ describe("RMU adapter contract", () => {
 
     expect(inputs.map((input) => input.sequenceNumber)).toEqual([1, 2, 3]);
     expect(inputs[2].event.typeName).toEqual("GroupChatRenamed");
-    expect(inputs[0].occurredAt).toEqual(created.occurredAt);
+    expect(inputs[0].occurredAt).toEqual(createdFixture.occurredAt);
   });
 
   test("skips __config__, other aggregate types and REMOVE records", () => {
     const id = GroupChatId.generate();
     const adminId = UserAccountId.generate();
     const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const createdFixture = fixture(created, 1);
 
-    const config = headRecord("INSERT", "__config__", [created]);
+    const config = headRecord("INSERT", "__config__", [createdFixture]);
     const foreign = headRecord(
       "INSERT",
       "UserAccount-01H42K4ABWQ5V2XQEP3A48VE0Z",
-      [created],
+      [createdFixture],
     );
-    const removed = headRecord("REMOVE", id.asString(), [created]);
+    const removed = headRecord("REMOVE", id.asString(), [createdFixture]);
     removed.Records[0].dynamodb = undefined;
 
     const inputs = decodeHeadStreamEvent({
@@ -200,7 +224,7 @@ describe("RMU adapter contract", () => {
       );
 
       const [input] = decodeHeadStreamEvent(
-        headRecord("INSERT", id.asString(), [created], encoding),
+        headRecord("INSERT", id.asString(), [fixture(created, 1)], encoding),
       );
 
       if (input.event.typeName !== "GroupChatCreated") {

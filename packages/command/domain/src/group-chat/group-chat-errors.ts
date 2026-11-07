@@ -5,6 +5,7 @@ export type GroupChatErrorKind =
   | "add-member"
   | "remove-member"
   | "post-message"
+  | "edit-message"
   | "delete-message"
   | "delete";
 
@@ -37,6 +38,10 @@ export namespace GroupChatError {
 
   export function postMessage(message: string): GroupChatError {
     return make("post-message", message);
+  }
+
+  export function editMessage(message: string): GroupChatError {
+    return make("edit-message", message);
   }
 
   export function deleteMessage(message: string): GroupChatError {

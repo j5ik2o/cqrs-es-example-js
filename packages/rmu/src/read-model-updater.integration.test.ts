@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
-  type GroupChatEvent,
+  GroupChatEvent,
   GroupChatId,
   GroupChatName,
   UserAccountId,
@@ -22,8 +22,24 @@ const MIGRATIONS_DIR = join(__dirname, "../../../tools/migrate/migrations");
 
 type PayloadEncoding = "raw" | "base64" | "bytes";
 
+type HeadFixture = {
+  event: GroupChatEvent;
+  seqNr: number;
+  occurredAt: Date;
+};
+
+function fixture(event: GroupChatEvent, seqNr: number): HeadFixture {
+  return {
+    event,
+    seqNr,
+    occurredAt: new Date(1_700_000_000_000 + seqNr * 1_000),
+  };
+}
+
+// ESA v5 serializes only the domain payload; metadata lives in the head event
+// envelope, so the fixture supplies seq_nr/occurred_at separately.
 function wirePayload(event: GroupChatEvent): string {
-  return JSON.stringify({ type: event.typeName, data: event });
+  return JSON.stringify(GroupChatEvent.toJSON(event));
 }
 
 function encodePayload(json: string, encoding: PayloadEncoding): string {
@@ -37,17 +53,17 @@ function encodePayload(json: string, encoding: PayloadEncoding): string {
 }
 
 function headEventAttribute(
-  event: GroupChatEvent,
+  headEvent: HeadFixture,
   encoding: PayloadEncoding,
 ): AttributeValue {
   return {
     M: {
-      seq_nr: { N: String(event.sequenceNumber) },
+      seq_nr: { N: String(headEvent.seqNr) },
       occurred_at: {
-        N: String(BigInt(event.occurredAt.getTime()) * BigInt(1_000_000)),
+        N: String(BigInt(headEvent.occurredAt.getTime()) * BigInt(1_000_000)),
       },
-      manifest: { S: event.typeName },
-      payload: { B: encodePayload(wirePayload(event), encoding) },
+      manifest: { S: `${headEvent.event.typeName}@1` },
+      payload: { B: encodePayload(wirePayload(headEvent.event), encoding) },
     },
   };
 }
@@ -55,9 +71,10 @@ function headEventAttribute(
 function asHeadStreamEvent(
   eventName: "INSERT" | "MODIFY" | "REMOVE",
   aggregateId: string,
-  events: readonly GroupChatEvent[],
+  events: readonly HeadFixture[],
   encoding: PayloadEncoding = "raw",
 ): DynamoDBStreamEvent {
+  const last = events[events.length - 1];
   const records = [
     {
       eventName,
@@ -67,11 +84,11 @@ function asHeadStreamEvent(
         NewImage: {
           aid: { S: aggregateId },
           type_name: { S: "GroupChat" },
-          seq_nr: {
-            N: String(events[events.length - 1]?.sequenceNumber ?? 0),
-          },
+          seq_nr: { N: String(last?.seqNr ?? 0) },
           events: {
-            L: events.map((event) => headEventAttribute(event, encoding)),
+            L: events.map((headEvent) =>
+              headEventAttribute(headEvent, encoding),
+            ),
           },
         },
       },
@@ -104,14 +121,17 @@ class FakeJournalReader implements JournalReader {
   }
 }
 
-function journalEvent(event: GroupChatEvent): JournalEvent {
+function journalEvent(
+  aggregateId: string,
+  headEvent: HeadFixture,
+): JournalEvent {
   return {
-    aggregateId: event.aggregateId.asString(),
-    seqNr: event.sequenceNumber,
-    occurredAt: event.occurredAt,
-    manifest: event.typeName,
-    payload: new TextEncoder().encode(wirePayload(event)),
-    event,
+    aggregateId,
+    seqNr: headEvent.seqNr,
+    occurredAt: headEvent.occurredAt,
+    manifest: `${headEvent.event.typeName}@1`,
+    payload: new TextEncoder().encode(wirePayload(headEvent.event)),
+    event: headEvent.event,
   };
 }
 
@@ -159,20 +179,20 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     async () => {
       const db = requirePrisma(prisma);
       const updater = updaterOf(db, new FakeJournalReader([]));
-      const fixture = newFixture();
+      const f = newFixture();
 
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("INSERT", fixture.aggregateId, [fixture.created]),
+        asHeadStreamEvent("INSERT", f.aggregateId, [f.created]),
       );
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.memberAdded]),
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.memberAdded]),
       );
 
       const groupChat = await db.groupChats.findUnique({
-        where: { id: fixture.aggregateId },
+        where: { id: f.aggregateId },
       });
       expect(groupChat?.name).toEqual("name");
-      expect(groupChat?.ownerId).toEqual(fixture.adminId.asString());
+      expect(groupChat?.ownerId).toEqual(f.adminId.asString());
       // The created_at must be a sane date (regression: a millis stream
       // timestamp was multiplied by 1000 into the year 58379).
       const year = groupChat?.createdAt.getUTCFullYear() ?? 0;
@@ -180,10 +200,10 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
       expect(year).toBeLessThanOrEqual(2100);
 
       const members = await db.members.findMany({
-        where: { groupChatId: fixture.aggregateId },
+        where: { groupChatId: f.aggregateId },
       });
       expect(members.length).toEqual(2);
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(2);
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
     },
     TIMEOUT,
   );
@@ -193,28 +213,28 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     async () => {
       const db = requirePrisma(prisma);
       const updater = updaterOf(db, new FakeJournalReader([]));
-      const fixture = newFixture();
-      const batch = [fixture.created, fixture.memberAdded, fixture.renamed];
+      const f = newFixture();
+      const batch = [f.created, f.memberAdded, f.renamed];
 
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("INSERT", fixture.aggregateId, batch),
+        asHeadStreamEvent("INSERT", f.aggregateId, batch),
       );
       // Replaying the same head record simulates a duplicate delivery.
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, batch),
+        asHeadStreamEvent("MODIFY", f.aggregateId, batch),
       );
       // A stale record that arrives after a newer one must be dropped.
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.created]),
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.created]),
       );
 
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(3);
+      expect(await positionOf(db, f.aggregateId)).toEqual(3);
       const groupChat = await db.groupChats.findUnique({
-        where: { id: fixture.aggregateId },
+        where: { id: f.aggregateId },
       });
       expect(groupChat?.name).toEqual("renamed");
       const members = await db.members.findMany({
-        where: { groupChatId: fixture.aggregateId },
+        where: { groupChatId: f.aggregateId },
       });
       expect(members.length).toEqual(2);
     },
@@ -225,30 +245,30 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     "fills a sequence gap from the journal",
     async () => {
       const db = requirePrisma(prisma);
-      const fixture = newFixture();
+      const f = newFixture();
       const journal = new FakeJournalReader([
-        journalEvent(fixture.created),
-        journalEvent(fixture.memberAdded),
-        journalEvent(fixture.renamed),
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+        journalEvent(f.aggregateId, f.renamed),
       ]);
       const updater = updaterOf(db, journal);
 
       // The head record for seq_nr 3 arrives without 1 and 2.
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.renamed]),
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.renamed]),
       );
 
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(3);
+      expect(await positionOf(db, f.aggregateId)).toEqual(3);
       const groupChat = await db.groupChats.findUnique({
-        where: { id: fixture.aggregateId },
+        where: { id: f.aggregateId },
       });
       expect(groupChat?.name).toEqual("renamed");
       const members = await db.members.findMany({
-        where: { groupChatId: fixture.aggregateId },
+        where: { groupChatId: f.aggregateId },
       });
       expect(members.length).toEqual(2);
       expect(journal.calls).toEqual([
-        { aggregateId: fixture.aggregateId, fromSeqNr: 1, toSeqNr: 2 },
+        { aggregateId: f.aggregateId, fromSeqNr: 1, toSeqNr: 2 },
       ]);
     },
     TIMEOUT,
@@ -258,29 +278,27 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     "applies out-of-order head events without duplicating",
     async () => {
       const db = requirePrisma(prisma);
-      const fixture = newFixture();
+      const f = newFixture();
       const journal = new FakeJournalReader([
-        journalEvent(fixture.created),
-        journalEvent(fixture.memberAdded),
-        journalEvent(fixture.renamed),
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+        journalEvent(f.aggregateId, f.renamed),
       ]);
       const updater = updaterOf(db, journal);
 
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.renamed]),
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.renamed]),
       );
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("INSERT", fixture.aggregateId, [fixture.created]),
+        asHeadStreamEvent("INSERT", f.aggregateId, [f.created]),
       );
 
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(3);
+      expect(await positionOf(db, f.aggregateId)).toEqual(3);
       expect(
-        await db.groupChats.count({ where: { id: fixture.aggregateId } }),
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
       ).toEqual(1);
       expect(
-        await db.members.count({
-          where: { groupChatId: fixture.aggregateId },
-        }),
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
       ).toEqual(2);
     },
     TIMEOUT,
@@ -290,42 +308,35 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     "commits the events before a failing record and keeps its position",
     async () => {
       const db = requirePrisma(prisma);
-      const fixture = newFixture();
+      const f = newFixture();
       // The journal has no seq_nr 2, so the head record for seq_nr 3 fails
       // after the seq_nr 1 record has committed.
       const updater = updaterOf(
         db,
-        new FakeJournalReader([journalEvent(fixture.created)]),
+        new FakeJournalReader([journalEvent(f.aggregateId, f.created)]),
       );
 
       await expect(
         updater.updateFromHeadStream(
-          asHeadStreamEvent("MODIFY", fixture.aggregateId, [
-            fixture.created,
-            fixture.renamed,
-          ]),
+          asHeadStreamEvent("MODIFY", f.aggregateId, [f.created, f.renamed]),
         ),
       ).rejects.toThrow("Journal is missing seq_nr 2..2");
 
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(1);
+      expect(await positionOf(db, f.aggregateId)).toEqual(1);
       expect(
-        await db.groupChats.count({ where: { id: fixture.aggregateId } }),
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
       ).toEqual(1);
       expect(
-        await db.members.count({
-          where: { groupChatId: fixture.aggregateId },
-        }),
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
       ).toEqual(1);
 
       // Retrying the failed position with the now-available event succeeds.
       await updater.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, [fixture.memberAdded]),
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.memberAdded]),
       );
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(2);
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
       expect(
-        await db.members.count({
-          where: { groupChatId: fixture.aggregateId },
-        }),
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
       ).toEqual(2);
     },
     TIMEOUT,
@@ -335,34 +346,29 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     "resumes from the committed position after a restart",
     async () => {
       const db = requirePrisma(prisma);
-      const fixture = newFixture();
+      const f = newFixture();
       const journal = new FakeJournalReader([
-        journalEvent(fixture.created),
-        journalEvent(fixture.memberAdded),
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
       ]);
 
       const first = updaterOf(db, journal);
       await first.updateFromHeadStream(
-        asHeadStreamEvent("INSERT", fixture.aggregateId, [fixture.created]),
+        asHeadStreamEvent("INSERT", f.aggregateId, [f.created]),
       );
 
       // A new process starts from the beginning of the retained stream.
       const restarted = updaterOf(db, journal);
       await restarted.updateFromHeadStream(
-        asHeadStreamEvent("MODIFY", fixture.aggregateId, [
-          fixture.created,
-          fixture.memberAdded,
-        ]),
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.created, f.memberAdded]),
       );
 
-      expect(await positionOf(db, fixture.aggregateId)).toEqual(2);
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
       expect(
-        await db.groupChats.count({ where: { id: fixture.aggregateId } }),
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
       ).toEqual(1);
       expect(
-        await db.members.count({
-          where: { groupChatId: fixture.aggregateId },
-        }),
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
       ).toEqual(2);
     },
     TIMEOUT,
@@ -373,20 +379,16 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     async () => {
       const db = requirePrisma(prisma);
       const updater = updaterOf(db, new FakeJournalReader([]));
-      const fixture = newFixture();
+      const f = newFixture();
       const groupChatsBefore = await db.groupChats.count();
       const positionsBefore = await db.readModelPositions.count();
-      const config = asHeadStreamEvent("INSERT", "__config__", [
-        fixture.created,
-      ]);
+      const config = asHeadStreamEvent("INSERT", "__config__", [f.created]);
       const foreign = asHeadStreamEvent(
         "INSERT",
         "UserAccount-01H42K4ABWQ5V2XQEP3A48VE0Z",
-        [fixture.created],
+        [f.created],
       );
-      const removed = asHeadStreamEvent("REMOVE", fixture.aggregateId, [
-        fixture.created,
-      ]);
+      const removed = asHeadStreamEvent("REMOVE", f.aggregateId, [f.created]);
       removed.Records[0].dynamodb = undefined;
 
       await updater.updateFromHeadStream({
@@ -427,9 +429,9 @@ async function positionOf(
 type Fixture = {
   aggregateId: string;
   adminId: UserAccountId;
-  created: GroupChatEvent;
-  memberAdded: GroupChatEvent;
-  renamed: GroupChatEvent;
+  created: HeadFixture;
+  memberAdded: HeadFixture;
+  renamed: HeadFixture;
 };
 
 function newFixture(): Fixture {
@@ -446,9 +448,9 @@ function newFixture(): Fixture {
   return {
     aggregateId: id.asString(),
     adminId,
-    created,
-    memberAdded,
-    renamed,
+    created: fixture(created, 1),
+    memberAdded: fixture(memberAdded, 2),
+    renamed: fixture(renamed, 3),
   };
 }
 

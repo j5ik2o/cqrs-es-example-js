@@ -5,7 +5,7 @@ import type {
 } from "@aws-sdk/client-dynamodb";
 import {
   GroupChat,
-  type GroupChatEvent,
+  GroupChatEvent,
   GroupChatId,
   GroupChatName,
   UserAccountId,
@@ -31,19 +31,27 @@ class FakeDynamoDBQueryClient implements DynamoDBQueryClient {
   }
 }
 
+// ESA v5 serializes only the domain payload; metadata lives in the journal
+// columns, so the fixture supplies aid/seq_nr/occurred_at separately.
 function wirePayload(event: GroupChatEvent): string {
-  return JSON.stringify({ type: event.typeName, data: event });
+  return JSON.stringify(GroupChatEvent.toJSON(event));
+}
+
+function occurredAtOf(seqNr: number): Date {
+  return new Date(1_700_000_000_000 + seqNr * 1_000);
 }
 
 function journalItem(
+  aggregateId: string,
   event: GroupChatEvent,
-  manifest: string = event.typeName,
+  seqNr: number,
+  manifest = `${event.typeName}@1`,
 ): Record<string, AttributeValue> {
   return {
-    aid: { S: event.aggregateId.asString() },
-    seq_nr: { N: String(event.sequenceNumber) },
+    aid: { S: aggregateId },
+    seq_nr: { N: String(seqNr) },
     occurred_at: {
-      N: String(BigInt(event.occurredAt.getTime()) * BigInt(1_000_000)),
+      N: String(BigInt(occurredAtOf(seqNr).getTime()) * BigInt(1_000_000)),
     },
     manifest: { S: manifest },
     payload: { B: new TextEncoder().encode(wirePayload(event)) },
@@ -61,7 +69,10 @@ function page(
   };
 }
 
-function eventsOf(count: number): GroupChatEvent[] {
+function eventsOf(count: number): {
+  aggregateId: string;
+  events: GroupChatEvent[];
+} {
   const id = GroupChatId.generate();
   const adminId = UserAccountId.generate();
   const [gc0, created] = GroupChat.create(
@@ -78,22 +89,22 @@ function eventsOf(count: number): GroupChatEvent[] {
     events.push(event);
     current = next;
   }
-  return events;
+  return { aggregateId: id.asString(), events };
 }
 
 describe("DynamoDBJournalReader", () => {
   test("reads the requested range with strong consistency in ascending order", async () => {
-    const events = eventsOf(3);
+    const { aggregateId, events } = eventsOf(3);
     const client = new FakeDynamoDBQueryClient([
-      page(events.map((event) => journalItem(event))),
+      page(
+        events.map((event, index) =>
+          journalItem(aggregateId, event, index + 1),
+        ),
+      ),
     ]);
     const reader = JournalReader.createDynamoDB(client, "journal");
 
-    const result = await reader.readEvents(
-      events[0].aggregateId.asString(),
-      1,
-      3,
-    );
+    const result = await reader.readEvents(aggregateId, 1, 3);
 
     expect(result.map((event) => event.seqNr)).toEqual([1, 2, 3]);
     expect(result.map((event) => event.event.typeName)).toEqual([
@@ -101,8 +112,8 @@ describe("DynamoDBJournalReader", () => {
       "GroupChatRenamed",
       "GroupChatRenamed",
     ]);
-    expect(result[0].occurredAt).toEqual(events[0].occurredAt);
-    expect(result[0].manifest).toEqual("GroupChatCreated");
+    expect(result[0].occurredAt).toEqual(occurredAtOf(1));
+    expect(result[0].manifest).toEqual("GroupChatCreated@1");
 
     const input = client.commands[0].input;
     expect(input.TableName).toEqual("journal");
@@ -112,44 +123,45 @@ describe("DynamoDBJournalReader", () => {
       "aid = :aid AND seq_nr BETWEEN :fromSeqNr AND :toSeqNr",
     );
     expect(input.ExpressionAttributeValues).toEqual({
-      ":aid": { S: events[0].aggregateId.asString() },
+      ":aid": { S: aggregateId },
       ":fromSeqNr": { N: "1" },
       ":toSeqNr": { N: "3" },
     });
   });
 
   test("follows LastEvaluatedKey until the range is exhausted", async () => {
-    const events = eventsOf(3);
+    const { aggregateId, events } = eventsOf(3);
     const client = new FakeDynamoDBQueryClient([
       page(
-        events.slice(0, 2).map((event) => journalItem(event)),
-        { aid: { S: events[0].aggregateId.asString() }, seq_nr: { N: "2" } },
+        events
+          .slice(0, 2)
+          .map((event, index) => journalItem(aggregateId, event, index + 1)),
+        { aid: { S: aggregateId }, seq_nr: { N: "2" } },
       ),
-      page([journalItem(events[2])]),
+      page([journalItem(aggregateId, events[2], 3)]),
     ]);
     const reader = JournalReader.createDynamoDB(client, "journal");
 
-    const result = await reader.readEvents(
-      events[0].aggregateId.asString(),
-      1,
-      3,
-    );
+    const result = await reader.readEvents(aggregateId, 1, 3);
 
     expect(result.map((event) => event.seqNr)).toEqual([1, 2, 3]);
     expect(client.commands).toHaveLength(2);
     expect(client.commands[1].input.ExclusiveStartKey).toEqual({
-      aid: { S: events[0].aggregateId.asString() },
+      aid: { S: aggregateId },
       seq_nr: { N: "2" },
     });
   });
 
   test("uses the manifest when the payload omits the type discriminator", async () => {
-    const events = eventsOf(1);
+    const { aggregateId, events } = eventsOf(1);
     const event = events[0];
-    const item = journalItem(event, `${event.typeName}@1`);
-    const payload = JSON.parse(wirePayload(event));
+    const item = journalItem(aggregateId, event, 1, `${event.typeName}@1`);
+    const payload = JSON.parse(wirePayload(event)) as Record<string, unknown>;
+    const payloadWithoutType = Object.fromEntries(
+      Object.entries(payload).filter(([key]) => key !== "typeName"),
+    );
     item.payload = {
-      B: new TextEncoder().encode(JSON.stringify(payload.data)),
+      B: new TextEncoder().encode(JSON.stringify(payloadWithoutType)),
     };
 
     const decoded = journalEventFromItem(item);
