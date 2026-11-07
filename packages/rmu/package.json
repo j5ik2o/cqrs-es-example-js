@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.413.0",
+    "@aws-sdk/client-sqs": "^3.413.0",
     "@prisma/client": "^6.0.0",
     "aws-lambda": "^1.0.7",
     "aws-sdk": "^2.1459.0",

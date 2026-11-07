@@ -1,5 +1,5 @@
 import { convertJSONToGroupChatEvent } from "cqrs-es-example-js-command-domain";
-import type { ReadModelUpdaterInput } from "./read-model-updater-input";
+import type { ReadModelInput } from "./read-model-updater-input";
 
 /**
  * Minimal Spanner Pub/Sub message shape (provider-SDK-free). `data` is the base64
@@ -24,39 +24,50 @@ export type SpannerPubSubMessage = {
  */
 function decodeSpannerPubSubMessage(
   spannerPubSubMessage: SpannerPubSubMessage,
-): ReadModelUpdaterInput[] {
-  const spannerPubSubPayload = JSON.parse(
-    Buffer.from(spannerPubSubMessage.data, "base64").toString("utf-8"),
-  );
-  const spannerPubSubAttributes = spannerPubSubMessage.attributes ?? {};
-  const aggregateId = spannerPubSubAttributes.aggregateId;
+): ReadModelInput[] {
+  const attributes = spannerPubSubMessage.attributes ?? {};
+  const aggregateId = attributes.aggregateId;
   if (aggregateId === undefined || aggregateId === "") {
     throw new Error("Invalid Spanner Pub/Sub message: missing aggregateId");
   }
-  const sequenceNumber = parseSequenceNumber(
-    spannerPubSubAttributes.sequenceNumber,
-  );
-  const commitTimestamp = spannerPubSubAttributes.commitTimestamp;
-  const groupChatEvent = convertJSONToGroupChatEvent(
-    attachManifestType(
-      spannerPubSubPayload,
-      spannerPubSubAttributes.manifest ?? "",
-    ),
-  );
+  const sequenceNumber = parseSequenceNumber(attributes.sequenceNumber);
+  const commitTimestamp = attributes.commitTimestamp;
   const observedAt = parseSpannerPubSubObservedAt(
     commitTimestamp ?? spannerPubSubMessage.publishTime,
   );
-  return [
-    {
-      event: groupChatEvent,
-      aggregateId,
-      sequenceNumber,
-      sourceProvider: "spanner",
-      observedAt,
-      occurredAt: commitTimestamp === undefined ? undefined : observedAt,
-      position: commitTimestamp ?? spannerPubSubMessage.messageId,
-    },
-  ];
+  const envelope = {
+    aggregateId,
+    sequenceNumber,
+    sourceProvider: "spanner" as const,
+    observedAt,
+    occurredAt: commitTimestamp === undefined ? undefined : observedAt,
+    manifest: attributes.manifest,
+    position: commitTimestamp ?? spannerPubSubMessage.messageId,
+    recordIdentifier: spannerPubSubMessage.messageId,
+  };
+  try {
+    const payload = JSON.parse(
+      Buffer.from(spannerPubSubMessage.data, "base64").toString("utf-8"),
+    );
+    const event = convertJSONToGroupChatEvent(
+      attachManifestType(payload, attributes.manifest ?? ""),
+    );
+    return [{ kind: "event", ...envelope, event }];
+  } catch (error) {
+    // Attributes still identify the journal event, so recovery can re-read the
+    // authoritative payload instead of losing the message.
+    return [
+      {
+        kind: "decode-failure",
+        ...envelope,
+        errorMessage: errorMessageOf(error),
+      },
+    ];
+  }
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function parseSequenceNumber(value: string | undefined): number {

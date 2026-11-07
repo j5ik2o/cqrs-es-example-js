@@ -17,6 +17,12 @@ export type RmuRuntimeConfig = {
   recoveryBatchSize: number;
   headTableName: string;
   journalTableName: string;
+  /** SQS queue that receives identity-only dead-letter notifications. */
+  deadLetterQueueUrl?: string;
+  /** Set only for a FIFO queue. */
+  deadLetterMessageGroupId?: string;
+  sqsRegion?: string;
+  sqsEndpointUrl?: string;
 };
 
 const DEFAULT_STREAM_RETRY_POLICY: RetryPolicy = Object.freeze({
@@ -93,7 +99,18 @@ export function loadRmuRuntimeConfig(
     ),
     headTableName: env.STREAM_HEAD_TABLE_NAME ?? "head",
     journalTableName: env.STREAM_JOURNAL_TABLE_NAME ?? "journal",
+    deadLetterQueueUrl: optionalValue(env.RMU_DEAD_LETTER_QUEUE_URL),
+    deadLetterMessageGroupId: optionalValue(
+      env.RMU_DEAD_LETTER_MESSAGE_GROUP_ID,
+    ),
+    sqsRegion:
+      optionalValue(env.RMU_DEAD_LETTER_QUEUE_REGION) ?? env.AWS_REGION,
+    sqsEndpointUrl: optionalValue(env.AWS_SQS_ENDPOINT_URL),
   };
+}
+
+function optionalValue(value: string | undefined): string | undefined {
+  return value === undefined || value === "" ? undefined : value;
 }
 
 function integerFromEnv(

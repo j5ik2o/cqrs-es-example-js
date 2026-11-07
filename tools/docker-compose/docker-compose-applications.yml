@@ -49,6 +49,11 @@ services:
       RMU_PROJECTION_NAME: group-chat-read-model
       RMU_PROJECTION_VERSION: "1"
       STREAM_POLL_INTERVAL_MS: 200
+      # Optional SQS dead-letter notifications. Empty disables publishing; the
+      # MySQL recovery task is authoritative either way.
+      RMU_DEAD_LETTER_QUEUE_URL: ${RMU_DEAD_LETTER_QUEUE_URL:-}
+      RMU_DEAD_LETTER_MESSAGE_GROUP_ID: ${RMU_DEAD_LETTER_MESSAGE_GROUP_ID:-}
+      AWS_SQS_ENDPOINT_URL: ${AWS_SQS_ENDPOINT_URL:-}
       DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
     depends_on:
       localstack:

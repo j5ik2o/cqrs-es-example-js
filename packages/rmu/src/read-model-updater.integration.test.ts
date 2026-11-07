@@ -17,6 +17,7 @@ import {
 import { DeadLetterStore } from "./dead-letter-store";
 import { GroupChatDao } from "./group-chat-dao";
 import type { JournalEvent, JournalReader } from "./journal-reader";
+import { DeadLetterRecovery } from "./recovery";
 import { ReadModelUpdater } from "./update-read-model";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../tools/migrate/migrations");
@@ -538,7 +539,79 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
     },
     TIMEOUT,
   );
+
+  test(
+    "persists an undecodable payload and recovers it from the journal",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const store = DeadLetterStore.createSql(db);
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+      ]);
+      const updater = ReadModelUpdater.create(
+        GroupChatDao.create(db),
+        journal,
+        {
+          deadLetters: store,
+          storeId: "test-store",
+          projectionName: "group-chat-read-model",
+          projectionVersion: "1",
+        },
+      );
+      const head = asHeadStreamEvent("MODIFY", f.aggregateId, [
+        f.created,
+        f.memberAdded,
+      ]);
+      corruptLastPayload(head);
+
+      const result = await updater.updateFromHeadStream(head, {
+        reportBatchItemFailures: true,
+      });
+
+      expect(result).toEqual({
+        batchItemFailures: [{ itemIdentifier: "1" }],
+      });
+      // seq_nr 1 applied; the undecodable seq_nr 2 holds the position.
+      expect(await positionOf(db, f.aggregateId)).toEqual(1);
+      const saved = (await store.list(100, "group-chat-read-model")).find(
+        (candidate) => candidate.aggregateId === f.aggregateId,
+      );
+      expect(saved).toMatchObject({
+        storeId: "test-store",
+        aggregateId: f.aggregateId,
+        seqNr: 2,
+        failureType: "payload-decode",
+        attempts: 1,
+      });
+
+      const recovery = DeadLetterRecovery.create(updater, journal, store, {
+        projectionName: "group-chat-read-model",
+      });
+      expect(await recovery.recoverAll()).toMatchObject({
+        recovered: 1,
+        failed: 0,
+      });
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+      expect(
+        (await store.list(100, "group-chat-read-model")).filter(
+          (candidate) => candidate.aggregateId === f.aggregateId,
+        ),
+      ).toEqual([]);
+    },
+    TIMEOUT,
+  );
 });
+
+function corruptLastPayload(streamEvent: DynamoDBStreamEvent): void {
+  const events = streamEvent.Records[0].dynamodb?.NewImage?.events?.L;
+  const last = events?.[events.length - 1];
+  if (last?.M === undefined) {
+    throw new Error("expected a head event");
+  }
+  last.M.payload = { B: "{not-json" };
+}
 
 function requirePrisma(prisma: PrismaClient | undefined): PrismaClient {
   if (prisma === undefined) {

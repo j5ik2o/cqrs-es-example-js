@@ -1,15 +1,22 @@
 import type { DynamoDBStreamEvent } from "aws-lambda";
 import { applyReadModel } from "./apply-read-model";
+import type { DeadLetterNotifier } from "./dead-letter-notifier";
 import type { DeadLetterRecord, DeadLetterStore } from "./dead-letter-store";
 import { decodeHeadStreamEvent } from "./dynamodb-adapter";
 import {
   DeadLetterWriteError,
   JournalGapError,
+  PayloadDecodeError,
   classifyFailure,
 } from "./failures";
 import type { GroupChatDao } from "./group-chat-dao";
 import type { JournalEvent, JournalReader } from "./journal-reader";
-import type { ReadModelUpdaterInput } from "./read-model-updater-input";
+import {
+  type ReadModelDecodeFailure,
+  type ReadModelInput,
+  type ReadModelUpdaterInput,
+  isDecodeFailure,
+} from "./read-model-updater-input";
 import {
   DEFAULT_RETRY_POLICY,
   RetryExhaustedError,
@@ -26,6 +33,12 @@ export type ReadModelUpdaterOptions = {
   retry?: RetryPolicy;
   /** When set, exhausted permanent failures become durable recovery tasks. */
   deadLetters?: DeadLetterStore;
+  /**
+   * Best-effort notification of a persisted recovery task (for example SQS).
+   * The durable task is authoritative; a notify failure never changes delivery.
+   */
+  notifier?: DeadLetterNotifier;
+  onNotificationError?: (error: unknown, record: DeadLetterRecord) => void;
   storeId?: string;
   projectionName?: string;
   projectionVersion?: string;
@@ -66,9 +79,9 @@ export type ReadModelUpdater = {
     spannerPubSubMessage: SpannerPubSubMessage,
     options?: ApplyOptions,
   ): Promise<BatchResult | undefined>;
-  /** Provider-neutral path. */
+  /** Provider-neutral path. Decode failures are dead-lettered, not applied. */
   apply(
-    inputs: readonly ReadModelUpdaterInput[],
+    inputs: readonly ReadModelInput[],
     options?: ApplyOptions,
   ): Promise<BatchResult | undefined>;
   /**
@@ -91,6 +104,7 @@ export namespace ReadModelUpdater {
     const random = options.random ?? Math.random;
     const now = options.now ?? (() => new Date());
     const deadLetters = options.deadLetters;
+    const notifier = options.notifier;
     const projection = {
       storeId: options.storeId ?? DEFAULT_STORE_ID,
       projectionName: options.projectionName ?? DEFAULT_PROJECTION_NAME,
@@ -112,7 +126,7 @@ export namespace ReadModelUpdater {
     }
 
     async function apply(
-      inputs: readonly ReadModelUpdaterInput[],
+      inputs: readonly ReadModelInput[],
       applyOptions: ApplyOptions = {},
     ): Promise<BatchResult | undefined> {
       const failedIdentifiers = new Set<string>();
@@ -124,6 +138,15 @@ export namespace ReadModelUpdater {
           // Its predecessor has not been applied, so this event must not be
           // committed either. Leave it for a later delivery.
           failedIdentifiers.add(identifier);
+          continue;
+        }
+        if (isDecodeFailure(input)) {
+          if (await recordDecodeFailure(input)) {
+            // Already projected by a normal delivery or an earlier recovery.
+            continue;
+          }
+          failedIdentifiers.add(identifier);
+          blockedAggregates.add(input.aggregateId);
           continue;
         }
         try {
@@ -141,18 +164,19 @@ export namespace ReadModelUpdater {
           if (deadLetters === undefined) {
             throw error;
           }
-          const record = deadLetterRecordFor(
-            input,
-            error,
-            classification.type,
-            projection,
-            now(),
+          await notify(
+            await persistDeadLetter(
+              deadLetters,
+              deadLetterRecordFor(
+                input,
+                error,
+                classification.type,
+                projection,
+                now(),
+              ),
+              error,
+            ),
           );
-          try {
-            await deadLetters.save(record);
-          } catch (deadLetterError) {
-            throw new DeadLetterWriteError(error, deadLetterError);
-          }
           failedIdentifiers.add(identifier);
           blockedAggregates.add(input.aggregateId);
         }
@@ -166,6 +190,69 @@ export namespace ReadModelUpdater {
         };
       }
       return undefined;
+    }
+
+    /**
+     * Persists a recovery task for an undecodable payload. Returns true when the
+     * event is already at or behind the committed position, so a stale duplicate
+     * (for example the head record retried after recovery) is not dead-lettered
+     * again. Returns false when a new task was recorded and the aggregate must
+     * stop advancing.
+     */
+    async function recordDecodeFailure(
+      input: ReadModelDecodeFailure,
+    ): Promise<boolean> {
+      const position = await dao.getPosition(input.aggregateId);
+      if (input.sequenceNumber <= position) {
+        return true;
+      }
+      const originalError = new PayloadDecodeError(
+        input.aggregateId,
+        input.sequenceNumber,
+        input.errorMessage,
+      );
+      if (deadLetters === undefined) {
+        // Without a durable task the event cannot be safely skipped, so fail
+        // the delivery and let the provider retry it.
+        throw originalError;
+      }
+      await notify(
+        await persistDeadLetter(
+          deadLetters,
+          decodeFailureRecordFor(input, projection, now()),
+          originalError,
+        ),
+      );
+      return false;
+    }
+
+    async function persistDeadLetter(
+      store: DeadLetterStore,
+      record: DeadLetterRecord,
+      originalError: unknown,
+    ): Promise<DeadLetterRecord> {
+      try {
+        await store.save(record);
+        return record;
+      } catch (deadLetterError) {
+        throw new DeadLetterWriteError(originalError, deadLetterError);
+      }
+    }
+
+    /**
+     * A notification is an accelerator, not the durable record: the recovery
+     * task in MySQL stays authoritative, so a transport failure is reported to
+     * the caller's hook and never retried into the delivery loop.
+     */
+    async function notify(record: DeadLetterRecord): Promise<void> {
+      if (notifier === undefined) {
+        return;
+      }
+      try {
+        await notifier.notify(record);
+      } catch (error) {
+        options.onNotificationError?.(error, record);
+      }
     }
 
     return Object.freeze({
@@ -231,6 +318,7 @@ function journalEventToInput(
   journalEvent: JournalEvent,
 ): ReadModelUpdaterInput {
   return {
+    kind: "event",
     event: journalEvent.event,
     aggregateId: journalEvent.aggregateId,
     sequenceNumber: journalEvent.seqNr,
@@ -263,7 +351,7 @@ function assertContiguous(
   }
 }
 
-function identifierOf(input: ReadModelUpdaterInput): string {
+function identifierOf(input: ReadModelInput): string {
   return (
     input.recordIdentifier ?? `${input.aggregateId}#${input.sequenceNumber}`
   );
@@ -289,6 +377,31 @@ function deadLetterRecordFor(
     failureType,
     errorMessage: errorMessageOf(error.lastError),
     attempts: error.attempts,
+    occurredAt: input.occurredAt,
+    manifest: input.manifest,
+    recordIdentifier: input.recordIdentifier,
+    createdAt,
+  };
+}
+
+function decodeFailureRecordFor(
+  input: ReadModelDecodeFailure,
+  projection: {
+    storeId: string;
+    projectionName: string;
+    projectionVersion: string;
+  },
+  createdAt: Date,
+): DeadLetterRecord {
+  return {
+    storeId: projection.storeId,
+    projectionName: projection.projectionName,
+    projectionVersion: projection.projectionVersion,
+    aggregateId: input.aggregateId,
+    seqNr: input.sequenceNumber,
+    failureType: "payload-decode",
+    errorMessage: input.errorMessage,
+    attempts: 1,
     occurredAt: input.occurredAt,
     manifest: input.manifest,
     recordIdentifier: input.recordIdentifier,

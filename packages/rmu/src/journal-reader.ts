@@ -8,6 +8,7 @@ import {
   type GroupChatEvent,
   convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
+import { PayloadDecodeError } from "./failures";
 
 const decoder = new TextDecoder("utf-8");
 
@@ -102,15 +103,37 @@ function journalEventFromItem(
   );
   const manifest = item.manifest?.S ?? "";
   const payload = payloadBytes(item.payload, aggregateId);
-  const json = parseJSONBytes(payload, aggregateId);
   return {
     aggregateId,
     seqNr,
     occurredAt,
     manifest,
     payload,
-    event: convertJSONToGroupChatEvent(attachManifestType(json, manifest)),
+    event: decodeEvent(payload, manifest, aggregateId, seqNr),
   };
+}
+
+/**
+ * A journal payload that cannot be decoded is classified as a payload-decode
+ * failure, so a gap fill or recovery dead-letters it instead of retrying bytes
+ * that will not change.
+ */
+function decodeEvent(
+  payload: Uint8Array,
+  manifest: string,
+  aggregateId: string,
+  seqNr: number,
+): GroupChatEvent {
+  try {
+    const json = parseJSONBytes(payload, aggregateId);
+    return convertJSONToGroupChatEvent(attachManifestType(json, manifest));
+  } catch (error) {
+    throw new PayloadDecodeError(
+      aggregateId,
+      seqNr,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 }
 
 function attachManifestType(json: unknown, manifest: string): unknown {
