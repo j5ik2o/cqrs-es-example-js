@@ -25,16 +25,35 @@ export type DeadLetterConsumer = {
   consume(body: string): Promise<DeadLetterConsumeOutcome>;
 };
 
+export type DeadLetterConsumerOptions = {
+  /**
+   * Reject messages for another projection that shares the database. The
+   * worker is built for one read model; recovering another projection's task
+   * would apply it to the wrong tables.
+   */
+  projectionName?: string;
+};
+
 export namespace DeadLetterConsumer {
   export function create(
     recovery: DeadLetterRecovery,
     deadLetters: DeadLetterStore,
+    options: DeadLetterConsumerOptions = {},
   ): DeadLetterConsumer {
     return Object.freeze({
       async consume(body: string): Promise<DeadLetterConsumeOutcome> {
         const parsed = parseMessage(body);
         if (!parsed.ok) {
           return { status: "invalid", reason: parsed.reason };
+        }
+        if (
+          options.projectionName !== undefined &&
+          parsed.message.projectionName !== options.projectionName
+        ) {
+          return {
+            status: "invalid",
+            reason: `message projection ${parsed.message.projectionName} does not match ${options.projectionName}`,
+          };
         }
         const record = await deadLetters.find(
           parsed.message.projectionName,

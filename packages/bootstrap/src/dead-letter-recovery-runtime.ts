@@ -46,7 +46,9 @@ export function createDeadLetterRecoveryRuntime(
     },
   );
   return {
-    consumer: DeadLetterConsumer.create(recovery, deadLetters),
+    consumer: DeadLetterConsumer.create(recovery, deadLetters, {
+      projectionName: config.projectionName,
+    }),
     recovery,
   };
 }

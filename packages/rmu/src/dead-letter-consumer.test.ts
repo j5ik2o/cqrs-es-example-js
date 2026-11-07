@@ -155,6 +155,21 @@ describe("dead-letter consumer", () => {
     ).toMatchObject({ status: "invalid" });
   });
 
+  test("rejects a notification for another projection", async () => {
+    const store = new MemoryDeadLetterStore();
+    await store.save(RECORD);
+    const recovery = new FakeRecovery(store);
+    const consumer = DeadLetterConsumer.create(recovery, store, {
+      projectionName: "another-projection",
+    });
+
+    const outcome = await consumer.consume(notificationBody(RECORD));
+
+    expect(outcome).toMatchObject({ status: "invalid" });
+    expect(recovery.recovered).toEqual([]);
+    expect(await store.count()).toBe(1);
+  });
+
   test("reports a recovery failure so the queue can redeliver", async () => {
     const store = new MemoryDeadLetterStore();
     await store.save(RECORD);
