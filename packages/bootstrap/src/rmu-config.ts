@@ -82,8 +82,15 @@ export function loadRmuRuntimeConfig(
       "STREAM_RETENTION_MS",
       24 * 60 * 60 * 1000,
     ),
-    maxItemCount: integerFromEnv(env, "STREAM_MAX_ITEM_COUNT", 32),
-    recoveryBatchSize: integerFromEnv(env, "RMU_RECOVERY_BATCH_SIZE", 100),
+    maxItemCount: clamp(
+      integerFromEnv(env, "STREAM_MAX_ITEM_COUNT", 32),
+      1,
+      1000,
+    ),
+    recoveryBatchSize: Math.max(
+      1,
+      integerFromEnv(env, "RMU_RECOVERY_BATCH_SIZE", 100),
+    ),
     headTableName: env.STREAM_HEAD_TABLE_NAME ?? "head",
     journalTableName: env.STREAM_JOURNAL_TABLE_NAME ?? "journal",
   };
@@ -95,6 +102,10 @@ function integerFromEnv(
   fallback: number,
 ): number {
   return Math.trunc(numberFromEnv(env, name, fallback));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function numberFromEnv(

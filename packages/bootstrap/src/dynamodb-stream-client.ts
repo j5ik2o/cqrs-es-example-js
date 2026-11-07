@@ -77,7 +77,7 @@ export function createDynamoDBStreamClient(
       const output = await client.send(
         new GetRecordsCommand({
           ShardIterator: iterator,
-          Limit: limit,
+          Limit: Math.min(1000, Math.max(1, Math.trunc(limit))),
         }),
       );
       const records = (output.Records ?? []).map(toDescriptor);
