@@ -31,7 +31,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "event-store-adapter-js": "3.1.0",
+    "event-store-adapter-js": "5.2.0",
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "ulidx": "^2.3.0",

@@ -5,8 +5,6 @@ import {
   GroupChatId,
   GroupChatName,
   UserAccountId,
-  convertJSONToGroupChat,
-  convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
 import { EventStore, type Result } from "event-store-adapter-js";
 import {
@@ -17,10 +15,15 @@ import {
 } from "testcontainers";
 import {
   createDynamoDBClient,
+  createHeadTable,
   createJournalTable,
   createSnapshotTable,
 } from "../../test/dynamodb-utils";
 import { GroupChatRepository } from "./group-chat-repository";
+import {
+  groupChatEventSerializer,
+  groupChatSnapshotSerializer,
+} from "./group-chat-serializers";
 
 function ok<T>(result: Result<T, { message: string }>): T {
   if (result.type === "err") {
@@ -37,32 +40,35 @@ describe("GroupChatRepository", () => {
 
   let container: TestContainer;
   let startedContainer: StartedTestContainer;
-  let eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent>;
+  let eventStore: EventStore<GroupChatEvent, GroupChat>;
 
   const JOURNAL_TABLE_NAME = "journal";
   const SNAPSHOT_TABLE_NAME = "snapshot";
-  const JOURNAL_AID_INDEX_NAME = "journal-aid-index";
-  const SNAPSHOT_AID_INDEX_NAME = "snapshot-aid-index";
-  const SNAPSHOT_ACTIVE_TTL_INDEX_NAME = "snapshot-active-ttl-index";
+  const HEAD_TABLE_NAME = "head";
+  const SNAPSHOT_HISTORY_INDEX_NAME = "snapshot-history-index";
 
-  function createEventStore(
+  async function createEventStore(
     dynamodbClient: DynamoDBClient,
-  ): EventStore<GroupChatId, GroupChat, GroupChatEvent> {
-    return EventStore.createDynamoDB<GroupChatId, GroupChat, GroupChatEvent>({
+  ): Promise<EventStore<GroupChatEvent, GroupChat>> {
+    const result = await EventStore.createDynamoDB<GroupChatEvent, GroupChat>({
       client: dynamodbClient,
-      journalTableName: JOURNAL_TABLE_NAME,
-      snapshotTableName: SNAPSHOT_TABLE_NAME,
-      journalAidIndexName: JOURNAL_AID_INDEX_NAME,
-      snapshotAidIndexName: SNAPSHOT_AID_INDEX_NAME,
-      snapshotActiveTtlIndexName: SNAPSHOT_ACTIVE_TTL_INDEX_NAME,
-      shardCount: 32,
-      eventConverter: convertJSONToGroupChatEvent,
-      snapshotConverter: convertJSONToGroupChat,
+      tables: {
+        journal: JOURNAL_TABLE_NAME,
+        snapshot: SNAPSHOT_TABLE_NAME,
+        head: HEAD_TABLE_NAME,
+      },
+      snapshotAidIndexName: SNAPSHOT_HISTORY_INDEX_NAME,
+      eventSerializer: groupChatEventSerializer,
+      snapshotSerializer: groupChatSnapshotSerializer,
     });
+    if (result.type === "err") {
+      throw new Error(`${result.error.type}: ${result.error.message}`);
+    }
+    return result.value;
   }
 
   beforeAll(async () => {
-    container = new GenericContainer("localstack/localstack:2.1.0")
+    container = new GenericContainer("localstack/localstack:2.3.2")
       .withEnvironment({
         SERVICES: "dynamodb",
         DEFAULT_REGION: "us-west-1",
@@ -74,18 +80,14 @@ describe("GroupChatRepository", () => {
       .withExposedPorts(4566);
     startedContainer = await container.start();
     const dynamodbClient = createDynamoDBClient(startedContainer);
-    await createJournalTable(
-      dynamodbClient,
-      JOURNAL_TABLE_NAME,
-      JOURNAL_AID_INDEX_NAME,
-    );
+    await createJournalTable(dynamodbClient, JOURNAL_TABLE_NAME);
     await createSnapshotTable(
       dynamodbClient,
       SNAPSHOT_TABLE_NAME,
-      SNAPSHOT_AID_INDEX_NAME,
-      SNAPSHOT_ACTIVE_TTL_INDEX_NAME,
+      SNAPSHOT_HISTORY_INDEX_NAME,
     );
-    eventStore = createEventStore(dynamodbClient);
+    await createHeadTable(dynamodbClient, HEAD_TABLE_NAME);
+    eventStore = await createEventStore(dynamodbClient);
   }, TIMEOUT);
 
   afterAll(async () => {
