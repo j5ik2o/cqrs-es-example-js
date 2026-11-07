@@ -22,6 +22,8 @@ import type { ReadModelUpdaterInput } from "./read-model-updater-input";
 import { DeadLetterRecovery } from "./recovery";
 import { RetryExhaustedError, type RetryPolicy } from "./retry";
 import {
+  type ShardIteratorPosition,
+  type StreamRecordDescriptor,
   needsFullResynchronization,
   processStream,
   resynchronizeFromHead,
@@ -698,6 +700,99 @@ describe("resynchronization", () => {
     expect(persisted).toEqual(1);
     expect(result.stoppedOnFailure).toBe(true);
     expect(result.processedRecords).toEqual(2);
+  });
+
+  test("keeps a failed shard's position and continues the other shards", async () => {
+    const now = new Date("2026-11-07T12:00:00Z");
+    const pages = new Map<string, readonly ReturnType<typeof streamRecord>[]>([
+      ["shard-1|trim|0", [streamRecord("s1-1"), streamRecord("s1-2")]],
+      ["shard-1|trim|1", []],
+      ["shard-2|trim|0", [streamRecord("s2-1")]],
+      ["shard-2|trim|1", []],
+      ["shard-2|after:s2-1|0", []],
+    ]);
+    const iteratorCalls: Array<{
+      shardId: string;
+      position: string;
+    }> = [];
+    const persisted: string[][] = [];
+    let failShard1 = true;
+
+    const client = {
+      listShards: async () => [{ shardId: "shard-1" }, { shardId: "shard-2" }],
+      getShardIterator: async (
+        shardId: string,
+        position: ShardIteratorPosition,
+      ) => {
+        const label =
+          position.type === "trim-horizon"
+            ? "trim"
+            : `after:${position.sequenceNumber}`;
+        iteratorCalls.push({ shardId, position: label });
+        return `${shardId}|${label}|0`;
+      },
+      getRecords: async (iterator: string) => {
+        const nextIterator = iterator.replace(
+          /\|(\d+)$/,
+          (_, page: string) => `|${Number(page) + 1}`,
+        );
+        return {
+          records: pages.get(iterator) ?? [],
+          nextIterator,
+        };
+      },
+    };
+
+    async function persist(
+      records: readonly StreamRecordDescriptor[],
+    ): Promise<{ failed: boolean }> {
+      const sequenceNumbers = records.map((record) => record.sequenceNumber);
+      persisted.push(sequenceNumbers);
+      return {
+        failed:
+          failShard1 &&
+          sequenceNumbers.some((sequenceNumber) =>
+            sequenceNumber.startsWith("s1-"),
+          ),
+      };
+    }
+
+    const first = await processStream({
+      client,
+      resynchronize: async () => undefined,
+      persist,
+      lastProcessedAt: now,
+      now: () => now,
+    });
+
+    expect(first.stoppedOnFailure).toBe(true);
+    expect(first.reachedEnd).toBe(false);
+    expect(persisted).toEqual([["s1-1", "s1-2"], ["s2-1"]]);
+    expect(first.lastSequenceNumbers).toEqual({ "shard-2": "s2-1" });
+
+    failShard1 = false;
+    const second = await processStream({
+      client,
+      resynchronize: async () => undefined,
+      persist,
+      lastProcessedAt: first.lastProcessedAt,
+      startAfter: first.lastSequenceNumbers,
+      now: () => now,
+    });
+
+    expect(second.stoppedOnFailure).toBe(false);
+    expect(second.lastSequenceNumbers).toEqual({
+      "shard-1": "s1-2",
+      "shard-2": "s2-1",
+    });
+    expect(iteratorCalls).toContainEqual({
+      shardId: "shard-1",
+      position: "trim",
+    });
+    expect(iteratorCalls).toContainEqual({
+      shardId: "shard-2",
+      position: "after:s2-1",
+    });
   });
 });
 

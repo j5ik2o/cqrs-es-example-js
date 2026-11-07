@@ -101,9 +101,19 @@ print(json.dumps({
 }))
 PY
 
-DEAD_LETTER_OPTION=()
+# The failure destination belongs to the event source mapping, not to the
+# function's asynchronous invocation config. The application dead-letter table
+# is the primary recovery path; this destination is only the provider-level
+# safety net. Leave the retry count unset (infinite) unless recovery is ready.
+ESM_FAILURE_OPTIONS=()
 if [ -n "${LAMBDA_DEAD_LETTER_ARN}" ]; then
-  DEAD_LETTER_OPTION=(--dead-letter-config "TargetArn=${LAMBDA_DEAD_LETTER_ARN}")
+  ESM_FAILURE_OPTIONS+=(
+    --destination-config
+    "{\"OnFailure\":{\"Destination\":\"${LAMBDA_DEAD_LETTER_ARN}\"}}"
+  )
+fi
+if [ -n "${LAMBDA_MAX_RETRY_ATTEMPTS:-}" ]; then
+  ESM_FAILURE_OPTIONS+=(--maximum-retry-attempts "${LAMBDA_MAX_RETRY_ATTEMPTS}")
 fi
 
 create_or_update_function() {
@@ -126,7 +136,6 @@ create_or_update_function() {
       --timeout 120 \
       --memory-size 512 \
       --environment "file://${ENV_FILE}" \
-      ${DEAD_LETTER_OPTION[@]+"${DEAD_LETTER_OPTION[@]}"} \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}"
   else
@@ -140,7 +149,6 @@ create_or_update_function() {
       --environment "file://${ENV_FILE}" \
       --timeout 120 \
       --memory-size 512 \
-      ${DEAD_LETTER_OPTION[@]+"${DEAD_LETTER_OPTION[@]}"} \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}"
   fi
@@ -197,6 +205,7 @@ create_event_source_mapping() {
       --starting-position TRIM_HORIZON \
       --bisect-batch-on-function-error \
       --function-response-types ReportBatchItemFailures \
+      ${ESM_FAILURE_OPTIONS[@]+"${ESM_FAILURE_OPTIONS[@]}"} \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}" 2>&1) && break
     echo "Waiting for DynamoDB stream to become available (attempt ${i}/30)..." >&2

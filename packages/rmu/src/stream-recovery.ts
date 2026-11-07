@@ -230,8 +230,10 @@ export async function processStream(
     }
 
     if (stoppedOnFailure) {
+      // Keep the failed shard's last successful checkpoint and let the other
+      // shards run. Breaking here would starve them on every pass.
       reachedEnd = false;
-      break;
+      continue;
     }
   }
 
