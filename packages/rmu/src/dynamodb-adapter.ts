@@ -20,6 +20,12 @@ function decodeDynamoDBStreamEvent(
       continue;
     }
     const dynamodbStreamImage = dynamodbStreamRecord.dynamodb?.NewImage;
+    // The v5 store writes its configuration item into the journal table too.
+    // Journal Streams stay enabled until the RMU moves to the head Streams
+    // (#828), so this reserved item must never be decoded as a domain event.
+    if (dynamodbStreamImage?.aid?.S === "__config__") {
+      continue;
+    }
     const rawPayload = dynamodbStreamImage?.payload?.B;
     if (rawPayload === undefined) {
       throw new Error(
