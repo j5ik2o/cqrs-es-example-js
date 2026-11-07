@@ -21,9 +21,12 @@ services:
       AWS_DYNAMODB_ACCESS_KEY_ID: x
       AWS_DYNAMODB_SECRET_ACCESS_KEY: x
     depends_on:
-      - localstack
-      - dynamodb-admin
-      - dynamodb-setup
+      localstack:
+        condition: service_started
+      dynamodb-admin:
+        condition: service_started
+      dynamodb-setup:
+        condition: service_completed_successfully
   dynamodb-read-model-updater-1:
     command: [ "dynamodbLocalRmu" ]
     image: cqrs-es-example-js:latest
@@ -45,9 +48,12 @@ services:
       STREAM_MAX_ITEM_COUNT: 32
       DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
     depends_on:
-      - localstack
-      - dynamodb-admin
-      - dynamodb-setup
+      localstack:
+        condition: service_started
+      dynamodb-admin:
+        condition: service_started
+      dynamodb-setup:
+        condition: service_completed_successfully
     # restart: on-failure
   read-api-server-1:
     command: [ "readApi" ]

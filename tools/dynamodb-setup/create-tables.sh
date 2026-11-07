@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # shellcheck disable=SC2046
 cd $(dirname "$0") && pwd
 
@@ -38,6 +40,17 @@ echo "SNAPSHOT_HISTORY_INDEX_NAME = ${SNAPSHOT_HISTORY_INDEX_NAME}"
 if [ "${ENV_NAME}" = "dev" ]; then
   # shellcheck disable=SC2034
   ENDPOINT_URL_OPTION=" --endpoint-url http://${DYNAMODB_ENDPOINT} "
+
+  # Wait for LocalStack to accept DynamoDB requests before creating tables.
+  retries=0
+  until aws dynamodb list-tables ${ENDPOINT_URL_OPTION} >/dev/null 2>&1; do
+    retries=$((retries + 1))
+    if [ "${retries}" -ge 60 ]; then
+      echo "LocalStack did not become ready at ${DYNAMODB_ENDPOINT}" >&2
+      exit 1
+    fi
+    sleep 2
+  done
 fi
 
 # ESA v5 layout: journal is keyed by aid + seq_nr and has no GSI. Its Streams
