@@ -58,17 +58,25 @@ describe("GroupChat serialization round-trip", () => {
       new Date("2026-05-30T00:00:00.000Z"),
     );
     const [g3, messagePosted] = ok(g2.postMessage(message, memberId));
-    const [g4, messageDeleted] = ok(g3.deleteMessage(message.id, memberId));
-    const [g5, memberRemoved] = ok(g4.removeMemberById(memberId, adminId));
-    const [g6, deleted] = ok(g5.delete(adminId));
+    const edited = Message.of(
+      message.id,
+      "hello-edited",
+      memberId,
+      new Date("2026-05-30T00:00:01.000Z"),
+    );
+    const [g4, messageEdited] = ok(g3.editMessage(edited, memberId));
+    const [g5, messageDeleted] = ok(g4.deleteMessage(message.id, memberId));
+    const [g6, memberRemoved] = ok(g5.removeMemberById(memberId, adminId));
+    const [g7, deleted] = ok(g6.delete(adminId));
     return {
       id,
-      snapshot: g6,
+      snapshot: g7,
       events: [
         created,
         renamed,
         memberAdded,
         messagePosted,
+        messageEdited,
         messageDeleted,
         memberRemoved,
         deleted,
