@@ -122,9 +122,9 @@ export namespace ReadModelUpdater {
     const random = options.random ?? Math.random;
     const now = options.now ?? (() => new Date());
     const deadLetters = options.deadLetters;
-    const deadLetterBatchLimit = Math.max(
-      1,
-      options.deadLetterBatchLimit ?? DEFAULT_DEAD_LETTER_BATCH_LIMIT,
+    const deadLetterBatchLimit = positiveInteger(
+      options.deadLetterBatchLimit,
+      DEFAULT_DEAD_LETTER_BATCH_LIMIT,
     );
     const notifier = options.notifier;
     const projection = {
@@ -491,6 +491,13 @@ function decodeFailureRecordFor(
     recordIdentifier: input.recordIdentifier,
     createdAt,
   };
+}
+
+function positiveInteger(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(1, Math.trunc(value));
 }
 
 function errorMessageOf(error: unknown): string {

@@ -76,7 +76,7 @@ export namespace DeadLetterRecovery {
 
     async function recoverAll(): Promise<RecoveryOutcome> {
       const records = await deadLetters.list(
-        options.batchSize ?? DEFAULT_BATCH_SIZE,
+        positiveInteger(options.batchSize, DEFAULT_BATCH_SIZE),
         options.projectionName,
       );
       let recovered = 0;
@@ -99,4 +99,11 @@ export namespace DeadLetterRecovery {
 
     return Object.freeze({ recover, recoverAll });
   }
+}
+
+function positiveInteger(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(1, Math.trunc(value));
 }
