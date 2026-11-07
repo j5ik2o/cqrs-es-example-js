@@ -12,6 +12,7 @@ export type FailureType =
   | "journal-gap"
   | "projection-gap"
   | "projection-error"
+  | "projection-blocked"
   | "payload-decode"
   | "transient";
 

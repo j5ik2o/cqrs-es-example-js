@@ -27,6 +27,7 @@ export type RecoveryFailure = {
 export type RecoveryOutcome = {
   recovered: number;
   failed: number;
+  /** Tasks still unresolved in the store after this run, beyond the batch. */
   remaining: number;
   failures: RecoveryFailure[];
 };
@@ -91,7 +92,7 @@ export namespace DeadLetterRecovery {
       return {
         recovered,
         failed: failures.length,
-        remaining: records.length - recovered,
+        remaining: await deadLetters.count(options.projectionName),
         failures,
       };
     }

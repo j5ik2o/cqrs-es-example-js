@@ -34,6 +34,12 @@ export type ReadModelUpdaterOptions = {
   /** When set, exhausted permanent failures become durable recovery tasks. */
   deadLetters?: DeadLetterStore;
   /**
+   * Maximum dead-letter rows written per aggregate in one `apply` call. The
+   * first failure is always recorded; events blocked behind it are recorded up
+   * to this limit, and the rest stay with the delivery retry. Defaults to 100.
+   */
+  deadLetterBatchLimit?: number;
+  /**
    * Best-effort notification of a persisted recovery task (for example SQS).
    * The durable task is authoritative; a notify failure never changes delivery.
    */
@@ -61,6 +67,18 @@ export type BatchResult = { batchItemFailures: BatchItemFailure[] };
 const DEFAULT_STORE_ID = "dynamodb-head";
 const DEFAULT_PROJECTION_NAME = "group-chat-read-model";
 const DEFAULT_PROJECTION_VERSION = "1";
+const DEFAULT_DEAD_LETTER_BATCH_LIMIT = 100;
+
+/**
+ * Why an aggregate stopped advancing in this batch. Later events of the same
+ * aggregate are dead-lettered as `projection-blocked` up to the per-aggregate
+ * limit, so one corrupt or unprojectable event does not hide its tail.
+ */
+type BlockedAggregate = {
+  seqNr: number;
+  failureType: DeadLetterRecord["failureType"];
+  message: string;
+};
 
 /**
  * Thin composition over the provider adapters and the shared application
@@ -104,6 +122,10 @@ export namespace ReadModelUpdater {
     const random = options.random ?? Math.random;
     const now = options.now ?? (() => new Date());
     const deadLetters = options.deadLetters;
+    const deadLetterBatchLimit = Math.max(
+      1,
+      options.deadLetterBatchLimit ?? DEFAULT_DEAD_LETTER_BATCH_LIMIT,
+    );
     const notifier = options.notifier;
     const projection = {
       storeId: options.storeId ?? DEFAULT_STORE_ID,
@@ -130,13 +152,16 @@ export namespace ReadModelUpdater {
       applyOptions: ApplyOptions = {},
     ): Promise<BatchResult | undefined> {
       const failedIdentifiers = new Set<string>();
-      const blockedAggregates = new Set<string>();
+      const blockedAggregates = new Map<string, BlockedAggregate>();
+      const deadLetterCounts = new Map<string, number>();
 
       for (const input of inputs) {
         const identifier = identifierOf(input);
-        if (blockedAggregates.has(input.aggregateId)) {
+        const blocked = blockedAggregates.get(input.aggregateId);
+        if (blocked !== undefined) {
           // Its predecessor has not been applied, so this event must not be
-          // committed either. Leave it for a later delivery.
+          // committed either. Record it (bounded) and leave it for redelivery.
+          await recordBlockedFailure(input, blocked, deadLetterCounts);
           failedIdentifiers.add(identifier);
           continue;
         }
@@ -146,7 +171,12 @@ export namespace ReadModelUpdater {
             continue;
           }
           failedIdentifiers.add(identifier);
-          blockedAggregates.add(input.aggregateId);
+          blockedAggregates.set(input.aggregateId, {
+            seqNr: input.sequenceNumber,
+            failureType: "payload-decode",
+            message: input.errorMessage,
+          });
+          deadLetterCounts.set(input.aggregateId, 1);
           continue;
         }
         try {
@@ -178,7 +208,12 @@ export namespace ReadModelUpdater {
             ),
           );
           failedIdentifiers.add(identifier);
-          blockedAggregates.add(input.aggregateId);
+          blockedAggregates.set(input.aggregateId, {
+            seqNr: input.sequenceNumber,
+            failureType: classification.type,
+            message: errorMessageOf(error.lastError),
+          });
+          deadLetterCounts.set(input.aggregateId, 1);
         }
       }
 
@@ -224,6 +259,50 @@ export namespace ReadModelUpdater {
         ),
       );
       return false;
+    }
+
+    /**
+     * Records an event that could not be considered because an earlier event of
+     * the same aggregate failed. The per-aggregate limit keeps one head image
+     * with a long tail from flooding the recovery table; the remainder stays
+     * with the provider retry and is recorded on the next delivery.
+     */
+    async function recordBlockedFailure(
+      input: ReadModelInput,
+      blocked: BlockedAggregate,
+      counts: Map<string, number>,
+    ): Promise<void> {
+      if (deadLetters === undefined) {
+        return;
+      }
+      const count = counts.get(input.aggregateId) ?? 0;
+      if (count >= deadLetterBatchLimit) {
+        return;
+      }
+      // A recovery may already have advanced past this event.
+      const position = await dao.getPosition(input.aggregateId);
+      if (input.sequenceNumber <= position) {
+        return;
+      }
+      counts.set(input.aggregateId, count + 1);
+      const message = `Blocked by seq_nr ${blocked.seqNr} (${blocked.failureType}): ${blocked.message}`;
+      const record: DeadLetterRecord = {
+        storeId: projection.storeId,
+        projectionName: projection.projectionName,
+        projectionVersion: projection.projectionVersion,
+        aggregateId: input.aggregateId,
+        seqNr: input.sequenceNumber,
+        failureType: "projection-blocked",
+        errorMessage: message,
+        attempts: 1,
+        occurredAt: input.occurredAt,
+        manifest: input.manifest,
+        recordIdentifier: input.recordIdentifier,
+        createdAt: now(),
+      };
+      await notify(
+        await persistDeadLetter(deadLetters, record, new Error(message)),
+      );
     }
 
     async function persistDeadLetter(

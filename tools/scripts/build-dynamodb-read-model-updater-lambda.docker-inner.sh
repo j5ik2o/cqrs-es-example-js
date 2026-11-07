@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Run inside Docker (linux/amd64) — invoked by build-dynamodb-read-model-updater-lambda.sh
+# Run inside Docker (linux/amd64) — invoked by the Lambda build scripts.
 #
+# LAMBDA_ENTRY selects the esbuild entry and LAMBDA_ARTIFACT selects the output
+# directory, so the RMU and the SQS dead-letter worker share one build path.
 # /workspace is a bind-mount of the host repo. To avoid overwriting host
 # node_modules with Linux-specific binaries, we copy the source tree to
 # /build and perform all work there. Only the final zip is written back
@@ -25,12 +27,15 @@ pnpm install --frozen-lockfile
 pnpm prisma:generate
 pnpm exec turbo build --filter=cqrs-es-example-js-rmu --filter=cqrs-es-example-js-bootstrap
 
-STAGE="${BUILD}/dist/lambda/dynamodb-read-model-updater/stage"
-ZIP_TMP="${BUILD}/dist/lambda/dynamodb-read-model-updater/function.zip"
+ENTRY="${LAMBDA_ENTRY:-packages/bootstrap/src/dynamodb-lambda-rmu-handler.ts}"
+ARTIFACT="${LAMBDA_ARTIFACT:-dynamodb-read-model-updater}"
+
+STAGE="${BUILD}/dist/lambda/${ARTIFACT}/stage"
+ZIP_TMP="${BUILD}/dist/lambda/${ARTIFACT}/function.zip"
 rm -rf "${STAGE}" "${ZIP_TMP}"
 mkdir -p "${STAGE}/node_modules"
 
-pnpm dlx esbuild@0.25.0 "${BUILD}/packages/bootstrap/src/dynamodb-lambda-rmu-handler.ts" \
+pnpm dlx esbuild@0.25.0 "${BUILD}/${ENTRY}" \
   --bundle \
   --platform=node \
   --target=node18 \
@@ -51,7 +56,7 @@ cd "${STAGE}"
 zip -q -r "${ZIP_TMP}" .
 
 # --- Write only the final artifact back to the host mount ---
-OUT_DIR="/workspace/dist/lambda/dynamodb-read-model-updater"
+OUT_DIR="/workspace/dist/lambda/${ARTIFACT}"
 mkdir -p "${OUT_DIR}"
 cp "${ZIP_TMP}" "${OUT_DIR}/function.zip"
 

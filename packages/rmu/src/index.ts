@@ -1,4 +1,5 @@
 export * from "./apply-read-model";
+export * from "./dead-letter-consumer";
 export * from "./dead-letter-notifier";
 export * from "./dead-letter-store";
 export * from "./dynamodb-adapter";

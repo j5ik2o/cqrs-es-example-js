@@ -12,6 +12,7 @@ The read model updater (RMU) never skips an event it cannot project. A permanent
 | `journal-gap` | The head exposed an event the journal does not contain | No | Yes |
 | `projection-gap` | The position row moved under the transaction | Yes | Yes if it persists |
 | `projection-error` | Any other permanent projection failure | Yes | Yes |
+| `projection-blocked` | An earlier event of the same aggregate failed, so this one was not applied | No | Yes, within the batch limit |
 | `payload-decode` | The storage envelope was readable, the domain payload was not | No | Yes |
 
 A dead letter stores the store id, projection name and version, aggregate id, `seq_nr`, failure type, error message, attempt count, `occurred_at`, manifest, and delivery record id. It never stores the event body. Recovery reads the authoritative payload from the journal.
@@ -29,13 +30,32 @@ The delivery loop does not read the journal for a decode failure. `recoverReadMo
 
 A stale duplicate is ignored. When the position is already at or past the failed `seq_nr`, a redelivered decode failure is skipped without writing another row, so a retry after recovery succeeds.
 
+## Batch recording and limits
+
+A head image carries every event of the aggregate, so one unprojectable event leaves a tail that cannot be applied either. The updater records the first failure, then records each blocked event as `projection-blocked` with the originating failure in `error_message`.
+
+`RMU_DEAD_LETTER_BATCH_LIMIT` (default 100) caps the rows written per aggregate in one `apply` call. The first failure is always recorded. Blocked events beyond the cap are still reported as failed and redelivered, so the next delivery records them after the position advances. The cap keeps one long head image from flooding the table.
+
+Recovery of a `projection-blocked` row is the same as any other row: it replays the journal range from the current position through the blocked `seq_nr`. Once the earlier failure is fixed and applied, the blocked rows become no-ops and are deleted.
+
+## Lambda cold-start reconciliation
+
+The local stream reader reconciles the whole head table before it starts. The Lambda handler does the same on the first invocation in a container.
+
+1. The handler scans the head table with `ConsistentRead`, following every page.
+2. It applies the decoded head events through the normal position guard. This fills each aggregate from its read-model position through the journal and drops duplicates.
+3. The scan runs once per container. A successful run is remembered; a failed run is forgotten so the next invocation retries it.
+4. Only after the scan succeeds does the handler process the stream batch.
+
+This covers an aggregate whose events were written before the event source mapping started, and a long gap beyond the Streams retention window. A scan that cannot apply an event is dead-lettered like any delivery; a transient scan failure rejects the invocation so Lambda retries it.
+
 ## Recovery task
 
 ```shell
 $ node dist/index.js recoverReadModel
 ```
 
-The task reads up to `RMU_RECOVERY_BATCH_SIZE` rows (default 100), oldest first. Running it again is safe: every apply is idempotent and the position never moves backwards. It exits non-zero when a row could not be recovered, so a scheduler can alert.
+The task reads up to `RMU_RECOVERY_BATCH_SIZE` rows (default 100), oldest first. It reports `recovered`, `failed`, and `remaining`; `remaining` is the total unresolved count after the run, not just the fetched batch. Running it again is safe: every apply is idempotent and the position never moves backwards. It exits non-zero when a row could not be recovered, so a scheduler can alert.
 
 Run it in three situations.
 
@@ -55,6 +75,9 @@ SQS is an optional accelerator. The MySQL row is the durable task; a lost, dupli
 | `RMU_DEAD_LETTER_MESSAGE_GROUP_ID` | FIFO queue group id. Leave empty for a standard queue. |
 | `RMU_DEAD_LETTER_QUEUE_REGION` | SQS region. Defaults to `AWS_REGION`. |
 | `AWS_SQS_ENDPOINT_URL` | Endpoint override. Falls back to `AWS_DYNAMODB_ENDPOINT_URL` for LocalStack. |
+| `RMU_DEAD_LETTER_CONSUME_MAX_MESSAGES` | Worker receive batch, capped at 10. |
+| `RMU_DEAD_LETTER_CONSUME_WAIT_TIME_SECONDS` | Long-poll wait, capped at 20 seconds. |
+| `RMU_DEAD_LETTER_CONSUME_VISIBILITY_TIMEOUT_SECONDS` | Delay before a failed recovery is redelivered. |
 
 Credentials use the SDK default chain in AWS. LocalStack uses `AWS_DYNAMODB_ACCESS_KEY_ID` and `AWS_DYNAMODB_SECRET_ACCESS_KEY`.
 
@@ -94,13 +117,34 @@ $ aws sqs create-queue \
 
 The notifier needs `sqs:SendMessage` on the queue ARN. With a customer-managed KMS key, add `kms:Decrypt` and `kms:GenerateDataKey`.
 
-### Consumer choices
+### Recovery worker
 
-- A scheduled job that runs `recoverReadModel` every few minutes. This is the simplest production setup and does not depend on the queue.
-- A Lambda or ECS worker that receives one message and runs `recoverReadModel`, or invokes it for the message's projection. The task is idempotent, so a redelivery is safe.
-- An alert that fires when `ApproximateNumberOfMessagesVisible` is greater than zero.
+The consumer is `packages/rmu/src/dead-letter-consumer.ts`. The message is a trigger only: the consumer loads the durable row by (projection, aggregate, `seq_nr`) and the recovery task re-reads the event body from the journal. A message whose row is already gone is acknowledged as stale. A recovery failure leaves the message for redelivery. Invalid messages are logged and acknowledged; the scheduled task still heals any row they referenced.
 
-Keep the schedule even when a queue consumer exists. The schedule is the fallback when a notification is lost.
+Two runners use the same consumer.
+
+- Lambda handler `packages/bootstrap/src/sqs-dead-letter-handler.ts`. Enable `ReportBatchItemFailures` on the event source mapping so only a failed recovery is retried.
+- CLI worker `node dist/index.js sqsDeadLetterWorker`. It long-polls the queue and leaves a failed recovery unacknowledged for the visibility timeout.
+
+Build the worker Lambda with `pnpm build-sqs-dead-letter-worker-lambda`. The zip is `dist/lambda/sqs-dead-letter-worker/function.zip`.
+
+```shell
+$ aws lambda create-function \
+    --function-name sqs-dead-letter-worker \
+    --runtime nodejs20.x --handler index.handler \
+    --role <worker role> \
+    --zip-file fileb://dist/lambda/sqs-dead-letter-worker/function.zip
+
+$ aws lambda create-event-source-mapping \
+    --function-name sqs-dead-letter-worker \
+    --event-source-arn <queue arn> \
+    --function-response-types ReportBatchItemFailures \
+    --batch-size 10
+```
+
+The worker needs `sqs:ReceiveMessage`, `sqs:DeleteMessage`, and `sqs:GetQueueAttributes` on the queue. It also needs the same head/journal read access, `read_model_dead_letters`, and database connectivity as the RMU.
+
+Keep the scheduled `recoverReadModel` even when the worker runs. The schedule is the fallback when a notification is lost.
 
 ### LocalStack
 
@@ -110,7 +154,13 @@ $ pnpm create-dead-letter-queue-localstack
 RMU_DEAD_LETTER_QUEUE_URL=http://localhost:34566/000000000000/read-model-dead-letters
 ```
 
-The local RMU and the Lambda deployment script both read the same variables.
+Start the optional local worker with:
+
+```shell
+$ docker compose --profile dead-letter-worker up sqs-dead-letter-worker-1
+```
+
+The local RMU, the worker and the Lambda deployment script all read the same variables.
 
 ## Provider-level failure destination
 
@@ -148,5 +198,6 @@ Keep both. The provider destination catches invocation-level loss; the applicati
 ## Limitations
 
 - One run processes at most `RMU_RECOVERY_BATCH_SIZE` tasks. Run it repeatedly for a large backlog.
-- Within one batch, only the first failure of an aggregate is dead-lettered; later events are reported as failed and redelivered. A later event that arrives in another batch gets its own row. Recovery of `seq_nr N` heals its row, and the provider retry or the next head image applies `N+1` and later. A head image always contains the full event list, so any later write to the aggregate re-delivers the range.
+- Within one batch, the first failure and blocked events are dead-lettered up to a total of `RMU_DEAD_LETTER_BATCH_LIMIT` rows per aggregate. Events beyond the cap are reported as failed and redelivered, then recorded on a later delivery. Recovery of `seq_nr N` heals its row, and the provider retry or the next head image applies `N+1` and later. A head image always contains the full event list, so any later write to the aggregate re-delivers the range.
+- The Lambda cold-start scan reads the whole head table with strong consistency. Its time and memory grow with the table size, so size the function timeout and memory for the largest expected table.
 - The recovery task does not repair the journal. It replays what the journal contains.

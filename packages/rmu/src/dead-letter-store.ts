@@ -26,6 +26,14 @@ export type DeadLetterStore = {
   save(record: DeadLetterRecord): Promise<void>;
   /** Lists recovery tasks, optionally limited to one projection. */
   list(limit: number, projectionName?: string): Promise<DeadLetterRecord[]>;
+  /** The task for one event identity, or undefined when it was already solved. */
+  find(
+    projectionName: string,
+    aggregateId: string,
+    seqNr: number,
+  ): Promise<DeadLetterRecord | undefined>;
+  /** Number of unresolved recovery tasks, for reporting after a batch. */
+  count(projectionName?: string): Promise<number>;
   delete(record: DeadLetterRecord): Promise<void>;
 };
 
@@ -38,6 +46,11 @@ export type SqlClient = Pick<
   PrismaClient,
   "$executeRawUnsafe" | "$queryRawUnsafe"
 >;
+
+const SELECT_COLUMNS = `SELECT projection_name, projection_version, store_id,
+          aggregate_id, seq_nr, failure_type, error_message, attempts,
+          occurred_at, manifest, record_identifier, created_at
+     FROM read_model_dead_letters`;
 
 type DeadLetterRow = {
   projection_name: string;
@@ -93,20 +106,16 @@ export namespace DeadLetterStore {
         limit: number,
         projectionName?: string,
       ): Promise<DeadLetterRecord[]> {
-        const select = `SELECT projection_name, projection_version, store_id,
-                  aggregate_id, seq_nr, failure_type, error_message, attempts,
-                  occurred_at, manifest, record_identifier, created_at
-             FROM read_model_dead_letters`;
         const rows =
           projectionName === undefined
             ? await client.$queryRawUnsafe<DeadLetterRow[]>(
-                `${select}
+                `${SELECT_COLUMNS}
             ORDER BY created_at ASC
             LIMIT ?`,
                 limit,
               )
             : await client.$queryRawUnsafe<DeadLetterRow[]>(
-                `${select}
+                `${SELECT_COLUMNS}
             WHERE projection_name = ?
             ORDER BY created_at ASC
             LIMIT ?`,
@@ -114,6 +123,36 @@ export namespace DeadLetterStore {
                 limit,
               );
         return rows.map(rowToRecord);
+      },
+
+      async find(
+        projectionName: string,
+        aggregateId: string,
+        seqNr: number,
+      ): Promise<DeadLetterRecord | undefined> {
+        const rows = await client.$queryRawUnsafe<DeadLetterRow[]>(
+          `${SELECT_COLUMNS}
+            WHERE projection_name = ? AND aggregate_id = ? AND seq_nr = ?
+            LIMIT 1`,
+          projectionName,
+          aggregateId,
+          seqNr,
+        );
+        return rows[0] === undefined ? undefined : rowToRecord(rows[0]);
+      },
+
+      async count(projectionName?: string): Promise<number> {
+        const rows =
+          projectionName === undefined
+            ? await client.$queryRawUnsafe<{ total: number | bigint }[]>(
+                "SELECT COUNT(*) AS total FROM read_model_dead_letters",
+              )
+            : await client.$queryRawUnsafe<{ total: number | bigint }[]>(
+                `SELECT COUNT(*) AS total FROM read_model_dead_letters
+                  WHERE projection_name = ?`,
+                projectionName,
+              );
+        return Number(rows[0]?.total ?? 0);
       },
 
       async delete(record: DeadLetterRecord): Promise<void> {

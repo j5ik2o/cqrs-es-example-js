@@ -48,6 +48,7 @@ services:
       RMU_STORE_ID: dynamodb-head
       RMU_PROJECTION_NAME: group-chat-read-model
       RMU_PROJECTION_VERSION: "1"
+      RMU_DEAD_LETTER_BATCH_LIMIT: ${RMU_DEAD_LETTER_BATCH_LIMIT:-100}
       STREAM_POLL_INTERVAL_MS: 200
       # Optional SQS dead-letter notifications. Empty disables publishing; the
       # MySQL recovery task is authoritative either way.
@@ -86,3 +87,38 @@ services:
         condition: service_started
       dynamodb-read-model-updater-1:
         condition: service_started
+
+  # Optional SQS recovery worker. Start it explicitly with:
+  #   docker compose --profile dead-letter-worker up sqs-dead-letter-worker-1
+  # RMU_DEAD_LETTER_QUEUE_URL must point at the queue created by
+  # `pnpm create-dead-letter-queue-localstack`.
+  sqs-dead-letter-worker-1:
+    command: [ "sqsDeadLetterWorker" ]
+    image: cqrs-es-example-js:latest
+    container_name: sqs-dead-letter-worker-js-1
+    profiles: [ "dead-letter-worker" ]
+    environment:
+      AWS_REGION: ap-northeast-1
+      AWS_REGION_NAME: ap-northeast-1
+      AWS_DYNAMODB_ENDPOINT_URL: http://localstack:4566
+      AWS_DYNAMODB_ACCESS_KEY_ID: x
+      AWS_DYNAMODB_SECRET_ACCESS_KEY: x
+      STREAM_JOURNAL_TABLE_NAME: journal
+      RMU_STORE_ID: dynamodb-head
+      RMU_PROJECTION_NAME: group-chat-read-model
+      RMU_PROJECTION_VERSION: "1"
+      RMU_RECOVERY_BATCH_SIZE: ${RMU_RECOVERY_BATCH_SIZE:-100}
+      RMU_DEAD_LETTER_QUEUE_URL: ${RMU_DEAD_LETTER_QUEUE_URL:-}
+      RMU_DEAD_LETTER_CONSUME_MAX_MESSAGES: ${RMU_DEAD_LETTER_CONSUME_MAX_MESSAGES:-10}
+      RMU_DEAD_LETTER_CONSUME_WAIT_TIME_SECONDS: ${RMU_DEAD_LETTER_CONSUME_WAIT_TIME_SECONDS:-20}
+      RMU_DEAD_LETTER_CONSUME_VISIBILITY_TIMEOUT_SECONDS: ${RMU_DEAD_LETTER_CONSUME_VISIBILITY_TIMEOUT_SECONDS:-60}
+      DATABASE_URL: mysql://ceer:ceer@mysql-local:3306/ceer
+    depends_on:
+      localstack:
+        condition: service_started
+      dynamodb-setup:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully

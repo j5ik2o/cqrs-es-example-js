@@ -274,6 +274,22 @@ class MemoryDeadLetterStore implements DeadLetterStore {
       .slice(0, limit);
   }
 
+  async find(
+    projectionName: string,
+    aggregateId: string,
+    seqNr: number,
+  ): Promise<DeadLetterRecord | undefined> {
+    return this.records.get(`${projectionName}:${aggregateId}:${seqNr}`);
+  }
+
+  async count(projectionName?: string): Promise<number> {
+    return [...this.records.values()].filter(
+      (record) =>
+        projectionName === undefined ||
+        record.projectionName === projectionName,
+    ).length;
+  }
+
   async delete(record: DeadLetterRecord): Promise<void> {
     this.records.delete(keyOf(record));
   }
@@ -303,6 +319,7 @@ function updaterOf(
   extra: {
     notifier?: DeadLetterNotifier;
     onNotificationError?: (error: unknown, record: DeadLetterRecord) => void;
+    deadLetterBatchLimit?: number;
   } = {},
 ): ReadModelUpdater {
   return ReadModelUpdater.create(dao, journal, {
@@ -481,7 +498,13 @@ describe("batch handling", () => {
       ],
     });
     expect(await dao.getPosition(fixture.aggregateId)).toEqual(1);
-    expect(await deadLetters.list(10)).toHaveLength(1);
+    const records = await deadLetters.list(10);
+    expect(records.map((record) => [record.seqNr, record.failureType])).toEqual(
+      [
+        [2, "projection-error"],
+        [3, "projection-blocked"],
+      ],
+    );
   });
 
   test("dead-letters a journal gap without retrying it", async () => {
@@ -512,6 +535,137 @@ describe("batch handling", () => {
     expect(record?.attempts).toEqual(1);
     expect(sleeps).toEqual([]);
     expect(await dao.getPosition(fixture.aggregateId)).toEqual(0);
+  });
+
+  test("records every blocked event up to the per-aggregate limit", async () => {
+    const fixture = newFixture(5);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    dao.fail(fixture.aggregateId, 2, new Error("bad event"), 10);
+    const updater = updaterOf(dao, new MemoryJournalReader([]), deadLetters);
+
+    const result = await updater.updateFromHeadStream(
+      headStream(headImageWithEvents(fixture, [1, 2, 3, 4, 5]), "record-1"),
+      { reportBatchItemFailures: true },
+    );
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-1" }],
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(1);
+    expect(
+      (await deadLetters.list(10)).map((record) => [
+        record.seqNr,
+        record.failureType,
+      ]),
+    ).toEqual([
+      [2, "projection-error"],
+      [3, "projection-blocked"],
+      [4, "projection-blocked"],
+      [5, "projection-blocked"],
+    ]);
+  });
+
+  test("caps blocked dead letters per aggregate per batch", async () => {
+    const fixture = newFixture(5);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    dao.fail(fixture.aggregateId, 2, new Error("bad event"), 10);
+    const updater = updaterOf(
+      dao,
+      new MemoryJournalReader([]),
+      deadLetters,
+      FAST_RETRY,
+      { deadLetterBatchLimit: 2 },
+    );
+
+    const result = await updater.updateFromHeadStream(
+      headStream(headImageWithEvents(fixture, [1, 2, 3, 4, 5]), "record-1"),
+      { reportBatchItemFailures: true },
+    );
+
+    expect(result).toEqual({
+      batchItemFailures: [{ itemIdentifier: "record-1" }],
+    });
+    expect((await deadLetters.list(10)).map((record) => record.seqNr)).toEqual([
+      2, 3,
+    ]);
+  });
+
+  test("does not record a blocked event after recovery advances the position", async () => {
+    const fixture = newFixture(3);
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    const journal = new MemoryJournalReader([
+      journalEventOf(fixture, 1),
+      journalEventOf(fixture, 2),
+      journalEventOf(fixture, 3),
+    ]);
+    dao.fail(fixture.aggregateId, 2, new Error("bad event"), 10);
+    const updater = updaterOf(dao, journal, deadLetters);
+    const image = headImageWithEvents(fixture, [1, 2, 3]);
+
+    await updater.updateFromHeadStream(headStream(image, "record-1"), {
+      reportBatchItemFailures: true,
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(1);
+    expect((await deadLetters.list(10)).map((record) => record.seqNr)).toEqual([
+      2, 3,
+    ]);
+
+    dao.clearFailures();
+    const recovery = DeadLetterRecovery.create(updater, journal, deadLetters);
+    expect(await recovery.recoverAll()).toMatchObject({
+      recovered: 2,
+      failed: 0,
+    });
+    expect(await dao.getPosition(fixture.aggregateId)).toEqual(3);
+    expect(await deadLetters.list(10)).toEqual([]);
+
+    const replay = await updater.updateFromHeadStream(
+      headStream(image, "record-1"),
+      { reportBatchItemFailures: true },
+    );
+    expect(replay).toEqual({ batchItemFailures: [] });
+    expect(await deadLetters.list(10)).toEqual([]);
+    expect(dao.applied.map((event) => event.seqNr)).toEqual([1, 2, 3]);
+  });
+
+  test("limits recovery to the configured batch size", async () => {
+    const fixtures = [newFixture(1), newFixture(1), newFixture(1)];
+    const dao = new MemoryGroupChatDao();
+    const deadLetters = new MemoryDeadLetterStore();
+    const journal = new MemoryJournalReader(
+      fixtures.map((fixture) => journalEventOf(fixture, 1)),
+    );
+    const updater = updaterOf(dao, journal, deadLetters);
+    for (const fixture of fixtures) {
+      dao.fail(fixture.aggregateId, 1, new Error("bad event"), 10);
+    }
+    for (const fixture of fixtures) {
+      await updater.apply([inputOf(fixture, 1)], {
+        reportBatchItemFailures: true,
+      });
+    }
+    expect(await deadLetters.list(10)).toHaveLength(3);
+
+    dao.clearFailures();
+    const recovery = DeadLetterRecovery.create(updater, journal, deadLetters, {
+      batchSize: 2,
+    });
+
+    expect(await recovery.recoverAll()).toMatchObject({
+      recovered: 2,
+      failed: 0,
+      remaining: 1,
+    });
+    expect(await deadLetters.list(10)).toHaveLength(1);
+    expect(await recovery.recoverAll()).toMatchObject({
+      recovered: 1,
+      failed: 0,
+      remaining: 0,
+    });
+    expect(await deadLetters.list(10)).toEqual([]);
   });
 });
 
@@ -604,12 +758,16 @@ describe("payload decode failures", () => {
     expect(await dao.getPosition(fixture.aggregateId)).toEqual(0);
     expect(dao.applied).toEqual([]);
     const records = await deadLetters.list(10);
-    expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({
-      aggregateId: fixture.aggregateId,
-      seqNr: 2,
-      failureType: "payload-decode",
-    });
+    expect(
+      records.map((record) => [
+        record.aggregateId,
+        record.seqNr,
+        record.failureType,
+      ]),
+    ).toEqual([
+      [fixture.aggregateId, 2, "payload-decode"],
+      [fixture.aggregateId, 3, "projection-blocked"],
+    ]);
   });
 
   test("keeps the task when the journal payload is also undecodable", async () => {

@@ -20,7 +20,7 @@
 - [x] Read Model Updater on Local
 - [x] Docker Compose Support
 - [x] Read Model Updater on AWS Lambda（LocalStack 向けビルド／デプロイと `common.env`。詳細は [ビルドとテスト](./docs/BUILD_AND_TEST.ja.md)）
-- [x] RMU の復旧（再試行の上限、DLQ からの復旧、payload の復号失敗、head の再同期、任意の SQS 通知）
+- [x] RMU の復旧（再試行の上限、DLQ からの復旧、payload の復号失敗と上限つきの止まったイベント記録、Lambda の起動時照合、head の再同期、任意の SQS 通知と SQS 復旧ワーカー）
 - [ ] Deployment to AWS
 
 ## 概要
