@@ -9,6 +9,7 @@ export * from "./head-scanner";
 export * from "./journal-reader";
 export * from "./recovery";
 export * from "./retry";
+export * from "./sequence-number";
 export * from "./spanner-pubsub-adapter";
 export * from "./read-model-updater-input";
 export * from "./stream-recovery";

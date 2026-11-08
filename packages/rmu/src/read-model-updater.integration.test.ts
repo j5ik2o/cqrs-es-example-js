@@ -7,6 +7,10 @@ import {
   GroupChatEvent,
   GroupChatId,
   GroupChatName,
+  Member,
+  MemberId,
+  Message,
+  MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import {
@@ -18,6 +22,11 @@ import { DeadLetterStore } from "./dead-letter-store";
 import { GroupChatDao } from "./group-chat-dao";
 import type { JournalEvent, JournalReader } from "./journal-reader";
 import { DeadLetterRecovery } from "./recovery";
+import {
+  MAX_SEQUENCE_NUMBER,
+  SequenceNumberOutOfRangeError,
+  fromBigIntSequenceNumber,
+} from "./sequence-number";
 import { ReadModelUpdater } from "./update-read-model";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../tools/migrate/migrations");
@@ -168,8 +177,10 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
       .filter((file) => file.endsWith(".up.sql"))
       .sort();
     for (const file of migrations) {
-      const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf-8");
-      await prisma.$executeRawUnsafe(sql);
+      await applyMigration(
+        prisma,
+        readFileSync(join(MIGRATIONS_DIR, file), "utf-8"),
+      );
     }
   }, TIMEOUT);
 
@@ -481,6 +492,130 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
   );
 
   test(
+    "stores sequence numbers beyond INT and up to the T-9 limit in every table",
+    async () => {
+      const db = requirePrisma(prisma);
+      const dao = GroupChatDao.create(db);
+      const at = new Date("2026-11-08T10:00:00Z");
+
+      for (const value of [2147483648, 9007199254740990, MAX_SEQUENCE_NUMBER]) {
+        // Start one below the value under test so the DAO accepts it as the
+        // next event and advances the position and the read model together.
+        const groupChatId = GroupChatId.generate();
+        const administrator = Member.of(
+          MemberId.generate(),
+          UserAccountId.generate(),
+          "administrator",
+        );
+        await db.readModelPositions.create({
+          data: {
+            aggregateId: groupChatId.asString(),
+            lastProcessedSequenceNumber: BigInt(value - 1),
+          },
+        });
+        await dao.insertGroupChat(
+          groupChatId,
+          GroupChatName.of("bigint"),
+          administrator,
+          at,
+          value,
+        );
+
+        // A message lives in its own aggregate; the group chat row satisfies
+        // the messages foreign key.
+        const messageAggregateId = GroupChatId.generate();
+        const senderId = UserAccountId.generate();
+        await db.groupChats.create({
+          data: {
+            id: messageAggregateId.asString(),
+            disabled: false,
+            name: "bigint",
+            ownerId: senderId.asString(),
+            lastProcessedSequenceNumber: BigInt(1),
+            createdAt: at,
+            updatedAt: at,
+          },
+        });
+        await db.readModelPositions.create({
+          data: {
+            aggregateId: messageAggregateId.asString(),
+            lastProcessedSequenceNumber: BigInt(value - 1),
+          },
+        });
+        await dao.insertMessage(
+          messageAggregateId,
+          Message.of(MessageId.generate(), "hello", senderId, at),
+          at,
+          value,
+        );
+
+        const position = requireRow(
+          await db.readModelPositions.findUnique({
+            where: { aggregateId: groupChatId.asString() },
+          }),
+          "read_model_positions",
+        );
+        const groupChat = requireRow(
+          await db.groupChats.findUnique({
+            where: { id: groupChatId.asString() },
+          }),
+          "group_chats",
+        );
+        const member = requireRow(
+          await db.members.findFirst({
+            where: { groupChatId: groupChatId.asString() },
+          }),
+          "members",
+        );
+        const message = requireRow(
+          await db.messages.findFirst({
+            where: { groupChatId: messageAggregateId.asString() },
+          }),
+          "messages",
+        );
+
+        expect(position.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        expect(groupChat.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        expect(member.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        expect(message.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        // Reading through the DAO returns a plain number within the T-9 limit.
+        expect(await dao.getPosition(groupChatId.asString())).toEqual(value);
+        expect(
+          fromBigIntSequenceNumber(message.lastProcessedSequenceNumber),
+        ).toEqual(value);
+      }
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "rejects a sequence number above the T-9 limit before writing anything",
+    async () => {
+      const db = requirePrisma(prisma);
+      const dao = GroupChatDao.create(db);
+      const aggregateId = GroupChatId.generate();
+      const senderId = UserAccountId.generate();
+      const at = new Date("2026-11-08T10:00:00Z");
+
+      await expect(
+        dao.insertMessage(
+          aggregateId,
+          Message.of(MessageId.generate(), "too-large", senderId, at),
+          at,
+          9007199254740992,
+        ),
+      ).rejects.toBeInstanceOf(SequenceNumberOutOfRangeError);
+
+      expect(
+        await db.readModelPositions.count({
+          where: { aggregateId: aggregateId.asString() },
+        }),
+      ).toEqual(0);
+    },
+    TIMEOUT,
+  );
+
+  test(
     "persists, lists and deletes dead letters idempotently",
     async () => {
       const db = requirePrisma(prisma);
@@ -633,6 +768,13 @@ function requirePrisma(prisma: PrismaClient | undefined): PrismaClient {
   return prisma;
 }
 
+function requireRow<T>(row: T | null, table: string): T {
+  if (row === null) {
+    throw new Error(`expected a ${table} row`);
+  }
+  return row;
+}
+
 function updaterOf(
   prisma: PrismaClient,
   journal: JournalReader,
@@ -647,7 +789,9 @@ async function positionOf(
   const position = await prisma.readModelPositions.findUnique({
     where: { aggregateId },
   });
-  return position?.lastProcessedSequenceNumber ?? 0;
+  return position === null
+    ? 0
+    : fromBigIntSequenceNumber(position.lastProcessedSequenceNumber);
 }
 
 type Fixture = {
@@ -685,6 +829,28 @@ function unwrap<E extends { message: string }, Ev extends GroupChatEvent>(
     throw new Error(result.error.message);
   }
   return result.value;
+}
+
+/**
+ * Prisma sends raw SQL as a single prepared statement and rejects multiple
+ * statements, so the test harness applies each `;`-separated statement of a
+ * migration file separately. Comment lines are removed first so a semicolon in
+ * a `--` comment cannot split a statement.
+ */
+async function applyMigration(
+  prisma: PrismaClient,
+  sql: string,
+): Promise<void> {
+  const body = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+  for (const statement of body.split(";")) {
+    const trimmed = statement.trim();
+    if (trimmed !== "") {
+      await prisma.$executeRawUnsafe(trimmed);
+    }
+  }
 }
 
 async function waitForMysql(prisma: PrismaClient): Promise<void> {
