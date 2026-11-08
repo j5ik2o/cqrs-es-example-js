@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import "reflect-metadata";
 import { PrismaClient } from "@prisma/client";
@@ -62,14 +62,16 @@ beforeAll(async () => {
   )}/ceer`;
   prisma = new PrismaClient({ datasources: { db: { url } } });
   await waitForMysql(prisma);
-  for (const file of [
-    "0_create_read_model_positions.up.sql",
-    "1_create_group_chats.up.sql",
-    "2_create_members.up.sql",
-    "3_create_messages.up.sql",
-  ]) {
-    const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf-8");
-    await prisma.$executeRawUnsafe(sql);
+  // Apply the same migration chain the deployment uses so the schema in the
+  // test matches both prisma/schema.prisma files.
+  const migrations = readdirSync(MIGRATIONS_DIR)
+    .filter((file) => file.endsWith(".up.sql"))
+    .sort();
+  for (const file of migrations) {
+    await applyMigration(
+      prisma,
+      readFileSync(join(MIGRATIONS_DIR, file), "utf-8"),
+    );
   }
   await seedReadModel(prisma);
   schema = await createQuerySchema();
@@ -88,7 +90,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         disabled: false,
         name: "group-chat",
         ownerId: fixture.adminId,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -97,7 +99,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         disabled: false,
         name: "other-group-chat",
         ownerId: fixture.outsiderId,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -106,7 +108,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         disabled: true,
         name: "disabled-group-chat",
         ownerId: fixture.adminId,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -120,7 +122,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         userAccountId: fixture.adminId,
         role: "administrator",
         disabled: false,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -130,7 +132,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         userAccountId: fixture.memberId,
         role: "member",
         disabled: false,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -140,7 +142,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         userAccountId: fixture.removedMemberId,
         role: "member",
         disabled: true,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -150,7 +152,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         userAccountId: fixture.outsiderId,
         role: "administrator",
         disabled: false,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -160,7 +162,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         userAccountId: fixture.adminId,
         role: "administrator",
         disabled: false,
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -174,7 +176,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         groupChatId: fixture.groupChatId,
         userAccountId: fixture.memberId,
         text: "hello",
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -184,7 +186,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         groupChatId: fixture.groupChatId,
         userAccountId: fixture.memberId,
         text: "deleted",
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -194,7 +196,7 @@ async function seedReadModel(client: PrismaClient): Promise<void> {
         groupChatId: fixture.otherGroupChatId,
         userAccountId: fixture.outsiderId,
         text: "secret",
-        lastProcessedSequenceNumber: 1,
+        lastProcessedSequenceNumber: BigInt(1),
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
       },
@@ -483,6 +485,28 @@ describe("Read API GraphQL operations", () => {
     expect(result.data?.getMessages).toEqual([]);
   });
 });
+
+/**
+ * Prisma sends raw SQL as a single prepared statement and rejects multiple
+ * statements, so the test harness applies each `;`-separated statement of a
+ * migration file separately. Comment lines are removed first so a semicolon in
+ * a `--` comment cannot split a statement.
+ */
+async function applyMigration(
+  client: PrismaClient,
+  sql: string,
+): Promise<void> {
+  const body = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+  for (const statement of body.split(";")) {
+    const trimmed = statement.trim();
+    if (trimmed !== "") {
+      await client.$executeRawUnsafe(trimmed);
+    }
+  }
+}
 
 async function waitForMysql(client: PrismaClient): Promise<void> {
   let lastError: unknown;
