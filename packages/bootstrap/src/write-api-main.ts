@@ -5,23 +5,23 @@ import {
   type DynamoDBClientConfig,
 } from "@aws-sdk/client-dynamodb";
 import { type Database, Spanner } from "@google-cloud/spanner";
-import {
-  type GroupChat,
-  type GroupChatEvent,
-  type GroupChatId,
-  convertJSONToGroupChat,
-  convertJSONToGroupChatEvent,
+import type {
+  GroupChat,
+  GroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
 import {
   type CommandContext,
   GroupChatRepository,
   createCommandSchema,
+  groupChatEventSerializer,
+  groupChatSnapshotSerializer,
 } from "cqrs-es-example-js-command-interface-adaptor-impl";
 import { GroupChatCommandProcessor } from "cqrs-es-example-js-command-processor";
 import { EventStore } from "event-store-adapter-js";
+import { SpannerEventStore } from "event-store-adapter-js/spanner";
 import { logger } from "./index";
 
-type GroupChatEventStore = EventStore<GroupChatId, GroupChat, GroupChatEvent>;
+type GroupChatEventStore = EventStore<GroupChatEvent, GroupChat>;
 
 const SUPPORTED_BACKENDS = ["dynamodb", "spanner"] as const;
 type PersistenceBackend = (typeof SUPPORTED_BACKENDS)[number];
@@ -46,22 +46,14 @@ function resolveBackend(): PersistenceBackend {
   );
 }
 
-function createDynamoDBEventStore(): GroupChatEventStore {
+async function createDynamoDBEventStore(): Promise<GroupChatEventStore> {
   const journalTableName = env("PERSISTENCE_JOURNAL_TABLE_NAME", "journal");
   const snapshotTableName = env("PERSISTENCE_SNAPSHOT_TABLE_NAME", "snapshot");
-  const journalAidIndexName = env(
-    "PERSISTENCE_JOURNAL_AID_INDEX_NAME",
-    "journal-aid-index",
+  const headTableName = env("PERSISTENCE_HEAD_TABLE_NAME", "head");
+  const snapshotHistoryIndexName = env(
+    "PERSISTENCE_SNAPSHOT_HISTORY_INDEX_NAME",
+    "snapshot-history-index",
   );
-  const snapshotAidIndexName = env(
-    "PERSISTENCE_SNAPSHOT_AID_INDEX_NAME",
-    "snapshots-aid-index",
-  );
-  const snapshotActiveTtlIndexName = env(
-    "PERSISTENCE_SNAPSHOT_ACTIVE_TTL_INDEX_NAME",
-    "snapshot-active-ttl-index",
-  );
-  const shardCount = Number.parseInt(env("PERSISTENCE_SHARD_COUNT", "32"), 10);
 
   const awsRegion = process.env.AWS_REGION;
   const awsDynamodbEndpointUrl = process.env.AWS_DYNAMODB_ENDPOINT_URL;
@@ -70,12 +62,10 @@ function createDynamoDBEventStore(): GroupChatEventStore {
 
   logger.info(`PERSISTENCE_JOURNAL_TABLE_NAME: ${journalTableName}`);
   logger.info(`PERSISTENCE_SNAPSHOT_TABLE_NAME: ${snapshotTableName}`);
-  logger.info(`PERSISTENCE_JOURNAL_AID_INDEX_NAME: ${journalAidIndexName}`);
-  logger.info(`PERSISTENCE_SNAPSHOT_AID_INDEX_NAME: ${snapshotAidIndexName}`);
+  logger.info(`PERSISTENCE_HEAD_TABLE_NAME: ${headTableName}`);
   logger.info(
-    `PERSISTENCE_SNAPSHOT_ACTIVE_TTL_INDEX_NAME: ${snapshotActiveTtlIndexName}`,
+    `PERSISTENCE_SNAPSHOT_HISTORY_INDEX_NAME: ${snapshotHistoryIndexName}`,
   );
-  logger.info(`PERSISTENCE_SHARD_COUNT: ${shardCount}`);
   logger.info(`AWS_REGION: ${awsRegion}`);
   logger.info(`AWS_DYNAMODB_ENDPOINT_URL: ${awsDynamodbEndpointUrl}`);
 
@@ -97,30 +87,32 @@ function createDynamoDBEventStore(): GroupChatEventStore {
   }
   const dynamodbClient = new DynamoDBClient(dynamodbConfig);
 
-  return EventStore.createDynamoDB<GroupChatId, GroupChat, GroupChatEvent>({
+  const result = await EventStore.createDynamoDB<GroupChatEvent, GroupChat>({
     client: dynamodbClient,
-    journalTableName,
-    snapshotTableName,
-    journalAidIndexName,
-    snapshotAidIndexName,
-    snapshotActiveTtlIndexName,
-    shardCount,
-    eventConverter: convertJSONToGroupChatEvent,
-    snapshotConverter: convertJSONToGroupChat,
+    tables: {
+      journal: journalTableName,
+      snapshot: snapshotTableName,
+      head: headTableName,
+    },
+    snapshotAidIndexName: snapshotHistoryIndexName,
+    eventSerializer: groupChatEventSerializer,
+    snapshotSerializer: groupChatSnapshotSerializer,
   });
+  if (result.type === "err") {
+    throw new Error(
+      `Failed to create DynamoDB event store: ${result.error.message}`,
+    );
+  }
+  return result.value;
 }
 
-function createSpannerEventStore(): GroupChatEventStore {
-  const journalTableName = env("PERSISTENCE_JOURNAL_TABLE_NAME", "journal");
-  const snapshotTableName = env("PERSISTENCE_SNAPSHOT_TABLE_NAME", "snapshot");
-  const shardCount = Number.parseInt(env("PERSISTENCE_SHARD_COUNT", "32"), 10);
+async function createSpannerEventStore(): Promise<GroupChatEventStore> {
+  const tablePrefix = env("PERSISTENCE_SPANNER_TABLE_PREFIX", "esa");
   const projectId = env("PERSISTENCE_SPANNER_PROJECT_ID", "local-project");
   const instanceId = env("PERSISTENCE_SPANNER_INSTANCE_ID", "local-instance");
   const databaseId = env("PERSISTENCE_SPANNER_DATABASE_ID", "local-database");
 
-  logger.info(`PERSISTENCE_JOURNAL_TABLE_NAME: ${journalTableName}`);
-  logger.info(`PERSISTENCE_SNAPSHOT_TABLE_NAME: ${snapshotTableName}`);
-  logger.info(`PERSISTENCE_SHARD_COUNT: ${shardCount}`);
+  logger.info(`PERSISTENCE_SPANNER_TABLE_PREFIX: ${tablePrefix}`);
   logger.info(`PERSISTENCE_SPANNER_PROJECT_ID: ${projectId}`);
   logger.info(`PERSISTENCE_SPANNER_INSTANCE_ID: ${instanceId}`);
   logger.info(`PERSISTENCE_SPANNER_DATABASE_ID: ${databaseId}`);
@@ -131,17 +123,23 @@ function createSpannerEventStore(): GroupChatEventStore {
   const spanner = new Spanner({ projectId });
   const database: Database = spanner.instance(instanceId).database(databaseId);
 
-  return EventStore.createSpanner<GroupChatId, GroupChat, GroupChatEvent>({
+  const result = await SpannerEventStore.create<GroupChatEvent, GroupChat>({
     database,
-    journalTableName,
-    snapshotTableName,
-    shardCount,
-    eventConverter: convertJSONToGroupChatEvent,
-    snapshotConverter: convertJSONToGroupChat,
+    tablePrefix,
+    eventSerializer: groupChatEventSerializer,
+    snapshotSerializer: groupChatSnapshotSerializer,
   });
+  if (result.type === "err") {
+    throw new Error(
+      `Failed to create Spanner event store: ${result.error.message}`,
+    );
+  }
+  return result.value;
 }
 
-function createEventStore(backend: PersistenceBackend): GroupChatEventStore {
+function createEventStore(
+  backend: PersistenceBackend,
+): Promise<GroupChatEventStore> {
   switch (backend) {
     case "dynamodb":
       return createDynamoDBEventStore();
@@ -164,7 +162,7 @@ async function writeApiMain() {
   logger.info(`API_PORT: ${apiPort}`);
   logger.info(`PERSISTENCE_BACKEND: ${backend}`);
 
-  const eventStore = createEventStore(backend);
+  const eventStore = await createEventStore(backend);
   const groupChatRepository =
     GroupChatRepository.create(eventStore).withRetention(100);
   const groupChatCommandProcessor =

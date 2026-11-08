@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/repository/group-chat/*.test.* && rimraf dist/test/*.test.*",
+    "build": "tsc && rimraf dist/internal/*.test.d.ts && rimraf dist/internal/*.test.js && rimraf dist/internal/test && rimraf dist/repository/group-chat/*.test.* && rimraf dist/graphql/*.test.* && rimraf dist/test/*.test.*",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --no-cache",
     "lint": "biome check ./src",
     "lint:fix": "biome check --write ./src",
@@ -37,7 +37,7 @@
     "cqrs-es-example-js-command-domain": "workspace:*",
     "cqrs-es-example-js-command-interface-adaptor-if": "workspace:*",
     "cqrs-es-example-js-command-processor": "workspace:*",
-    "event-store-adapter-js": "3.1.0",
+    "event-store-adapter-js": "5.2.0",
     "moment": "^2.29.4",
     "graphql": "^16.8.1",
     "graphql-fields": "^2.0.3",

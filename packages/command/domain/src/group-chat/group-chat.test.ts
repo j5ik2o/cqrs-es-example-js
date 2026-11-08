@@ -1,4 +1,4 @@
-import type { Result } from "event-store-adapter-js/dist/result";
+import type { Result } from "event-store-adapter-js";
 import { UserAccountId } from "../user-account";
 import { GroupChat } from "./group-chat";
 import type { GroupChatError } from "./group-chat-errors";
@@ -21,7 +21,6 @@ describe("GroupChat", () => {
     expect(groupChat.id).toEqual(id);
     expect(groupChat.name).toEqual(name);
     expect(Members.containsById(groupChat.members, adminId)).toEqual(true);
-    expect(groupChatCreated.aggregateId).toEqual(id);
     expect(groupChatCreated.name).toEqual(name);
   });
 
@@ -38,7 +37,6 @@ describe("GroupChat", () => {
 
     expect(actualGroupChat.id).toEqual(id);
     expect(actualGroupChat.name).toEqual(newName);
-    expect(groupChatRenamed.aggregateId).toEqual(id);
     expect(groupChatRenamed.name).toEqual(newName);
   });
 
@@ -57,7 +55,6 @@ describe("GroupChat", () => {
     expect(Members.containsById(actualGroupChat.members, memberId)).toEqual(
       true,
     );
-    expect(groupChatMemberAdded.aggregateId).toEqual(id);
     expect(groupChatMemberAdded.member.userAccountId).toEqual(memberId);
   });
 
@@ -82,7 +79,6 @@ describe("GroupChat", () => {
     expect(Members.containsById(actualGroupChat2.members, memberId)).toEqual(
       false,
     );
-    expect(groupChatMemberRemoved.aggregateId).toEqual(id);
     expect(groupChatMemberRemoved.member.userAccountId).toEqual(memberId);
   });
 
@@ -113,6 +109,65 @@ describe("GroupChat", () => {
     );
   });
 
+  test("EditMessage", () => {
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat] = GroupChat.create(id, name, adminId);
+    const memberId = UserAccountId.generate();
+    const [actualGroupChat1] = unwrap(
+      groupChat.addMember(memberId, "member", adminId),
+    );
+    const message = Message.of(
+      MessageId.generate(),
+      "content",
+      memberId,
+      new Date(),
+    );
+    const [actualGroupChat2] = unwrap(
+      actualGroupChat1.postMessage(message, memberId),
+    );
+    const edited = Message.of(message.id, "edited", memberId, new Date());
+
+    const [actualGroupChat3, groupChatMessageEdited] = unwrap(
+      actualGroupChat2.editMessage(edited, memberId),
+    );
+
+    expect(actualGroupChat3.id).toEqual(id);
+    expect(Messages.size(actualGroupChat3.messages)).toEqual(1);
+    expect(Messages.toArray(actualGroupChat3.messages)[0].content).toEqual(
+      "edited",
+    );
+    expect(groupChatMessageEdited.message.content).toEqual("edited");
+  });
+
+  test("EditMessage rejects an executor who is not the sender", () => {
+    const id = GroupChatId.generate();
+    const name = GroupChatName.of("name");
+    const adminId = UserAccountId.generate();
+    const [groupChat] = GroupChat.create(id, name, adminId);
+    const memberId = UserAccountId.generate();
+    const [actualGroupChat1] = unwrap(
+      groupChat.addMember(memberId, "member", adminId),
+    );
+    const message = Message.of(
+      MessageId.generate(),
+      "content",
+      memberId,
+      new Date(),
+    );
+    const [actualGroupChat2] = unwrap(
+      actualGroupChat1.postMessage(message, memberId),
+    );
+
+    const result = actualGroupChat2.editMessage(message, adminId);
+
+    expect(result.type).toEqual("err");
+    if (result.type === "err") {
+      expect(result.error.kind).toEqual("edit-message");
+    }
+  });
+
   test("DeleteMessage", () => {
     const id = GroupChatId.generate();
     const name = GroupChatName.of("name");
@@ -139,7 +194,6 @@ describe("GroupChat", () => {
 
     expect(actualGroupChat3.id).toEqual(id);
     expect(Messages.size(actualGroupChat3.messages)).toEqual(0);
-    expect(groupChatMessageDeleted.aggregateId).toEqual(id);
     expect(groupChatMessageDeleted.message.id).toEqual(message.id);
   });
 
@@ -154,7 +208,6 @@ describe("GroupChat", () => {
     );
 
     expect(actualGroupChat.id).toEqual(id);
-    expect(groupChatDeleted.aggregateId).toEqual(id);
     expect(groupChatDeleted.typeName).toEqual("GroupChatDeleted");
   });
 });

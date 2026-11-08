@@ -40,8 +40,7 @@ services:
       PERSISTENCE_SPANNER_PROJECT_ID: local-project
       PERSISTENCE_SPANNER_INSTANCE_ID: local-instance
       PERSISTENCE_SPANNER_DATABASE_ID: local-database
-      PERSISTENCE_JOURNAL_TABLE_NAME: journal
-      PERSISTENCE_SNAPSHOT_TABLE_NAME: snapshot
+      PERSISTENCE_SPANNER_TABLE_PREFIX: esa
       SPANNER_CHANGE_STREAM_NAME: journal_stream
       PUBSUB_TOPIC: group-chat-journal
       PUBSUB_SUBSCRIPTION: group-chat-journal-sub
@@ -64,9 +63,7 @@ services:
       PERSISTENCE_SPANNER_PROJECT_ID: local-project
       PERSISTENCE_SPANNER_INSTANCE_ID: local-instance
       PERSISTENCE_SPANNER_DATABASE_ID: local-database
-      PERSISTENCE_JOURNAL_TABLE_NAME: journal
-      PERSISTENCE_SNAPSHOT_TABLE_NAME: snapshot
-      PERSISTENCE_SHARD_COUNT: 32
+      PERSISTENCE_SPANNER_TABLE_PREFIX: esa
       SPANNER_EMULATOR_HOST: spanner-emulator:9010
       GOOGLE_CLOUD_PROJECT: local-project
       GCLOUD_PROJECT: local-project
@@ -84,7 +81,7 @@ services:
       PERSISTENCE_SPANNER_PROJECT_ID: local-project
       PERSISTENCE_SPANNER_INSTANCE_ID: local-instance
       PERSISTENCE_SPANNER_DATABASE_ID: local-database
-      PERSISTENCE_JOURNAL_TABLE_NAME: journal
+      PERSISTENCE_SPANNER_TABLE_PREFIX: esa
       SPANNER_CHANGE_STREAM_NAME: journal_stream
       PUBSUB_TOPIC: group-chat-journal
       SPANNER_EMULATOR_HOST: spanner-emulator:9010

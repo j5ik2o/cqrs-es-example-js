@@ -7,12 +7,18 @@ import type {
   MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
+import { ProjectionGapError } from "./failures";
+import {
+  fromBigIntSequenceNumber,
+  toBigIntSequenceNumber,
+} from "./sequence-number";
 
 /**
  * Read-model write side. Operations are idempotent and monotonic so the
  * projection tolerates duplicate and delayed provider deliveries.
  */
 export type GroupChatDao = {
+  getPosition(aggregateId: string): Promise<number>;
   insertGroupChat(
     aggregateId: GroupChatId,
     name: GroupChatName,
@@ -49,6 +55,12 @@ export type GroupChatDao = {
     createdAt: Date,
     sequenceNumber: number,
   ): Promise<void>;
+  updateMessage(
+    aggregateId: GroupChatId,
+    message: Message,
+    updatedAt: Date,
+    sequenceNumber: number,
+  ): Promise<void>;
   deleteMessage(
     aggregateId: GroupChatId,
     messageId: MessageId,
@@ -60,6 +72,16 @@ export type GroupChatDao = {
 export namespace GroupChatDao {
   export function create(prismaClient: PrismaClient): GroupChatDao {
     return Object.freeze({
+      async getPosition(aggregateId: string): Promise<number> {
+        const current = await prismaClient.readModelPositions.findUnique({
+          where: { aggregateId },
+        });
+        if (current === null) {
+          return 0;
+        }
+        return fromBigIntSequenceNumber(current.lastProcessedSequenceNumber);
+      },
+
       async insertGroupChat(
         aggregateId: GroupChatId,
         name: GroupChatName,
@@ -80,7 +102,8 @@ export namespace GroupChatDao {
                 name: name.asString(),
                 ownerId: administrator.userAccountId.asString(),
                 updatedAt: createdAt,
-                lastProcessedSequenceNumber: sequenceNumber,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
               },
             });
             if (updated.count === 0) {
@@ -91,7 +114,8 @@ export namespace GroupChatDao {
                     disabled: false,
                     name: name.asString(),
                     ownerId: administrator.userAccountId.asString(),
-                    lastProcessedSequenceNumber: sequenceNumber,
+                    lastProcessedSequenceNumber:
+                      toBigIntSequenceNumber(sequenceNumber),
                     createdAt,
                     updatedAt: createdAt,
                   },
@@ -124,7 +148,8 @@ export namespace GroupChatDao {
               data: {
                 disabled: true,
                 updatedAt,
-                lastProcessedSequenceNumber: sequenceNumber,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
               },
             });
           },
@@ -148,7 +173,8 @@ export namespace GroupChatDao {
               data: {
                 name: name.asString(),
                 updatedAt,
-                lastProcessedSequenceNumber: sequenceNumber,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
               },
             });
           },
@@ -197,7 +223,8 @@ export namespace GroupChatDao {
               data: {
                 disabled: true,
                 updatedAt,
-                lastProcessedSequenceNumber: sequenceNumber,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
               },
             });
           },
@@ -224,7 +251,8 @@ export namespace GroupChatDao {
                 text: message.content,
                 userAccountId: message.senderId.asString(),
                 updatedAt: createdAt,
-                lastProcessedSequenceNumber: sequenceNumber,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
               },
             });
             if (updated.count === 0) {
@@ -236,13 +264,39 @@ export namespace GroupChatDao {
                     groupChatId,
                     userAccountId: message.senderId.asString(),
                     text: message.content,
-                    lastProcessedSequenceNumber: sequenceNumber,
+                    lastProcessedSequenceNumber:
+                      toBigIntSequenceNumber(sequenceNumber),
                     createdAt,
                     updatedAt: createdAt,
                   },
                 })
                 .catch(ignoreUniqueConstraint);
             }
+          },
+        );
+      },
+
+      async updateMessage(
+        aggregateId: GroupChatId,
+        message: Message,
+        updatedAt: Date,
+        sequenceNumber: number,
+      ): Promise<void> {
+        await prismaClient.$transaction(
+          async (tx: Prisma.TransactionClient) => {
+            const groupChatId = aggregateId.asString();
+            if (!(await advanceProjection(tx, groupChatId, sequenceNumber))) {
+              return;
+            }
+            await tx.messages.updateMany({
+              where: { id: message.id.asString(), groupChatId },
+              data: {
+                text: message.content,
+                updatedAt,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
+              },
+            });
           },
         );
       },
@@ -264,7 +318,8 @@ export namespace GroupChatDao {
               data: {
                 disabled: true,
                 updatedAt,
-                lastProcessedSequenceNumber: sequenceNumber,
+                lastProcessedSequenceNumber:
+                  toBigIntSequenceNumber(sequenceNumber),
               },
             });
           },
@@ -279,38 +334,45 @@ async function advanceProjection(
   aggregateId: string,
   sequenceNumber: number,
 ): Promise<boolean> {
+  // Validate before touching the database so an out-of-range value can never
+  // leave a partially applied row behind.
+  const nextSequenceNumber = toBigIntSequenceNumber(sequenceNumber);
   const current = await prismaClient.readModelPositions.findUnique({
     where: { aggregateId },
   });
   if (current !== null) {
-    if (sequenceNumber <= current.lastProcessedSequenceNumber) {
+    const currentSequenceNumber = fromBigIntSequenceNumber(
+      current.lastProcessedSequenceNumber,
+    );
+    if (sequenceNumber <= currentSequenceNumber) {
       return false;
     }
-    const expected = current.lastProcessedSequenceNumber + 1;
+    const expected = currentSequenceNumber + 1;
     if (sequenceNumber !== expected) {
-      throw new Error(
+      throw new ProjectionGapError(
         `Read model projection gap for ${aggregateId}: expected sequence ${expected}, got ${sequenceNumber}`,
       );
     }
     const updated = await prismaClient.readModelPositions.updateMany({
       where: {
         aggregateId,
+        // Optimistic lock on the exact stored value, not a converted one.
         lastProcessedSequenceNumber: current.lastProcessedSequenceNumber,
       },
-      data: { lastProcessedSequenceNumber: sequenceNumber },
+      data: { lastProcessedSequenceNumber: nextSequenceNumber },
     });
     return updated.count > 0;
   }
 
   if (sequenceNumber !== 1) {
-    throw new Error(
+    throw new ProjectionGapError(
       `Read model projection gap for ${aggregateId}: expected sequence 1, got ${sequenceNumber}`,
     );
   }
 
   try {
     await prismaClient.readModelPositions.create({
-      data: { aggregateId, lastProcessedSequenceNumber: sequenceNumber },
+      data: { aggregateId, lastProcessedSequenceNumber: nextSequenceNumber },
     });
     return true;
   } catch (error) {
@@ -340,7 +402,7 @@ async function upsertMember(
       role: input.member.memberRole,
       disabled: false,
       updatedAt: input.at,
-      lastProcessedSequenceNumber: input.sequenceNumber,
+      lastProcessedSequenceNumber: toBigIntSequenceNumber(input.sequenceNumber),
     },
   });
   if (updated.count === 0) {
@@ -352,7 +414,9 @@ async function upsertMember(
           userAccountId: input.member.userAccountId.asString(),
           role: input.member.memberRole,
           disabled: false,
-          lastProcessedSequenceNumber: input.sequenceNumber,
+          lastProcessedSequenceNumber: toBigIntSequenceNumber(
+            input.sequenceNumber,
+          ),
           createdAt: input.at,
           updatedAt: input.at,
         },

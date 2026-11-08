@@ -1,12 +1,16 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
-import type { DynamoDBStreamEvent } from "aws-lambda";
+import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
-  type GroupChatEvent,
+  GroupChatEvent,
   GroupChatId,
   GroupChatName,
+  Member,
+  MemberId,
+  Message,
+  MessageId,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
 import {
@@ -14,59 +18,145 @@ import {
   type StartedTestContainer,
   Wait,
 } from "testcontainers";
+import { DeadLetterStore } from "./dead-letter-store";
 import { GroupChatDao } from "./group-chat-dao";
+import type { JournalEvent, JournalReader } from "./journal-reader";
+import { DeadLetterRecovery } from "./recovery";
+import {
+  MAX_SEQUENCE_NUMBER,
+  SequenceNumberOutOfRangeError,
+  fromBigIntSequenceNumber,
+} from "./sequence-number";
 import { ReadModelUpdater } from "./update-read-model";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../tools/migrate/migrations");
 
-// Serialize an event the way the event store's default serializer does, then
-// wrap it as a DynamoDB Streams record (B field carries the raw JSON payload, as
-// LocalStack delivers it).
 type PayloadEncoding = "raw" | "base64" | "bytes";
+
+type HeadFixture = {
+  event: GroupChatEvent;
+  seqNr: number;
+  occurredAt: Date;
+};
+
+function fixture(event: GroupChatEvent, seqNr: number): HeadFixture {
+  return {
+    event,
+    seqNr,
+    occurredAt: new Date(1_700_000_000_000 + seqNr * 1_000),
+  };
+}
+
+// ESA v5 serializes only the domain payload; metadata lives in the head event
+// envelope, so the fixture supplies seq_nr/occurred_at separately.
+function wirePayload(event: GroupChatEvent): string {
+  return JSON.stringify(GroupChatEvent.toJSON(event));
+}
 
 function encodePayload(json: string, encoding: PayloadEncoding): string {
   if (encoding === "base64") {
-    // Real AWS Lambda delivers Binary (B) attributes base64-encoded.
     return Buffer.from(json, "utf-8").toString("base64");
   }
   if (encoding === "bytes") {
-    // dynamodb-local-rmu delivers B as a comma-separated byte string (Uint8Array.toString()).
     return Array.from(Buffer.from(json, "utf-8")).join(",");
   }
-  // LocalStack delivers B as a raw JSON string.
   return json;
 }
 
-function asDynamoDBStreamEvent(
-  event: GroupChatEvent,
-  encoding: PayloadEncoding = "raw",
-): DynamoDBStreamEvent {
-  const payload = encodePayload(
-    JSON.stringify({ type: event.typeName, data: event }),
-    encoding,
-  );
+function headEventAttribute(
+  headEvent: HeadFixture,
+  encoding: PayloadEncoding,
+): AttributeValue {
   return {
-    Records: [
-      {
-        eventName: "INSERT",
-        dynamodb: {
-          // LocalStack / dynamodb-local-rmu deliver this in epoch MILLISECONDS.
-          ApproximateCreationDateTime: 1_780_000_000_000,
-          NewImage: { payload: { B: payload } },
-          SequenceNumber: "1",
-        },
+    M: {
+      seq_nr: { N: String(headEvent.seqNr) },
+      occurred_at: {
+        N: String(BigInt(headEvent.occurredAt.getTime()) * BigInt(1_000_000)),
       },
-    ],
-  } as unknown as DynamoDBStreamEvent;
+      manifest: { S: `${headEvent.event.typeName}@1` },
+      payload: { B: encodePayload(wirePayload(headEvent.event), encoding) },
+    },
+  };
 }
 
-describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
+function asHeadStreamEvent(
+  eventName: "INSERT" | "MODIFY" | "REMOVE",
+  aggregateId: string,
+  events: readonly HeadFixture[],
+  encoding: PayloadEncoding = "raw",
+): DynamoDBStreamEvent {
+  const last = events[events.length - 1];
+  const records = [
+    {
+      eventName,
+      dynamodb: {
+        ApproximateCreationDateTime: 1_780_000_000_000,
+        SequenceNumber: "1",
+        NewImage: {
+          aid: { S: aggregateId },
+          type_name: { S: "GroupChat" },
+          seq_nr: { N: String(last?.seqNr ?? 0) },
+          events: {
+            L: events.map((headEvent) =>
+              headEventAttribute(headEvent, encoding),
+            ),
+          },
+        },
+      },
+    },
+  ];
+  return { Records: records } as unknown as DynamoDBStreamEvent;
+}
+
+class FakeJournalReader implements JournalReader {
+  readonly calls: {
+    aggregateId: string;
+    fromSeqNr: number;
+    toSeqNr: number;
+  }[] = [];
+
+  constructor(private readonly events: readonly JournalEvent[]) {}
+
+  async readEvents(
+    aggregateId: string,
+    fromSeqNr: number,
+    toSeqNr: number,
+  ): Promise<JournalEvent[]> {
+    this.calls.push({ aggregateId, fromSeqNr, toSeqNr });
+    return this.events.filter(
+      (event) =>
+        event.aggregateId === aggregateId &&
+        event.seqNr >= fromSeqNr &&
+        event.seqNr <= toSeqNr,
+    );
+  }
+}
+
+function journalEvent(
+  aggregateId: string,
+  headEvent: HeadFixture,
+): JournalEvent {
+  return {
+    aggregateId,
+    seqNr: headEvent.seqNr,
+    occurredAt: headEvent.occurredAt,
+    manifest: `${headEvent.event.typeName}@1`,
+    payload: new TextEncoder().encode(wirePayload(headEvent.event)),
+    event: headEvent.event,
+  };
+}
+
+describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
   const TIMEOUT = 120 * 1000;
   let container: StartedTestContainer | undefined;
   let prisma: PrismaClient | undefined;
 
   beforeAll(async () => {
     container = await new GenericContainer("mysql:9.7")
+      .withCommand([
+        "--innodb-buffer-pool-size=64M",
+        "--performance-schema=OFF",
+      ])
       .withEnvironment({
         MYSQL_ROOT_PASSWORD: "passwd",
         MYSQL_DATABASE: "ceer",
@@ -83,14 +173,14 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
     // MySQL's entrypoint restarts the server after init; retry until the real
     // server accepts connections before running migrations.
     await waitForMysql(prisma);
-    for (const file of [
-      "0_create_read_model_positions.up.sql",
-      "1_create_group_chats.up.sql",
-      "2_create_members.up.sql",
-      "3_create_messages.up.sql",
-    ]) {
-      const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf-8");
-      await prisma.$executeRawUnsafe(sql);
+    const migrations = readdirSync(MIGRATIONS_DIR)
+      .filter((file) => file.endsWith(".up.sql"))
+      .sort();
+    for (const file of migrations) {
+      await applyMigration(
+        prisma,
+        readFileSync(join(MIGRATIONS_DIR, file), "utf-8"),
+      );
     }
   }, TIMEOUT);
 
@@ -100,133 +190,637 @@ describe("ReadModelUpdater (DynamoDB stream -> MySQL)", () => {
   }, TIMEOUT);
 
   test(
-    "projects GroupChatCreated, MemberAdded and MessagePosted into MySQL",
+    "projects INSERT and MODIFY head records into MySQL",
     async () => {
-      if (prisma === undefined) {
-        throw new Error("prisma not initialized");
-      }
-      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
+      const db = requirePrisma(prisma);
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const f = newFixture();
 
-      const id = GroupChatId.generate();
-      const adminId = UserAccountId.generate();
-      const [gc0, created] = GroupChat.create(
-        id,
-        GroupChatName.of("name"),
-        adminId,
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", f.aggregateId, [f.created]),
       );
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
-
-      const memberId = UserAccountId.generate();
-      const [gc1, memberAdded] = unwrap(
-        gc0.addMember(memberId, "member", adminId),
-      );
-      await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.memberAdded]),
       );
 
-      const groupChat = await prisma.groupChats.findUnique({
-        where: { id: id.asString() },
+      const groupChat = await db.groupChats.findUnique({
+        where: { id: f.aggregateId },
       });
       expect(groupChat?.name).toEqual("name");
-      expect(groupChat?.ownerId).toEqual(adminId.asString());
+      expect(groupChat?.ownerId).toEqual(f.adminId.asString());
       // The created_at must be a sane date (regression: a millis stream
       // timestamp was multiplied by 1000 into the year 58379).
       const year = groupChat?.createdAt.getUTCFullYear() ?? 0;
       expect(year).toBeGreaterThanOrEqual(2020);
       expect(year).toBeLessThanOrEqual(2100);
 
-      const members = await prisma.members.findMany({
-        where: { groupChatId: id.asString() },
+      const members = await db.members.findMany({
+        where: { groupChatId: f.aggregateId },
       });
-      // admin (from GroupChatCreated) + added member
       expect(members.length).toEqual(2);
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+    },
+    TIMEOUT,
+  );
 
-      // Idempotency: replaying the same event must not error or duplicate.
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
-      await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
+  test(
+    "drops duplicate and stale head events",
+    async () => {
+      const db = requirePrisma(prisma);
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const f = newFixture();
+      const batch = [f.created, f.memberAdded, f.renamed];
+
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", f.aggregateId, batch),
       );
-      const membersAfter = await prisma.members.findMany({
-        where: { groupChatId: id.asString() },
+      // Replaying the same head record simulates a duplicate delivery.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, batch),
+      );
+      // A stale record that arrives after a newer one must be dropped.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.created]),
+      );
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(3);
+      const groupChat = await db.groupChats.findUnique({
+        where: { id: f.aggregateId },
       });
-      expect(membersAfter.length).toEqual(2);
-      void gc1;
+      expect(groupChat?.name).toEqual("renamed");
+      const members = await db.members.findMany({
+        where: { groupChatId: f.aggregateId },
+      });
+      expect(members.length).toEqual(2);
     },
     TIMEOUT,
   );
 
   test(
-    "decodes every stream payload encoding (raw / base64 / bytes)",
+    "fills a sequence gap from the journal",
     async () => {
-      if (prisma === undefined) {
-        throw new Error("prisma not initialized");
-      }
-      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
-      const encodings: ("raw" | "base64" | "bytes")[] = [
-        "raw",
-        "base64",
-        "bytes",
-      ];
-      for (const encoding of encodings) {
-        const id = GroupChatId.generate();
-        const adminId = UserAccountId.generate();
-        const [, created] = GroupChat.create(
-          id,
-          GroupChatName.of(`gc-${encoding}`),
-          adminId,
-        );
-        await updater.updateFromDynamoDBStream(
-          asDynamoDBStreamEvent(created, encoding),
-        );
-        const row = await prisma.groupChats.findUnique({
-          where: { id: id.asString() },
-        });
-        expect(row?.name).toEqual(`gc-${encoding}`);
-      }
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+        journalEvent(f.aggregateId, f.renamed),
+      ]);
+      const updater = updaterOf(db, journal);
+
+      // The head record for seq_nr 3 arrives without 1 and 2.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.renamed]),
+      );
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(3);
+      const groupChat = await db.groupChats.findUnique({
+        where: { id: f.aggregateId },
+      });
+      expect(groupChat?.name).toEqual("renamed");
+      const members = await db.members.findMany({
+        where: { groupChatId: f.aggregateId },
+      });
+      expect(members.length).toEqual(2);
+      expect(journal.calls).toEqual([
+        { aggregateId: f.aggregateId, fromSeqNr: 1, toSeqNr: 2 },
+      ]);
     },
     TIMEOUT,
   );
 
   test(
-    "rejects sequence gaps and applies the retried event after the missing event",
+    "applies out-of-order head events without duplicating",
     async () => {
-      if (prisma === undefined) {
-        throw new Error("prisma not initialized");
-      }
-      const updater = ReadModelUpdater.create(GroupChatDao.create(prisma));
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+        journalEvent(f.aggregateId, f.renamed),
+      ]);
+      const updater = updaterOf(db, journal);
 
-      const id = GroupChatId.generate();
-      const adminId = UserAccountId.generate();
-      const [gc0, created] = GroupChat.create(
-        id,
-        GroupChatName.of("before"),
-        adminId,
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.renamed]),
       );
-      const memberId = UserAccountId.generate();
-      const [gc1, memberAdded] = unwrap(
-        gc0.addMember(memberId, "member", adminId),
-      );
-      const [, renamed] = unwrap(
-        gc1.rename(GroupChatName.of("after"), adminId),
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", f.aggregateId, [f.created]),
       );
 
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(created));
+      expect(await positionOf(db, f.aggregateId)).toEqual(3);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(2);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "commits the events before a failing record and keeps its position",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      // The journal has no seq_nr 2, so the head record for seq_nr 3 fails
+      // after the seq_nr 1 record has committed.
+      const updater = updaterOf(
+        db,
+        new FakeJournalReader([journalEvent(f.aggregateId, f.created)]),
+      );
+
       await expect(
-        updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed)),
-      ).rejects.toThrow("Read model projection gap");
-      await updater.updateFromDynamoDBStream(
-        asDynamoDBStreamEvent(memberAdded),
-      );
-      await updater.updateFromDynamoDBStream(asDynamoDBStreamEvent(renamed));
+        updater.updateFromHeadStream(
+          asHeadStreamEvent("MODIFY", f.aggregateId, [f.created, f.renamed]),
+        ),
+      ).rejects.toThrow("Journal is missing seq_nr 2..2");
 
-      const groupChat = await prisma.groupChats.findUnique({
-        where: { id: id.asString() },
+      expect(await positionOf(db, f.aggregateId)).toEqual(1);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(1);
+
+      // Retrying the failed position with the now-available event succeeds.
+      await updater.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.memberAdded]),
+      );
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(2);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "resumes from the committed position after a restart",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+      ]);
+
+      const first = updaterOf(db, journal);
+      await first.updateFromHeadStream(
+        asHeadStreamEvent("INSERT", f.aggregateId, [f.created]),
+      );
+
+      // A new process starts from the beginning of the retained stream.
+      const restarted = updaterOf(db, journal);
+      await restarted.updateFromHeadStream(
+        asHeadStreamEvent("MODIFY", f.aggregateId, [f.created, f.memberAdded]),
+      );
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(2);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "ignores __config__, other aggregate types and REMOVE records",
+    async () => {
+      const db = requirePrisma(prisma);
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const f = newFixture();
+      const groupChatsBefore = await db.groupChats.count();
+      const positionsBefore = await db.readModelPositions.count();
+      const config = asHeadStreamEvent("INSERT", "__config__", [f.created]);
+      const foreign = asHeadStreamEvent(
+        "INSERT",
+        "UserAccount-01H42K4ABWQ5V2XQEP3A48VE0Z",
+        [f.created],
+      );
+      const removed = asHeadStreamEvent("REMOVE", f.aggregateId, [f.created]);
+      removed.Records[0].dynamodb = undefined;
+
+      await updater.updateFromHeadStream({
+        Records: [...config.Records, ...foreign.Records, ...removed.Records],
+      } as unknown as DynamoDBStreamEvent);
+
+      expect(await db.groupChats.count()).toEqual(groupChatsBefore);
+      expect(await db.readModelPositions.count()).toEqual(positionsBefore);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "creates the position row once when the first event is delivered concurrently",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const updater = updaterOf(db, new FakeJournalReader([]));
+      const created = asHeadStreamEvent("INSERT", f.aggregateId, [f.created]);
+
+      const results = await Promise.allSettled([
+        updater.updateFromHeadStream(created),
+        updater.updateFromHeadStream(created),
+      ]);
+      // A losing transaction can surface a conflict; retrying must converge.
+      for (const result of results) {
+        if (result.status === "rejected") {
+          await updater.updateFromHeadStream(created);
+        }
+      }
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(1);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.readModelPositions.count({
+          where: { aggregateId: f.aggregateId },
+        }),
+      ).toEqual(1);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "serializes concurrent events for the same aggregate and converges",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+      ]);
+      const updater = updaterOf(db, journal);
+      const created = asHeadStreamEvent("INSERT", f.aggregateId, [f.created]);
+      const memberAdded = asHeadStreamEvent("MODIFY", f.aggregateId, [
+        f.memberAdded,
+      ]);
+
+      await Promise.allSettled([
+        updater.updateFromHeadStream(created),
+        updater.updateFromHeadStream(memberAdded),
+      ]);
+      // Replaying both inputs after the race exercises the dedupe path and must
+      // converge on the same state.
+      await updater.updateFromHeadStream(created);
+      await updater.updateFromHeadStream(memberAdded);
+
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+      expect(
+        await db.groupChats.count({ where: { id: f.aggregateId } }),
+      ).toEqual(1);
+      expect(
+        await db.members.count({ where: { groupChatId: f.aggregateId } }),
+      ).toEqual(2);
+      expect(
+        await db.readModelPositions.count({
+          where: { aggregateId: f.aggregateId },
+        }),
+      ).toEqual(1);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "stores sequence numbers beyond INT and up to the T-9 limit in every table",
+    async () => {
+      const db = requirePrisma(prisma);
+      const dao = GroupChatDao.create(db);
+      const at = new Date("2026-11-08T10:00:00Z");
+
+      for (const value of [2147483648, 9007199254740990, MAX_SEQUENCE_NUMBER]) {
+        // Start one below the value under test so the DAO accepts it as the
+        // next event and advances the position and the read model together.
+        const groupChatId = GroupChatId.generate();
+        const administrator = Member.of(
+          MemberId.generate(),
+          UserAccountId.generate(),
+          "administrator",
+        );
+        await db.readModelPositions.create({
+          data: {
+            aggregateId: groupChatId.asString(),
+            lastProcessedSequenceNumber: BigInt(value - 1),
+          },
+        });
+        await dao.insertGroupChat(
+          groupChatId,
+          GroupChatName.of("bigint"),
+          administrator,
+          at,
+          value,
+        );
+
+        // A message lives in its own aggregate; the group chat row satisfies
+        // the messages foreign key.
+        const messageAggregateId = GroupChatId.generate();
+        const senderId = UserAccountId.generate();
+        await db.groupChats.create({
+          data: {
+            id: messageAggregateId.asString(),
+            disabled: false,
+            name: "bigint",
+            ownerId: senderId.asString(),
+            lastProcessedSequenceNumber: BigInt(1),
+            createdAt: at,
+            updatedAt: at,
+          },
+        });
+        await db.readModelPositions.create({
+          data: {
+            aggregateId: messageAggregateId.asString(),
+            lastProcessedSequenceNumber: BigInt(value - 1),
+          },
+        });
+        await dao.insertMessage(
+          messageAggregateId,
+          Message.of(MessageId.generate(), "hello", senderId, at),
+          at,
+          value,
+        );
+
+        const position = requireRow(
+          await db.readModelPositions.findUnique({
+            where: { aggregateId: groupChatId.asString() },
+          }),
+          "read_model_positions",
+        );
+        const groupChat = requireRow(
+          await db.groupChats.findUnique({
+            where: { id: groupChatId.asString() },
+          }),
+          "group_chats",
+        );
+        const member = requireRow(
+          await db.members.findFirst({
+            where: { groupChatId: groupChatId.asString() },
+          }),
+          "members",
+        );
+        const message = requireRow(
+          await db.messages.findFirst({
+            where: { groupChatId: messageAggregateId.asString() },
+          }),
+          "messages",
+        );
+
+        expect(position.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        expect(groupChat.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        expect(member.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        expect(message.lastProcessedSequenceNumber).toEqual(BigInt(value));
+        // Reading through the DAO returns a plain number within the T-9 limit.
+        expect(await dao.getPosition(groupChatId.asString())).toEqual(value);
+        expect(
+          fromBigIntSequenceNumber(message.lastProcessedSequenceNumber),
+        ).toEqual(value);
+      }
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "rejects a sequence number above the T-9 limit before writing anything",
+    async () => {
+      const db = requirePrisma(prisma);
+      const dao = GroupChatDao.create(db);
+      const aggregateId = GroupChatId.generate();
+      const senderId = UserAccountId.generate();
+      const at = new Date("2026-11-08T10:00:00Z");
+
+      await expect(
+        dao.insertMessage(
+          aggregateId,
+          Message.of(MessageId.generate(), "too-large", senderId, at),
+          at,
+          9007199254740992,
+        ),
+      ).rejects.toBeInstanceOf(SequenceNumberOutOfRangeError);
+
+      expect(
+        await db.readModelPositions.count({
+          where: { aggregateId: aggregateId.asString() },
+        }),
+      ).toEqual(0);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "persists, lists and deletes dead letters idempotently",
+    async () => {
+      const db = requirePrisma(prisma);
+      const store = DeadLetterStore.createSql(db);
+      const aggregateId = `GroupChat-${Date.now()}`;
+      const createdAt = new Date("2026-11-07T12:00:00Z");
+      const record = {
+        storeId: "test-store",
+        projectionName: "group-chat-read-model",
+        projectionVersion: "1",
+        aggregateId,
+        seqNr: 4,
+        failureType: "projection-error" as const,
+        errorMessage: "first failure",
+        attempts: 2,
+        occurredAt: new Date("2026-11-07T11:59:00Z"),
+        manifest: "GroupChatRenamed@1",
+        recordIdentifier: "record-1",
+        createdAt,
+      };
+
+      await store.save(record);
+      await store.save({
+        ...record,
+        attempts: 3,
+        errorMessage: "second failure",
+        createdAt: new Date(createdAt.getTime() + 1000),
       });
-      expect(groupChat?.name).toEqual("after");
+
+      const saved = (await store.list(100)).find(
+        (candidate) => candidate.aggregateId === aggregateId,
+      );
+      expect(saved).toMatchObject({
+        storeId: "test-store",
+        projectionName: "group-chat-read-model",
+        projectionVersion: "1",
+        aggregateId,
+        seqNr: 4,
+        failureType: "projection-error",
+        errorMessage: "second failure",
+        attempts: 5,
+        manifest: "GroupChatRenamed@1",
+        recordIdentifier: "record-1",
+      });
+      expect(saved?.occurredAt).toBeInstanceOf(Date);
+
+      await expect(
+        store.find(record.projectionName, aggregateId, 4),
+      ).resolves.toMatchObject({ seqNr: 4, failureType: "projection-error" });
+      await expect(
+        store.find(record.projectionName, aggregateId, 5),
+      ).resolves.toBeUndefined();
+      expect(await store.count(record.projectionName)).toBeGreaterThanOrEqual(
+        1,
+      );
+
+      await store.delete(record);
+      await expect(
+        store.find(record.projectionName, aggregateId, 4),
+      ).resolves.toBeUndefined();
+      expect(
+        (await store.list(100)).find(
+          (candidate) => candidate.aggregateId === aggregateId,
+        ),
+      ).toBeUndefined();
+
+      // Deleting an already removed task is a no-op, so recovery can be retried.
+      await expect(store.delete(record)).resolves.toBeUndefined();
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "persists an undecodable payload and recovers it from the journal",
+    async () => {
+      const db = requirePrisma(prisma);
+      const f = newFixture();
+      const store = DeadLetterStore.createSql(db);
+      const journal = new FakeJournalReader([
+        journalEvent(f.aggregateId, f.created),
+        journalEvent(f.aggregateId, f.memberAdded),
+      ]);
+      const updater = ReadModelUpdater.create(
+        GroupChatDao.create(db),
+        journal,
+        {
+          deadLetters: store,
+          storeId: "test-store",
+          projectionName: "group-chat-read-model",
+          projectionVersion: "1",
+        },
+      );
+      const head = asHeadStreamEvent("MODIFY", f.aggregateId, [
+        f.created,
+        f.memberAdded,
+      ]);
+      corruptLastPayload(head);
+
+      const result = await updater.updateFromHeadStream(head, {
+        reportBatchItemFailures: true,
+      });
+
+      expect(result).toEqual({
+        batchItemFailures: [{ itemIdentifier: "1" }],
+      });
+      // seq_nr 1 applied; the undecodable seq_nr 2 holds the position.
+      expect(await positionOf(db, f.aggregateId)).toEqual(1);
+      const saved = (await store.list(100, "group-chat-read-model")).find(
+        (candidate) => candidate.aggregateId === f.aggregateId,
+      );
+      expect(saved).toMatchObject({
+        storeId: "test-store",
+        aggregateId: f.aggregateId,
+        seqNr: 2,
+        failureType: "payload-decode",
+        attempts: 1,
+      });
+
+      const recovery = DeadLetterRecovery.create(updater, journal, store, {
+        projectionName: "group-chat-read-model",
+      });
+      expect(await recovery.recoverAll()).toMatchObject({
+        recovered: 1,
+        failed: 0,
+      });
+      expect(await positionOf(db, f.aggregateId)).toEqual(2);
+      expect(
+        (await store.list(100, "group-chat-read-model")).filter(
+          (candidate) => candidate.aggregateId === f.aggregateId,
+        ),
+      ).toEqual([]);
     },
     TIMEOUT,
   );
 });
+
+function corruptLastPayload(streamEvent: DynamoDBStreamEvent): void {
+  const events = streamEvent.Records[0].dynamodb?.NewImage?.events?.L;
+  const last = events?.[events.length - 1];
+  if (last?.M === undefined) {
+    throw new Error("expected a head event");
+  }
+  last.M.payload = { B: "{not-json" };
+}
+
+function requirePrisma(prisma: PrismaClient | undefined): PrismaClient {
+  if (prisma === undefined) {
+    throw new Error("prisma not initialized");
+  }
+  return prisma;
+}
+
+function requireRow<T>(row: T | null, table: string): T {
+  if (row === null) {
+    throw new Error(`expected a ${table} row`);
+  }
+  return row;
+}
+
+function updaterOf(
+  prisma: PrismaClient,
+  journal: JournalReader,
+): ReadModelUpdater {
+  return ReadModelUpdater.create(GroupChatDao.create(prisma), journal);
+}
+
+async function positionOf(
+  prisma: PrismaClient,
+  aggregateId: string,
+): Promise<number> {
+  const position = await prisma.readModelPositions.findUnique({
+    where: { aggregateId },
+  });
+  return position === null
+    ? 0
+    : fromBigIntSequenceNumber(position.lastProcessedSequenceNumber);
+}
+
+type Fixture = {
+  aggregateId: string;
+  adminId: UserAccountId;
+  created: HeadFixture;
+  memberAdded: HeadFixture;
+  renamed: HeadFixture;
+};
+
+function newFixture(): Fixture {
+  const id = GroupChatId.generate();
+  const adminId = UserAccountId.generate();
+  const [gc0, created] = GroupChat.create(
+    id,
+    GroupChatName.of("name"),
+    adminId,
+  );
+  const memberId = UserAccountId.generate();
+  const [gc1, memberAdded] = unwrap(gc0.addMember(memberId, "member", adminId));
+  const [, renamed] = unwrap(gc1.rename(GroupChatName.of("renamed"), adminId));
+  return {
+    aggregateId: id.asString(),
+    adminId,
+    created: fixture(created, 1),
+    memberAdded: fixture(memberAdded, 2),
+    renamed: fixture(renamed, 3),
+  };
+}
 
 function unwrap<E extends { message: string }, Ev extends GroupChatEvent>(
   result: { type: "ok"; value: [GroupChat, Ev] } | { type: "err"; error: E },
@@ -235,6 +829,28 @@ function unwrap<E extends { message: string }, Ev extends GroupChatEvent>(
     throw new Error(result.error.message);
   }
   return result.value;
+}
+
+/**
+ * Prisma sends raw SQL as a single prepared statement and rejects multiple
+ * statements, so the test harness applies each `;`-separated statement of a
+ * migration file separately. Comment lines are removed first so a semicolon in
+ * a `--` comment cannot split a statement.
+ */
+async function applyMigration(
+  prisma: PrismaClient,
+  sql: string,
+): Promise<void> {
+  const body = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+  for (const statement of body.split(";")) {
+    const trimmed = statement.trim();
+    if (trimmed !== "") {
+      await prisma.$executeRawUnsafe(trimmed);
+    }
+  }
 }
 
 async function waitForMysql(prisma: PrismaClient): Promise<void> {

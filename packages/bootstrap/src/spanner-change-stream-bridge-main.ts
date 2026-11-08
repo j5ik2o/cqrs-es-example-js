@@ -35,7 +35,8 @@ async function spannerChangeStreamBridgeMain(): Promise<void> {
   const instanceId = env("PERSISTENCE_SPANNER_INSTANCE_ID", "local-instance");
   const databaseId = env("PERSISTENCE_SPANNER_DATABASE_ID", "local-database");
   const changeStreamName = env("SPANNER_CHANGE_STREAM_NAME", "journal_stream");
-  const journalTableName = env("PERSISTENCE_JOURNAL_TABLE_NAME", "journal");
+  const tablePrefix = env("PERSISTENCE_SPANNER_TABLE_PREFIX", "esa");
+  const journalTableName = `${tablePrefix}_journal`;
   const topicName = env("PUBSUB_TOPIC", "group-chat-journal");
 
   logger.info("Starting Spanner change stream bridge");
@@ -43,7 +44,8 @@ async function spannerChangeStreamBridgeMain(): Promise<void> {
   logger.info(`PERSISTENCE_SPANNER_INSTANCE_ID: ${instanceId}`);
   logger.info(`PERSISTENCE_SPANNER_DATABASE_ID: ${databaseId}`);
   logger.info(`SPANNER_CHANGE_STREAM_NAME: ${changeStreamName}`);
-  logger.info(`PERSISTENCE_JOURNAL_TABLE_NAME: ${journalTableName}`);
+  logger.info(`PERSISTENCE_SPANNER_TABLE_PREFIX: ${tablePrefix}`);
+  logger.info(`journalTableName: ${journalTableName}`);
   logger.info(`PUBSUB_TOPIC: ${topicName}`);
   logger.info(`SPANNER_EMULATOR_HOST: ${process.env.SPANNER_EMULATOR_HOST}`);
   logger.info(`PUBSUB_EMULATOR_HOST: ${process.env.PUBSUB_EMULATOR_HOST}`);
@@ -124,17 +126,17 @@ async function pollOnce(
     const data = toBytes(record.newValues.payload);
     if (data === undefined) {
       logger.warn(
-        `retrying journal window because payload type is unrecognized (aggregateId=${String(
-          record.keys.aggregate_id ?? "",
-        )}, sequenceNumber=${String(record.keys.sequence_number ?? "")})`,
+        `retrying journal window because payload type is unrecognized (aid=${String(
+          record.keys.aid ?? "",
+        )}, seq_nr=${String(record.keys.seq_nr ?? "")})`,
       );
       return false;
     }
     await topic.publishMessage({
       data,
       attributes: {
-        aggregateId: String(record.keys.aggregate_id ?? ""),
-        sequenceNumber: String(record.keys.sequence_number ?? ""),
+        aggregateId: String(record.keys.aid ?? ""),
+        sequenceNumber: String(record.keys.seq_nr ?? ""),
         commitTimestamp: record.commitTimestamp,
         sourceProvider: "spanner",
       },

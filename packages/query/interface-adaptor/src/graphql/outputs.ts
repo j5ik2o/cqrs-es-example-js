@@ -1,7 +1,8 @@
 import { Field, ObjectType } from "type-graphql";
+import { NaiveDateTime } from "./naive-date-time";
 
 @ObjectType()
-class GroupChatOutput {
+class GroupChat {
   @Field()
   id!: string;
 
@@ -11,15 +12,15 @@ class GroupChatOutput {
   @Field()
   ownerId!: string;
 
-  @Field()
+  @Field(() => NaiveDateTime)
   createdAt!: Date;
 
-  @Field()
+  @Field(() => NaiveDateTime)
   updatedAt!: Date;
 }
 
 @ObjectType()
-class MemberOutput {
+class Member {
   @Field()
   id!: string;
 
@@ -32,15 +33,15 @@ class MemberOutput {
   @Field()
   role!: string;
 
-  @Field()
+  @Field(() => NaiveDateTime)
   createdAt!: Date;
 
-  @Field()
+  @Field(() => NaiveDateTime)
   updatedAt!: Date;
 }
 
 @ObjectType()
-class MessageOutput {
+class Message {
   @Field()
   id!: string;
 
@@ -53,11 +54,11 @@ class MessageOutput {
   @Field()
   text!: string;
 
-  @Field()
+  @Field(() => NaiveDateTime)
   createdAt!: Date;
 
-  @Field()
+  @Field(() => NaiveDateTime)
   updatedAt!: Date;
 }
 
-export { GroupChatOutput, MemberOutput, MessageOutput };
+export { GroupChat, Member, Message };

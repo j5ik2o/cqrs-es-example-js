@@ -2,6 +2,6 @@ FROM bash:devel-alpine3.19
 
 RUN apk add --no-cache curl jq
 
-ADD ./verify-group-chat.sh ./
+COPY lib.sh verify-group-chat.sh verify-resilience.sh ./
 
-ENTRYPOINT ["./verify-group-chat.sh"]
+ENTRYPOINT ["bash", "/verify-group-chat.sh"]

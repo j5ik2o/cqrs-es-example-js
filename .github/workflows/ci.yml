@@ -48,8 +48,7 @@ jobs:
   e2e:
     runs-on: ubuntu-24.04
     needs: test
-    env:
-      TEST_TIME_FACTOR: 10.0
+    timeout-minutes: 40
     strategy:
       matrix:
         node-version: [20.x]
@@ -58,16 +57,28 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 9.15.9
-      - uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: "2"
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - run: |
+      - name: Run e2e
+        run: |
           pnpm docker-build-e2e-test
           pnpm docker-build
           pnpm docker-compose-e2e-test
+      - name: Dump e2e diagnostics
+        if: failure()
+        run: |
+          docker compose -p cqrs-es-example-js \
+            -f tools/docker-compose/docker-compose-databases.yml \
+            -f tools/docker-compose/docker-compose-applications.yml \
+            -f tools/docker-compose/docker-compose-e2e-test.yml \
+            ps || true
+          echo "=== Compose logs ==="
+          docker compose -p cqrs-es-example-js \
+            -f tools/docker-compose/docker-compose-databases.yml \
+            -f tools/docker-compose/docker-compose-applications.yml \
+            -f tools/docker-compose/docker-compose-e2e-test.yml \
+            logs --no-color --tail=400 || true

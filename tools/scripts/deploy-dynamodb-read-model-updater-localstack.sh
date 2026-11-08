@@ -19,6 +19,7 @@ export AWS_DEFAULT_REGION="${AWS_REGION:-ap-northeast-1}"
 
 LOCALSTACK_ENDPOINT_URL="${LOCALSTACK_ENDPOINT_URL:-http://localhost:34566}"
 FUNCTION_NAME="${FUNCTION_NAME:-read-model-updater-rmu}"
+STREAM_HEAD_TABLE_NAME="${STREAM_HEAD_TABLE_NAME:-head}"
 STREAM_JOURNAL_TABLE_NAME="${STREAM_JOURNAL_TABLE_NAME:-journal}"
 ROLE_ARN="${LAMBDA_ROLE_ARN:-arn:aws:iam::000000000000:role/lambda-role}"
 # LocalStack 2.x community image may not list nodejs20.x; use nodejs18.x unless overridden.
@@ -26,6 +27,11 @@ RUNTIME="${LAMBDA_RUNTIME:-nodejs18.x}"
 
 DATABASE_URL_LAMBDA="${DATABASE_URL_LAMBDA:-mysql://ceer:ceer@mysql-local:3306/ceer}"
 STREAM_MAX_ITEM_COUNT="${STREAM_MAX_ITEM_COUNT:-32}"
+# Optional OnFailure destination (SQS or SNS ARN). The application persists its
+# own dead letters in MySQL; this destination is only the provider-level safety
+# net for records the invocation never handled.
+LAMBDA_DEAD_LETTER_ARN="${LAMBDA_DEAD_LETTER_ARN:-}"
+LAMBDA_BATCH_SIZE="${LAMBDA_BATCH_SIZE:-10}"
 
 wait_for_localstack() {
   local i
@@ -58,14 +64,14 @@ if ! aws iam get-role \
 fi
 
 STREAM_ARN="$(aws dynamodb describe-table \
-  --table-name "${STREAM_JOURNAL_TABLE_NAME}" \
+  --table-name "${STREAM_HEAD_TABLE_NAME}" \
   --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
   --region "${AWS_DEFAULT_REGION}" \
   --query 'Table.LatestStreamArn' \
   --output text)"
 
 if [ "${STREAM_ARN}" = "None" ] || [ -z "${STREAM_ARN}" ]; then
-  echo "Could not read DynamoDB stream ARN for table ${STREAM_JOURNAL_TABLE_NAME}" >&2
+  echo "Could not read DynamoDB stream ARN for table ${STREAM_HEAD_TABLE_NAME}" >&2
   exit 1
 fi
 
@@ -81,11 +87,38 @@ print(json.dumps({
     "AWS_DYNAMODB_ENDPOINT_URL": "http://localstack:4566",
     "AWS_DYNAMODB_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
     "AWS_DYNAMODB_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+    "STREAM_HEAD_TABLE_NAME": "${STREAM_HEAD_TABLE_NAME}",
     "STREAM_JOURNAL_TABLE_NAME": "${STREAM_JOURNAL_TABLE_NAME}",
     "STREAM_MAX_ITEM_COUNT": "${STREAM_MAX_ITEM_COUNT}",
+    "RMU_STORE_ID": "${RMU_STORE_ID:-dynamodb-head}",
+    "RMU_PROJECTION_NAME": "${RMU_PROJECTION_NAME:-group-chat-read-model}",
+    "RMU_PROJECTION_VERSION": "${RMU_PROJECTION_VERSION:-1}",
+    "RMU_RETRY_MAX_ATTEMPTS": "${RMU_RETRY_MAX_ATTEMPTS:-5}",
+    "RMU_RETRY_INITIAL_DELAY_MS": "${RMU_RETRY_INITIAL_DELAY_MS:-200}",
+    "RMU_RETRY_MAX_DELAY_MS": "${RMU_RETRY_MAX_DELAY_MS:-10000}",
+    "RMU_RETRY_MAX_ELAPSED_MS": "${RMU_RETRY_MAX_ELAPSED_MS:-30000}",
+    "RMU_DEAD_LETTER_BATCH_LIMIT": "${RMU_DEAD_LETTER_BATCH_LIMIT:-100}",
+    "RMU_DEAD_LETTER_QUEUE_URL": "${RMU_DEAD_LETTER_QUEUE_URL:-}",
+    "RMU_DEAD_LETTER_MESSAGE_GROUP_ID": "${RMU_DEAD_LETTER_MESSAGE_GROUP_ID:-}",
+    "AWS_SQS_ENDPOINT_URL": "${AWS_SQS_ENDPOINT_URL:-}",
   }
 }))
 PY
+
+# The failure destination belongs to the event source mapping, not to the
+# function's asynchronous invocation config. The application dead-letter table
+# is the primary recovery path; this destination is only the provider-level
+# safety net. Leave the retry count unset (infinite) unless recovery is ready.
+ESM_FAILURE_OPTIONS=()
+if [ -n "${LAMBDA_DEAD_LETTER_ARN}" ]; then
+  ESM_FAILURE_OPTIONS+=(
+    --destination-config
+    "{\"OnFailure\":{\"Destination\":\"${LAMBDA_DEAD_LETTER_ARN}\"}}"
+  )
+fi
+if [ -n "${LAMBDA_MAX_RETRY_ATTEMPTS:-}" ]; then
+  ESM_FAILURE_OPTIONS+=(--maximum-retry-attempts "${LAMBDA_MAX_RETRY_ATTEMPTS}")
+fi
 
 create_or_update_function() {
   set +e
@@ -172,8 +205,11 @@ create_event_source_mapping() {
     ESM_OUTPUT=$(aws lambda create-event-source-mapping \
       --function-name "${FUNCTION_NAME}" \
       --event-source-arn "${STREAM_ARN}" \
-      --batch-size 10 \
+      --batch-size "${LAMBDA_BATCH_SIZE}" \
       --starting-position TRIM_HORIZON \
+      --bisect-batch-on-function-error \
+      --function-response-types ReportBatchItemFailures \
+      ${ESM_FAILURE_OPTIONS[@]+"${ESM_FAILURE_OPTIONS[@]}"} \
       --endpoint-url "${LOCALSTACK_ENDPOINT_URL}" \
       --region "${AWS_DEFAULT_REGION}" 2>&1) && break
     echo "Waiting for DynamoDB stream to become available (attempt ${i}/30)..." >&2

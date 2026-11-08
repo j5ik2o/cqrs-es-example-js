@@ -1,119 +1,357 @@
-import type { DynamoDBStreamEvent } from "aws-lambda";
+import type { AttributeValue, DynamoDBStreamEvent } from "aws-lambda";
 import {
   GroupChat,
-  type GroupChatEvent,
+  GroupChatEvent,
   GroupChatId,
   GroupChatName,
   UserAccountId,
 } from "cqrs-es-example-js-command-domain";
-import { decodeDynamoDBStreamEvent } from "./dynamodb-adapter";
+import { decodeHeadScanItems, decodeHeadStreamEvent } from "./dynamodb-adapter";
+import type {
+  ReadModelInput,
+  ReadModelUpdaterInput,
+} from "./read-model-updater-input";
 import { decodeSpannerPubSubMessage } from "./spanner-pubsub-adapter";
 
-// The event-store serializer envelope: JSON.stringify({ type, data }).
+type PayloadEncoding = "raw" | "base64" | "bytes";
+
+type HeadFixture = {
+  event: GroupChatEvent;
+  seqNr: number;
+  occurredAt: Date;
+};
+
+// ESA v5 serializes only the domain payload; aggregate id, seq_nr and
+// occurred_at live in the head event envelope.
 function wirePayload(event: GroupChatEvent): string {
-  return JSON.stringify({ type: event.typeName, data: event });
+  return JSON.stringify(GroupChatEvent.toJSON(event));
 }
 
-function asDynamoDBStreamEvent(event: GroupChatEvent): DynamoDBStreamEvent {
+function fixture(event: GroupChatEvent, seqNr: number): HeadFixture {
+  return {
+    event,
+    seqNr,
+    occurredAt: new Date(1_700_000_000_000 + seqNr * 1_000),
+  };
+}
+
+function encodePayload(json: string, encoding: PayloadEncoding): string {
+  if (encoding === "base64") {
+    return Buffer.from(json, "utf-8").toString("base64");
+  }
+  if (encoding === "bytes") {
+    return Array.from(Buffer.from(json, "utf-8")).join(",");
+  }
+  return json;
+}
+
+function headRecord(
+  eventName: "INSERT" | "MODIFY" | "REMOVE",
+  aggregateId: string,
+  events: readonly HeadFixture[],
+  encoding: PayloadEncoding = "raw",
+): DynamoDBStreamEvent {
+  const last = events[events.length - 1];
   return {
     Records: [
       {
-        eventName: "INSERT",
+        eventName,
         dynamodb: {
           ApproximateCreationDateTime: 1_700_000_000,
-          NewImage: {
-            // LocalStack carries a raw JSON string in the B field.
-            payload: { B: wirePayload(event) },
-          },
           SequenceNumber: "000000000000000000001",
+          NewImage: {
+            aid: { S: aggregateId },
+            type_name: { S: "GroupChat" },
+            seq_nr: { N: String(last?.seqNr ?? 0) },
+            events: {
+              L: events.map((headEvent) => ({
+                M: {
+                  seq_nr: { N: String(headEvent.seqNr) },
+                  occurred_at: {
+                    N: String(
+                      BigInt(headEvent.occurredAt.getTime()) *
+                        BigInt(1_000_000),
+                    ),
+                  },
+                  manifest: { S: `${headEvent.event.typeName}@1` },
+                  payload: {
+                    B: encodePayload(wirePayload(headEvent.event), encoding),
+                  },
+                },
+              })),
+            },
+          },
         },
       },
     ],
   } as unknown as DynamoDBStreamEvent;
 }
 
-function asSpannerPubSubMessage(event: GroupChatEvent) {
+function asSpannerPubSubMessage(aggregateId: string, headEvent: HeadFixture) {
   return {
-    data: Buffer.from(wirePayload(event), "utf-8").toString("base64"),
+    data: Buffer.from(wirePayload(headEvent.event), "utf-8").toString("base64"),
     attributes: {
-      aggregateId: event.aggregateId.asString(),
-      sequenceNumber: String(event.sequenceNumber),
-      commitTimestamp: "2026-05-30T00:00:00.000Z",
+      aggregateId,
+      sequenceNumber: String(headEvent.seqNr),
+      commitTimestamp: headEvent.occurredAt.toISOString(),
+      manifest: `${headEvent.event.typeName}@1`,
     },
     messageId: "msg-1",
   };
 }
 
 describe("RMU adapter contract", () => {
-  test("DynamoDB and Spanner Pub/Sub adapters produce an equivalent wrapper", () => {
+  test("DynamoDB head and Spanner Pub/Sub adapters produce an equivalent wrapper", () => {
     const id = GroupChatId.generate();
     const adminId = UserAccountId.generate();
     const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const createdFixture = fixture(created, 1);
 
-    const [fromDynamoDBStream] = decodeDynamoDBStreamEvent(
-      asDynamoDBStreamEvent(created),
+    const fromHeadStream = asEvent(
+      decodeHeadStreamEvent(
+        headRecord("INSERT", id.asString(), [createdFixture]),
+      )[0],
     );
-    const [fromSpannerPubSub] = decodeSpannerPubSubMessage(
-      asSpannerPubSubMessage(created),
+    const fromSpannerPubSub = asEvent(
+      decodeSpannerPubSubMessage(
+        asSpannerPubSubMessage(id.asString(), createdFixture),
+      )[0],
     );
 
     // Same decoded domain event identity across providers.
-    expect(fromDynamoDBStream.event.typeName).toEqual(
+    expect(fromHeadStream.event.typeName).toEqual(
       fromSpannerPubSub.event.typeName,
     );
-    expect(fromDynamoDBStream.aggregateId).toEqual(
-      fromSpannerPubSub.aggregateId,
-    );
-    expect(fromDynamoDBStream.sequenceNumber).toEqual(
+    expect(fromHeadStream.aggregateId).toEqual(fromSpannerPubSub.aggregateId);
+    expect(fromHeadStream.sequenceNumber).toEqual(
       fromSpannerPubSub.sequenceNumber,
     );
-    expect(fromDynamoDBStream.aggregateId).toEqual(id.asString());
-    expect(fromDynamoDBStream.sequenceNumber).toEqual(1);
+    expect(fromHeadStream.aggregateId).toEqual(id.asString());
+    expect(fromHeadStream.sequenceNumber).toEqual(1);
+    expect(fromHeadStream.occurredAt).toEqual(createdFixture.occurredAt);
+    expect(fromSpannerPubSub.occurredAt).toEqual(createdFixture.occurredAt);
 
     // Provider is tracked distinctly for diagnostics.
-    expect(fromDynamoDBStream.sourceProvider).toEqual("dynamodb");
+    expect(fromHeadStream.sourceProvider).toEqual("dynamodb");
     expect(fromSpannerPubSub.sourceProvider).toEqual("spanner");
 
     // Both carry a position for ordering/idempotency.
-    expect(fromDynamoDBStream.position).toBeDefined();
+    expect(fromHeadStream.position).toBeDefined();
     expect(fromSpannerPubSub.position).toBeDefined();
   });
 
-  test("Spanner Pub/Sub adapter reconstructs the full created event payload", () => {
+  test("decodes both INSERT and MODIFY head records", () => {
     const id = GroupChatId.generate();
     const adminId = UserAccountId.generate();
-    const [, created] = GroupChat.create(
+    const [gc0, created] = GroupChat.create(
       id,
-      GroupChatName.of("hello"),
+      GroupChatName.of("name"),
       adminId,
     );
+    const memberId = UserAccountId.generate();
+    const [, memberAdded] = unwrap(gc0.addMember(memberId, "member", adminId));
 
-    const [input] = decodeSpannerPubSubMessage(asSpannerPubSubMessage(created));
-    if (input.event.typeName !== "GroupChatCreated") {
-      throw new Error("expected GroupChatCreated");
-    }
-    expect(input.event.name.value).toEqual("hello");
-    expect(input.event.members.values[0].userAccountId.value).toEqual(
-      adminId.value,
-    );
-    expect(input.observedAt.toISOString()).toEqual("2026-05-30T00:00:00.000Z");
+    const inputs = decodeHeadStreamEvent({
+      Records: [
+        ...headRecord("INSERT", id.asString(), [fixture(created, 1)]).Records,
+        ...headRecord("MODIFY", id.asString(), [fixture(memberAdded, 2)])
+          .Records,
+      ],
+    } as unknown as DynamoDBStreamEvent);
+
+    expect(inputs.map((input) => input.sequenceNumber)).toEqual([1, 2]);
+    expect(inputs.map((input) => asEvent(input).event.typeName)).toEqual([
+      "GroupChatCreated",
+      "GroupChatMemberAdded",
+    ]);
   });
 
-  test("DynamoDB adapter rejects INSERT records without a journal payload", () => {
+  test("sorts the events inside one head record and uses the envelope timestamp", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [gc0, created] = GroupChat.create(
+      id,
+      GroupChatName.of("name"),
+      adminId,
+    );
+    const memberId = UserAccountId.generate();
+    const [gc1, memberAdded] = unwrap(
+      gc0.addMember(memberId, "member", adminId),
+    );
+    const [, renamed] = unwrap(
+      gc1.rename(GroupChatName.of("renamed"), adminId),
+    );
+    const createdFixture = fixture(created, 1);
+
+    const streamEvent = headRecord("MODIFY", id.asString(), [
+      fixture(renamed, 3),
+      createdFixture,
+      fixture(memberAdded, 2),
+    ]);
+    const image = streamEvent.Records[0].dynamodb?.NewImage;
+    image?.events?.L?.reverse();
+
+    const inputs = decodeHeadStreamEvent(streamEvent);
+
+    expect(inputs.map((input) => input.sequenceNumber)).toEqual([1, 2, 3]);
+    expect(asEvent(inputs[2]).event.typeName).toEqual("GroupChatRenamed");
+    expect(inputs[0].occurredAt).toEqual(createdFixture.occurredAt);
+  });
+
+  test("skips __config__, other aggregate types and REMOVE records", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const createdFixture = fixture(created, 1);
+
+    const config = headRecord("INSERT", "__config__", [createdFixture]);
+    const foreign = headRecord(
+      "INSERT",
+      "UserAccount-01H42K4ABWQ5V2XQEP3A48VE0Z",
+      [createdFixture],
+    );
+    const removed = headRecord("REMOVE", id.asString(), [createdFixture]);
+    removed.Records[0].dynamodb = undefined;
+
+    const inputs = decodeHeadStreamEvent({
+      Records: [...config.Records, ...foreign.Records, ...removed.Records],
+    } as unknown as DynamoDBStreamEvent);
+
+    expect(inputs).toEqual([]);
+  });
+
+  test("decodes every head payload encoding (raw / base64 / bytes)", () => {
+    const encodings: PayloadEncoding[] = ["raw", "base64", "bytes"];
+    for (const encoding of encodings) {
+      const id = GroupChatId.generate();
+      const adminId = UserAccountId.generate();
+      const [, created] = GroupChat.create(
+        id,
+        GroupChatName.of(`gc-${encoding}`),
+        adminId,
+      );
+
+      const [input] = decodeHeadStreamEvent(
+        headRecord("INSERT", id.asString(), [fixture(created, 1)], encoding),
+      );
+
+      const decoded = asEvent(input);
+      if (decoded.event.typeName !== "GroupChatCreated") {
+        throw new Error("expected GroupChatCreated");
+      }
+      expect(decoded.event.name.value).toEqual(`gc-${encoding}`);
+    }
+  });
+
+  test("rejects a head record without an events list", () => {
     const dynamodbStreamEvent = {
       Records: [
         {
           eventName: "INSERT",
           dynamodb: {
-            NewImage: {},
+            NewImage: {
+              aid: { S: "GroupChat-01H42K4ABWQ5V2XQEP3A48VE0Z" },
+              type_name: { S: "GroupChat" },
+              seq_nr: { N: "1" },
+            },
             SequenceNumber: "000000000000000000002",
           },
         },
       ],
     } as unknown as DynamoDBStreamEvent;
 
-    expect(() => decodeDynamoDBStreamEvent(dynamodbStreamEvent)).toThrow(
-      "DynamoDB INSERT record is missing NewImage.payload.B",
+    expect(() => decodeHeadStreamEvent(dynamodbStreamEvent)).toThrow(
+      "missing NewImage.events",
     );
   });
+
+  test("emits a decode failure with the envelope identity instead of throwing", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const streamEvent = headRecord("INSERT", id.asString(), [
+      fixture(created, 1),
+    ]);
+    corruptHeadPayload(streamEvent);
+
+    const [input] = decodeHeadStreamEvent(streamEvent);
+
+    expect(input.kind).toEqual("decode-failure");
+    if (input.kind !== "decode-failure") {
+      throw new Error("expected a decode failure");
+    }
+    expect(input.aggregateId).toEqual(id.asString());
+    expect(input.sequenceNumber).toEqual(1);
+    expect(input.recordIdentifier).toEqual("000000000000000000001");
+    expect(input.errorMessage).toContain("not valid JSON");
+  });
+
+  test("keeps the envelope identity for a corrupt head scan item", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const streamEvent = headRecord("INSERT", id.asString(), [
+      fixture(created, 1),
+    ]);
+    corruptHeadPayload(streamEvent);
+    const image = streamEvent.Records[0].dynamodb?.NewImage;
+    if (image === undefined) {
+      throw new Error("expected a head image");
+    }
+
+    const [input] = decodeHeadScanItems([image]);
+
+    expect(input.kind).toEqual("decode-failure");
+    if (input.kind !== "decode-failure") {
+      throw new Error("expected a decode failure");
+    }
+    expect(input.aggregateId).toEqual(id.asString());
+    expect(input.sequenceNumber).toEqual(1);
+  });
+
+  test("emits a decode failure for an undecodable Pub/Sub payload", () => {
+    const id = GroupChatId.generate();
+    const adminId = UserAccountId.generate();
+    const [, created] = GroupChat.create(id, GroupChatName.of("name"), adminId);
+    const message = asSpannerPubSubMessage(id.asString(), fixture(created, 1));
+    message.data = Buffer.from("{not-json", "utf-8").toString("base64");
+
+    const [input] = decodeSpannerPubSubMessage(message);
+
+    expect(input.kind).toEqual("decode-failure");
+    if (input.kind !== "decode-failure") {
+      throw new Error("expected a decode failure");
+    }
+    expect(input.aggregateId).toEqual(id.asString());
+    expect(input.sequenceNumber).toEqual(1);
+    expect(input.recordIdentifier).toEqual("msg-1");
+  });
 });
+
+function corruptHeadPayload(streamEvent: DynamoDBStreamEvent): void {
+  const headEvent = streamEvent.Records[0].dynamodb?.NewImage?.events?.L?.[0];
+  if (headEvent?.M === undefined) {
+    throw new Error("expected a head event");
+  }
+  const attributes: Record<string, AttributeValue> = headEvent.M;
+  attributes.payload = { B: "{not-json" };
+}
+
+function asEvent(input: ReadModelInput | undefined): ReadModelUpdaterInput {
+  if (input === undefined) {
+    throw new Error("expected a decoded input");
+  }
+  if (input.kind !== "event") {
+    throw new Error(`expected a decoded event: ${input.errorMessage}`);
+  }
+  return input;
+}
+
+function unwrap<E extends { message: string }, Ev extends GroupChatEvent>(
+  result: { type: "ok"; value: [GroupChat, Ev] } | { type: "err"; error: E },
+): [GroupChat, Ev] {
+  if (result.type === "err") {
+    throw new Error(result.error.message);
+  }
+  return result.value;
+}

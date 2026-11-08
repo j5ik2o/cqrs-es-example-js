@@ -9,7 +9,7 @@
 
 これは、TypeScriptで実装されたCQRS/イベントソーシングおよびGraphQLの例です。
 
-このプロジェクトはイベントソーシングのために[j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js)を使用しています。
+このプロジェクトはイベントソーシングのために[j5ik2o/event-store-adapter-js](https://github.com/j5ik2o/event-store-adapter-js) **v5.2.0**を使用しています。Write API は **DynamoDB**（3テーブル）と **Cloud Spanner**（5テーブル）のどちらにも永続化できます（`PERSISTENCE_BACKEND=dynamodb|spanner`）。詳しくは [Persistence backends & the Spanner read-model pipeline](./docs/spanner-local-pipeline.md) を参照してください。
 
 [English](./README.md)
 
@@ -20,6 +20,7 @@
 - [x] Read Model Updater on Local
 - [x] Docker Compose Support
 - [x] Read Model Updater on AWS Lambda（LocalStack 向けビルド／デプロイと `common.env`。詳細は [ビルドとテスト](./docs/BUILD_AND_TEST.ja.md)）
+- [x] RMU の復旧（再試行の上限、DLQ からの復旧、payload の復号失敗と上限つきの止まったイベント記録、Lambda の起動時照合、head の再同期、任意の SQS 通知と SQS 復旧ワーカー）
 - [ ] Deployment to AWS
 
 ## 概要

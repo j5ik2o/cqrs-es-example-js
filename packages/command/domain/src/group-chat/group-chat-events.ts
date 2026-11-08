@@ -1,15 +1,9 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { Event } from "event-store-adapter-js/dist/event";
 import {
   type UserAccountId,
   type UserAccountIdJson,
   convertJSONToUserAccountId,
 } from "../user-account";
-import {
-  type GroupChatId,
-  type GroupChatIdJson,
-  convertJSONToGroupChatId,
-} from "./group-chat-id";
 import {
   type GroupChatName,
   type GroupChatNameJson,
@@ -22,6 +16,19 @@ import {
   convertJSONToMembers,
 } from "./members";
 import { Message, type MessageJson, convertJSONToMessage } from "./message";
+
+// --- Envelope manifest ----------------------------------------------------
+
+/**
+ * Payload schema version carried in the ESA v5 envelope manifest. The manifest
+ * is `<event-type>@<schema-version>`; the payload itself contains no envelope
+ * metadata (aggregate id, sequence number, occurrence time).
+ */
+export const EVENT_SCHEMA_VERSION = 1;
+
+export function manifestOf(eventType: string): string {
+  return `${eventType}@${EVENT_SCHEMA_VERSION}`;
+}
 
 // --- Brands ---------------------------------------------------------------
 
@@ -36,6 +43,9 @@ const GROUP_CHAT_MEMBER_REMOVED_BRAND: unique symbol = Symbol(
 const GROUP_CHAT_MESSAGE_POSTED_BRAND: unique symbol = Symbol(
   "GroupChatMessagePosted",
 );
+const GROUP_CHAT_MESSAGE_EDITED_BRAND: unique symbol = Symbol(
+  "GroupChatMessageEdited",
+);
 const GROUP_CHAT_MESSAGE_DELETED_BRAND: unique symbol = Symbol(
   "GroupChatMessageDeleted",
 );
@@ -43,57 +53,38 @@ const GROUP_CHAT_DELETED_BRAND: unique symbol = Symbol("GroupChatDeleted");
 
 // --- Common shape ---------------------------------------------------------
 
-type GroupChatEventBase = Event<GroupChatId> & {
+type GroupChatEventBase = {
+  typeName: string;
+  id: string;
   executorId: UserAccountId;
 };
 
 type GroupChatEventBaseJson = {
   id: string;
-  aggregateId: GroupChatIdJson;
   executorId: UserAccountIdJson;
-  sequenceNumber: number;
-  occurredAt: string;
-  isCreated: boolean;
 };
 
 function baseFields(input: {
   id: string;
-  aggregateId: GroupChatId;
   executorId: UserAccountId;
-  sequenceNumber: number;
-  occurredAt: Date;
 }): GroupChatEventBase {
   requireNonEmptyString("event id", input.id);
-  requireSequenceNumber(input.sequenceNumber);
-  requireValidDate(input.occurredAt);
   return {
     id: input.id,
-    aggregateId: input.aggregateId,
     executorId: input.executorId,
-    sequenceNumber: input.sequenceNumber,
-    occurredAt: input.occurredAt,
   } as GroupChatEventBase;
 }
 
-function baseToJSON(
-  event: GroupChatEventBase & { isCreated: boolean },
-): GroupChatEventBaseJson {
+function baseToJSON(event: GroupChatEventBase): GroupChatEventBaseJson {
   return {
     id: event.id,
-    aggregateId: { value: event.aggregateId.value },
     executorId: { value: event.executorId.value },
-    sequenceNumber: event.sequenceNumber,
-    occurredAt: event.occurredAt.toISOString(),
-    isCreated: event.isCreated,
   };
 }
 
 function baseFromJSON(json: GroupChatEventDataJson): {
   id: string;
-  aggregateId: GroupChatId;
   executorId: UserAccountId;
-  sequenceNumber: number;
-  occurredAt: Date;
 } {
   // Reject corrupt payloads explicitly rather than coercing (e.g. a missing id
   // must not become the string "undefined" and pass validation downstream).
@@ -103,27 +94,9 @@ function baseFromJSON(json: GroupChatEventDataJson): {
   if (json.id === "") {
     throw new Error("Invalid GroupChatEvent JSON: id must not be empty");
   }
-  if (
-    typeof json.sequenceNumber !== "number" ||
-    !Number.isFinite(json.sequenceNumber)
-  ) {
-    throw new Error(
-      "Invalid GroupChatEvent JSON: sequenceNumber must be a finite number",
-    );
-  }
-  if (typeof json.occurredAt !== "string") {
-    throw new Error("Invalid GroupChatEvent JSON: occurredAt must be a string");
-  }
-  const occurredAt = new Date(json.occurredAt);
-  if (Number.isNaN(occurredAt.getTime())) {
-    throw new Error("Invalid GroupChatEvent JSON: occurredAt must be valid");
-  }
   return {
     id: json.id,
-    aggregateId: convertJSONToGroupChatId(json.aggregateId),
     executorId: convertJSONToUserAccountId(json.executorId),
-    sequenceNumber: json.sequenceNumber,
-    occurredAt,
   };
 }
 
@@ -137,7 +110,6 @@ export type GroupChatCreatedJson = GroupChatEventBaseJson & {
 
 export type GroupChatCreated = GroupChatEventBase & {
   typeName: "GroupChatCreated";
-  isCreated: true;
   name: GroupChatName;
   members: Members;
   readonly [GROUP_CHAT_CREATED_BRAND]: true;
@@ -146,38 +118,29 @@ export type GroupChatCreated = GroupChatEventBase & {
 export namespace GroupChatCreated {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     name: GroupChatName;
     members: Members;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatCreated {
     return Object.freeze({
       [GROUP_CHAT_CREATED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatCreated",
-      isCreated: true,
       name: input.name,
       members: input.members,
     });
   }
 
   export function of(
-    aggregateId: GroupChatId,
     name: GroupChatName,
     members: Members,
     executorId: UserAccountId,
-    sequenceNumber: number,
   ): GroupChatCreated {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       name,
       members,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -212,7 +175,6 @@ export type GroupChatRenamedJson = GroupChatEventBaseJson & {
 
 export type GroupChatRenamed = GroupChatEventBase & {
   typeName: "GroupChatRenamed";
-  isCreated: false;
   name: GroupChatName;
   readonly [GROUP_CHAT_RENAMED_BRAND]: true;
 };
@@ -220,34 +182,25 @@ export type GroupChatRenamed = GroupChatEventBase & {
 export namespace GroupChatRenamed {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     name: GroupChatName;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatRenamed {
     return Object.freeze({
       [GROUP_CHAT_RENAMED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatRenamed",
-      isCreated: false,
       name: input.name,
     });
   }
 
   export function of(
-    aggregateId: GroupChatId,
     name: GroupChatName,
     executorId: UserAccountId,
-    sequenceNumber: number,
   ): GroupChatRenamed {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       name,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -280,7 +233,6 @@ export type GroupChatMemberAddedJson = GroupChatEventBaseJson & {
 
 export type GroupChatMemberAdded = GroupChatEventBase & {
   typeName: "GroupChatMemberAdded";
-  isCreated: false;
   member: Member;
   readonly [GROUP_CHAT_MEMBER_ADDED_BRAND]: true;
 };
@@ -288,34 +240,25 @@ export type GroupChatMemberAdded = GroupChatEventBase & {
 export namespace GroupChatMemberAdded {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     member: Member;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatMemberAdded {
     return Object.freeze({
       [GROUP_CHAT_MEMBER_ADDED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatMemberAdded",
-      isCreated: false,
       member: input.member,
     });
   }
 
   export function of(
-    aggregateId: GroupChatId,
     member: Member,
     executorId: UserAccountId,
-    sequenceNumber: number,
   ): GroupChatMemberAdded {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       member,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -350,7 +293,6 @@ export type GroupChatMemberRemovedJson = GroupChatEventBaseJson & {
 
 export type GroupChatMemberRemoved = GroupChatEventBase & {
   typeName: "GroupChatMemberRemoved";
-  isCreated: false;
   member: Member;
   readonly [GROUP_CHAT_MEMBER_REMOVED_BRAND]: true;
 };
@@ -358,34 +300,25 @@ export type GroupChatMemberRemoved = GroupChatEventBase & {
 export namespace GroupChatMemberRemoved {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     member: Member;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatMemberRemoved {
     return Object.freeze({
       [GROUP_CHAT_MEMBER_REMOVED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatMemberRemoved",
-      isCreated: false,
       member: input.member,
     });
   }
 
   export function of(
-    aggregateId: GroupChatId,
     member: Member,
     executorId: UserAccountId,
-    sequenceNumber: number,
   ): GroupChatMemberRemoved {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       member,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -422,7 +355,6 @@ export type GroupChatMessagePostedJson = GroupChatEventBaseJson & {
 
 export type GroupChatMessagePosted = GroupChatEventBase & {
   typeName: "GroupChatMessagePosted";
-  isCreated: false;
   message: Message;
   readonly [GROUP_CHAT_MESSAGE_POSTED_BRAND]: true;
 };
@@ -430,34 +362,25 @@ export type GroupChatMessagePosted = GroupChatEventBase & {
 export namespace GroupChatMessagePosted {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     message: Message;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatMessagePosted {
     return Object.freeze({
       [GROUP_CHAT_MESSAGE_POSTED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatMessagePosted",
-      isCreated: false,
       message: input.message,
     });
   }
 
   export function of(
-    aggregateId: GroupChatId,
     message: Message,
     executorId: UserAccountId,
-    sequenceNumber: number,
   ): GroupChatMessagePosted {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       message,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -485,6 +408,68 @@ export namespace GroupChatMessagePosted {
   }
 }
 
+// --- GroupChatMessageEdited -----------------------------------------------
+
+export type GroupChatMessageEditedJson = GroupChatEventBaseJson & {
+  typeName: "GroupChatMessageEdited";
+  message: MessageJson;
+};
+
+export type GroupChatMessageEdited = GroupChatEventBase & {
+  typeName: "GroupChatMessageEdited";
+  message: Message;
+  readonly [GROUP_CHAT_MESSAGE_EDITED_BRAND]: true;
+};
+
+export namespace GroupChatMessageEdited {
+  export function create(input: {
+    id: string;
+    message: Message;
+    executorId: UserAccountId;
+  }): GroupChatMessageEdited {
+    return Object.freeze({
+      [GROUP_CHAT_MESSAGE_EDITED_BRAND]: true as const,
+      ...baseFields(input),
+      typeName: "GroupChatMessageEdited",
+      message: input.message,
+    });
+  }
+
+  export function of(
+    message: Message,
+    executorId: UserAccountId,
+  ): GroupChatMessageEdited {
+    return create({
+      id: Infrastructure.generateULID(),
+      message,
+      executorId,
+    });
+  }
+
+  export function is(value: unknown): value is GroupChatMessageEdited {
+    return brandOf(value) === GROUP_CHAT_MESSAGE_EDITED_BRAND;
+  }
+
+  export function toJSON(
+    event: GroupChatMessageEdited,
+  ): GroupChatMessageEditedJson {
+    return {
+      ...baseToJSON(event),
+      typeName: "GroupChatMessageEdited",
+      message: Message.toJSON(event.message),
+    };
+  }
+
+  export function fromJSON(
+    json: GroupChatEventDataJson,
+  ): GroupChatMessageEdited {
+    return create({
+      ...baseFromJSON(json),
+      message: convertJSONToMessage(json.message),
+    });
+  }
+}
+
 // --- GroupChatMessageDeleted ----------------------------------------------
 
 export type GroupChatMessageDeletedJson = GroupChatEventBaseJson & {
@@ -494,7 +479,6 @@ export type GroupChatMessageDeletedJson = GroupChatEventBaseJson & {
 
 export type GroupChatMessageDeleted = GroupChatEventBase & {
   typeName: "GroupChatMessageDeleted";
-  isCreated: false;
   message: Message;
   readonly [GROUP_CHAT_MESSAGE_DELETED_BRAND]: true;
 };
@@ -502,34 +486,25 @@ export type GroupChatMessageDeleted = GroupChatEventBase & {
 export namespace GroupChatMessageDeleted {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     message: Message;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatMessageDeleted {
     return Object.freeze({
       [GROUP_CHAT_MESSAGE_DELETED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatMessageDeleted",
-      isCreated: false,
       message: input.message,
     });
   }
 
   export function of(
-    aggregateId: GroupChatId,
     message: Message,
     executorId: UserAccountId,
-    sequenceNumber: number,
   ): GroupChatMessageDeleted {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       message,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -565,37 +540,25 @@ export type GroupChatDeletedJson = GroupChatEventBaseJson & {
 
 export type GroupChatDeleted = GroupChatEventBase & {
   typeName: "GroupChatDeleted";
-  isCreated: false;
   readonly [GROUP_CHAT_DELETED_BRAND]: true;
 };
 
 export namespace GroupChatDeleted {
   export function create(input: {
     id: string;
-    aggregateId: GroupChatId;
     executorId: UserAccountId;
-    sequenceNumber: number;
-    occurredAt: Date;
   }): GroupChatDeleted {
     return Object.freeze({
       [GROUP_CHAT_DELETED_BRAND]: true as const,
       ...baseFields(input),
       typeName: "GroupChatDeleted",
-      isCreated: false,
     });
   }
 
-  export function of(
-    aggregateId: GroupChatId,
-    executorId: UserAccountId,
-    sequenceNumber: number,
-  ): GroupChatDeleted {
+  export function of(executorId: UserAccountId): GroupChatDeleted {
     return create({
       id: Infrastructure.generateULID(),
-      aggregateId,
       executorId,
-      sequenceNumber,
-      occurredAt: new Date(),
     });
   }
 
@@ -623,6 +586,7 @@ export type GroupChatEvent =
   | GroupChatMemberAdded
   | GroupChatMemberRemoved
   | GroupChatMessagePosted
+  | GroupChatMessageEdited
   | GroupChatMessageDeleted
   | GroupChatDeleted;
 
@@ -632,6 +596,7 @@ export type GroupChatEventJson =
   | GroupChatMemberAddedJson
   | GroupChatMemberRemovedJson
   | GroupChatMessagePostedJson
+  | GroupChatMessageEditedJson
   | GroupChatMessageDeletedJson
   | GroupChatDeletedJson;
 
@@ -643,6 +608,7 @@ export namespace GroupChatEvent {
       GroupChatMemberAdded.is(value) ||
       GroupChatMemberRemoved.is(value) ||
       GroupChatMessagePosted.is(value) ||
+      GroupChatMessageEdited.is(value) ||
       GroupChatMessageDeleted.is(value) ||
       GroupChatDeleted.is(value)
     );
@@ -660,6 +626,8 @@ export namespace GroupChatEvent {
         return GroupChatMemberRemoved.toJSON(event);
       case "GroupChatMessagePosted":
         return GroupChatMessagePosted.toJSON(event);
+      case "GroupChatMessageEdited":
+        return GroupChatMessageEdited.toJSON(event);
       case "GroupChatMessageDeleted":
         return GroupChatMessageDeleted.toJSON(event);
       case "GroupChatDeleted":
@@ -684,6 +652,8 @@ export namespace GroupChatEvent {
         return GroupChatMemberRemoved.fromJSON(data);
       case "GroupChatMessagePosted":
         return GroupChatMessagePosted.fromJSON(data);
+      case "GroupChatMessageEdited":
+        return GroupChatMessageEdited.fromJSON(data);
       case "GroupChatMessageDeleted":
         return GroupChatMessageDeleted.fromJSON(data);
       case "GroupChatDeleted":
@@ -708,9 +678,17 @@ function unwrapEvent(json: unknown): {
   if (typeof json !== "object" || json === null) {
     throw new Error("Invalid GroupChatEvent JSON");
   }
-  // Serializer envelope: { type, data }
+  // Legacy serializer envelope: { type, data }. Kept only so payloads written
+  // before the v5 migration can still be read; new payloads carry typeName.
   if ("type" in json && "data" in json) {
-    return { typeName: String(json.type), data: json.data };
+    const data = json.data;
+    if (typeof data === "object" && data !== null && !("typeName" in data)) {
+      return {
+        typeName: String(json.type),
+        data: { ...data, typeName: json.type },
+      };
+    }
+    return { typeName: String(json.type), data };
   }
   // Raw event object with a typeName discriminator.
   if ("typeName" in json) {
@@ -729,6 +707,7 @@ function brandOf(value: unknown): symbol | undefined {
     GROUP_CHAT_MEMBER_ADDED_BRAND,
     GROUP_CHAT_MEMBER_REMOVED_BRAND,
     GROUP_CHAT_MESSAGE_POSTED_BRAND,
+    GROUP_CHAT_MESSAGE_EDITED_BRAND,
     GROUP_CHAT_MESSAGE_DELETED_BRAND,
     GROUP_CHAT_DELETED_BRAND,
   ]) {
@@ -742,17 +721,5 @@ function brandOf(value: unknown): symbol | undefined {
 function requireNonEmptyString(fieldName: string, value: unknown): void {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${fieldName} must be a non-empty string`);
-  }
-}
-
-function requireSequenceNumber(value: unknown): void {
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error("event sequenceNumber must be a non-negative safe integer");
-  }
-}
-
-function requireValidDate(value: unknown): void {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-    throw new Error("event occurredAt must be a valid Date");
   }
 }

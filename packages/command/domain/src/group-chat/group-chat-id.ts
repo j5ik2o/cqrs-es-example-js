@@ -1,6 +1,6 @@
 import * as Infrastructure from "cqrs-es-example-js-infrastructure";
-import type { AggregateId } from "event-store-adapter-js/dist/aggregate-id";
-import { Result } from "event-store-adapter-js/dist/result";
+import type { AggregateId } from "event-store-adapter-js";
+import { Result } from "event-store-adapter-js";
 import * as U from "ulidx";
 
 const GROUP_CHAT_PREFIX = "GroupChat";
@@ -12,6 +12,7 @@ export type GroupChatIdJson = {
 
 export type GroupChatId = AggregateId & {
   typeName: typeof GROUP_CHAT_PREFIX;
+  asString(): string;
   readonly [GROUP_CHAT_ID_BRAND]: true;
 };
 

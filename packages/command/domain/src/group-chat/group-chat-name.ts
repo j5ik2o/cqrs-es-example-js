@@ -1,4 +1,4 @@
-import { Result } from "event-store-adapter-js/dist/result";
+import { Result } from "event-store-adapter-js";
 
 const GROUP_CHAT_NAME_BRAND: unique symbol = Symbol("GroupChatName");
 

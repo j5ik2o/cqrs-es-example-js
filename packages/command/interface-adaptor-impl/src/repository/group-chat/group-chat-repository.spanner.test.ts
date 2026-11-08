@@ -4,12 +4,15 @@ import {
   GroupChatId,
   GroupChatName,
   UserAccountId,
-  convertJSONToGroupChat,
-  convertJSONToGroupChatEvent,
 } from "cqrs-es-example-js-command-domain";
-import { EventStore, type Result } from "event-store-adapter-js";
+import type { EventStore, Result } from "event-store-adapter-js";
+import { SpannerEventStore } from "event-store-adapter-js/spanner";
 import { startSpannerContainer } from "../../test/spanner-utils";
 import { GroupChatRepository } from "./group-chat-repository";
+import {
+  groupChatEventSerializer,
+  groupChatSnapshotSerializer,
+} from "./group-chat-serializers";
 
 function ok<T>(result: Result<T, { message: string }>): T {
   if (result.type === "err") {
@@ -24,31 +27,27 @@ describe("GroupChatRepository (Spanner)", () => {
   );
   const TIMEOUT: number = 120 * 1000 * TEST_TIME_FACTOR;
 
-  const JOURNAL_TABLE_NAME = "journal";
-  const SNAPSHOT_TABLE_NAME = "snapshot";
+  const TABLE_PREFIX = "esa";
 
   let spanner: Awaited<ReturnType<typeof startSpannerContainer>> | undefined;
-  let eventStore: EventStore<GroupChatId, GroupChat, GroupChatEvent>;
+  let eventStore: EventStore<GroupChatEvent, GroupChat>;
 
   beforeAll(async () => {
     spanner = await startSpannerContainer({
       instanceId: "test-instance",
       databaseId: "test-database",
-      journalTableName: JOURNAL_TABLE_NAME,
-      snapshotTableName: SNAPSHOT_TABLE_NAME,
+      tablePrefix: TABLE_PREFIX,
     });
-    eventStore = EventStore.createSpanner<
-      GroupChatId,
-      GroupChat,
-      GroupChatEvent
-    >({
+    const result = await SpannerEventStore.create<GroupChatEvent, GroupChat>({
       database: spanner.database,
-      journalTableName: JOURNAL_TABLE_NAME,
-      snapshotTableName: SNAPSHOT_TABLE_NAME,
-      shardCount: 32,
-      eventConverter: convertJSONToGroupChatEvent,
-      snapshotConverter: convertJSONToGroupChat,
+      tablePrefix: TABLE_PREFIX,
+      eventSerializer: groupChatEventSerializer,
+      snapshotSerializer: groupChatSnapshotSerializer,
     });
+    if (result.type === "err") {
+      throw new Error(result.error.message);
+    }
+    eventStore = result.value;
   }, TIMEOUT);
 
   afterAll(async () => {
@@ -78,7 +77,7 @@ describe("GroupChatRepository (Spanner)", () => {
       }
       expect(GroupChatId.equals(found.id, id)).toEqual(true);
       expect(GroupChatName.equals(found.name, name2)).toEqual(true);
-      expect(found.version).toEqual(2);
+      expect(found.sequenceNumber).toEqual(2);
     },
     TIMEOUT,
   );
@@ -94,18 +93,15 @@ describe("GroupChatRepository (Spanner)", () => {
       const [groupChat1, created] = GroupChat.create(id, name, adminId);
       ok(await repository.storeEventAndSnapshot(created, groupChat1));
 
-      const [, renamedA] = ok(
+      const [groupChatA, renamedA] = ok(
         groupChat1.rename(GroupChatName.of("a"), adminId),
       );
-      const [, renamedB] = ok(
+      const [groupChatB, renamedB] = ok(
         groupChat1.rename(GroupChatName.of("b"), adminId),
       );
-      ok(await repository.storeEvent(renamedA, groupChat1.version));
+      ok(await repository.storeEvent(renamedA, groupChatA));
 
-      const conflict = await repository.storeEvent(
-        renamedB,
-        groupChat1.version,
-      );
+      const conflict = await repository.storeEvent(renamedB, groupChatB);
       expect(conflict.type).toEqual("err");
       if (conflict.type === "err") {
         expect(conflict.error.type).toEqual("optimistic-lock-conflict");
