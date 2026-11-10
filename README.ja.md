@@ -50,8 +50,9 @@
 
 ### ローカル環境
 
-- [ローカルマシンでのデバッグ](docs/DEBUG_ON_LOCAL_MACHINE.md)
-- [Docker Composeでのデバッグ](docs/DEBUG_ON_DOCKER_COMPOSE.md)
+- [ローカルのポートと環境変数](docs/LOCAL_RUNTIME_CONFIG.ja.md)
+- [ローカルマシンでのデバッグ](docs/DEBUG_ON_LOCAL_MACHINE.ja.md)
+- [Docker Composeでのデバッグ](docs/DEBUG_ON_DOCKER_COMPOSE.ja.md)
 
 ## Links
 
