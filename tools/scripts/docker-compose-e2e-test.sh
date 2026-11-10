@@ -69,10 +69,13 @@ compose down -v --remove-orphans
 compose up --remove-orphans --force-recreate --renew-anon-volumes -d "${E2E_SERVICES[@]}"
 
 assert_no_published_host_ports() {
+  local containers
   local container
   local published
-  for container in $(compose ps -aq); do
-    published=$(docker port "${container}")
+  containers=$(compose ps -aq) || fail "could not list the e2e stack containers"
+  [ -n "${containers}" ] || fail "the e2e stack has no containers to check"
+  for container in ${containers}; do
+    published=$(docker port "${container}") || fail "could not read the published ports of ${container}"
     if [ -n "${published}" ]; then
       fail "$(docker inspect --format '{{.Name}}' "${container}") publishes host ports in the e2e stack: ${published}"
     fi
