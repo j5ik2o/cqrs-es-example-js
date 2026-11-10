@@ -76,6 +76,8 @@ The regular start script can build and deploy the Lambda RMU and stop the local 
 - [Image build and Compose start](DEBUG_ON_DOCKER_COMPOSE.md#build-the-image).
 - [Compose stop](DEBUG_ON_DOCKER_COMPOSE.md#stop-docker-compose).
 - [Local machine debugging](DEBUG_ON_LOCAL_MACHINE.md).
+> **E2e deletes local data.** By default, the e2e script uses the same Compose project as the regular stack, `cqrs-es-example-js`. It runs `down -v --remove-orphans` before starting the test stack. This deletes the regular stack's MySQL volume data and in-memory DynamoDB data. Run e2e only when you can discard that local data.
+
 - [Build and e2e execution](BUILD_AND_TEST.md#e2e-tests).
 - [Read-model database migrations](DATABASE_MIGRATIONS.md).
 
