@@ -1,5 +1,20 @@
 version: '3.6'
 services:
+  # The e2e container reaches every service by name on the compose network, and
+  # the host script uses `docker compose exec`. Publishing fixed host ports here
+  # only risks bind conflicts on shared or concurrent runners, so reset the
+  # mappings inherited from the databases and applications files.
+  mysql:
+    ports: !reset []
+  localstack:
+    ports: !reset []
+  write-api-server-1:
+    ports: !reset []
+  dynamodb-read-model-updater-1:
+    ports: !reset []
+  read-api-server-1:
+    ports: !reset []
+
   e2e-test:
     profiles:
       - e2e
