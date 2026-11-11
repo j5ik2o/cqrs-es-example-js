@@ -44,7 +44,7 @@ Read Model の反映待ちはポーリングです。`WAIT_READ_MODEL_ATTEMPTS` 
 
 失敗したときは、`tools/scripts/docker-compose-e2e-test.sh` が compose の状態とログを出力します。
 
-e2e の構成はホスト側にポートを公開しないので、ホスト上のほかのプロセスとポートが衝突しません。構成内のコンテナがポートを公開していると、スクリプトは失敗します。e2e のあとに残った構成の中身を確認するときは、`docker compose -p cqrs-es-example-js exec mysql mysql -uroot -ppasswd ceer` のように `docker compose exec` を使います。ホストから各サービスに接続したいときは、`pnpm docker-compose-up` で起動してください。このコマンドは、e2e のコンテナとデータを先に削除します。
+e2e の構成はホスト側にポートを公開しないので、ホスト上のほかのプロセスとポートが衝突しません。構成内のコンテナがポートを公開していると、スクリプトは失敗します。e2e のあとに残った構成の中身を確認するときは、`docker compose -p cqrs-es-example-js-e2e exec mysql mysql -uroot -ppasswd ceer` のように `docker compose exec` を使います。e2e は専用の Compose プロジェクト `cqrs-es-example-js-e2e` を使うので、`pnpm docker-compose-up` で起動した通常構成には触れません。e2e の構成を消すときは `docker compose -p cqrs-es-example-js-e2e down -v --remove-orphans` を実行します。
 
 単体テストには、重複、逆順、欠番、処理途中の失敗、再起動の検証が `packages/rmu/src/read-model-updater.integration.test.ts` にあります。compose の e2e では、障害を注入しないと再現できない逆順と欠番は扱いません。
 

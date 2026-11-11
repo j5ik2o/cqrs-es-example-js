@@ -71,13 +71,13 @@ jobs:
       - name: Dump e2e diagnostics
         if: failure()
         run: |
-          docker compose -p cqrs-es-example-js \
+          docker compose -p cqrs-es-example-js-e2e \
             -f tools/docker-compose/docker-compose-databases.yml \
             -f tools/docker-compose/docker-compose-applications.yml \
             -f tools/docker-compose/docker-compose-e2e-test.yml \
             ps || true
           echo "=== Compose logs ==="
-          docker compose -p cqrs-es-example-js \
+          docker compose -p cqrs-es-example-js-e2e \
             -f tools/docker-compose/docker-compose-databases.yml \
             -f tools/docker-compose/docker-compose-applications.yml \
             -f tools/docker-compose/docker-compose-e2e-test.yml \

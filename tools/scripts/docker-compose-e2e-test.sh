@@ -9,7 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "${SCRIPT_DIR}" || exit 1
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-cqrs-es-example-js}"
+# The e2e cleanup runs `down -v --remove-orphans`, so it must never share the
+# regular stack's project (`cqrs-es-example-js`, used by docker-compose-up.sh).
+REGULAR_PROJECT_NAME="cqrs-es-example-js"
+PROJECT_NAME="${E2E_COMPOSE_PROJECT_NAME:-cqrs-es-example-js-e2e}"
 RESILIENCE_GROUP_CHAT_NAME="${RESILIENCE_GROUP_CHAT_NAME:-resilience-check}"
 WAIT_REPLAY_ATTEMPTS="${WAIT_REPLAY_ATTEMPTS:-30}"
 WAIT_REPLAY_SLEEP_SEC="${WAIT_REPLAY_SLEEP_SEC:-1}"
@@ -44,6 +47,30 @@ fail() {
   echo "Error: $*" >&2
   exit 1
 }
+
+if [ "${PROJECT_NAME}" = "${REGULAR_PROJECT_NAME}" ]; then
+  fail "E2E_COMPOSE_PROJECT_NAME must differ from the regular project ${REGULAR_PROJECT_NAME}; the e2e cleanup would delete its data"
+fi
+
+# Another stack (the Spanner pipeline, for one) can be started under the e2e
+# project name. Its containers were not created from the e2e Compose file, so
+# refuse to clean up rather than delete them and their anonymous volumes.
+assert_project_owned_by_e2e() {
+  local containers
+  local container
+  local config_files
+  containers=$(docker ps -aq --filter "label=com.docker.compose.project=${PROJECT_NAME}") ||
+    fail "could not list the containers of project ${PROJECT_NAME}"
+  for container in ${containers}; do
+    config_files=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' "${container}") ||
+      fail "could not read the Compose files of ${container}"
+    case ",${config_files}," in
+      */docker-compose-e2e-test.yml,*) ;;
+      *) fail "project ${PROJECT_NAME} has $(docker inspect --format '{{.Name}}' "${container}"), which the e2e did not create (Compose files: ${config_files}); set E2E_COMPOSE_PROJECT_NAME to another name" ;;
+    esac
+  done
+}
+assert_project_owned_by_e2e
 
 dump_logs() {
   echo "=== Compose ps ===" >&2

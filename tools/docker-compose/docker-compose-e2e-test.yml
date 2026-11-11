@@ -4,15 +4,25 @@ services:
   # the host script uses `docker compose exec`. Publishing fixed host ports here
   # only risks bind conflicts on shared or concurrent runners, so reset the
   # mappings inherited from the databases and applications files.
+  #
+  # The e2e runs as its own Compose project, so it must not claim the regular
+  # stack's fixed container names or LocalStack bind mounts either. The e2e
+  # loads only DynamoDB and its Streams, so LocalStack needs neither the host
+  # temp directory nor the Docker socket that Lambda uses.
   mysql:
     ports: !reset []
   localstack:
+    container_name: !reset null
     ports: !reset []
+    volumes: !reset []
   write-api-server-1:
+    container_name: !reset null
     ports: !reset []
   dynamodb-read-model-updater-1:
+    container_name: !reset null
     ports: !reset []
   read-api-server-1:
+    container_name: !reset null
     ports: !reset []
 
   e2e-test:
