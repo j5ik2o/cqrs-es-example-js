@@ -152,7 +152,7 @@ describe("ReadModelUpdater (DynamoDB head stream -> MySQL)", () => {
   let prisma: PrismaClient | undefined;
 
   beforeAll(async () => {
-    container = await new GenericContainer("mysql:9.7")
+    container = await new GenericContainer("mysql:26.10")
       .withCommand([
         "--innodb-buffer-pool-size=64M",
         "--performance-schema=OFF",

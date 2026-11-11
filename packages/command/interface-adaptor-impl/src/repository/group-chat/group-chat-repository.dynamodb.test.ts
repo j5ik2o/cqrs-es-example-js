@@ -70,7 +70,7 @@ describe("GroupChatRepository", () => {
   }
 
   beforeAll(async () => {
-    container = new GenericContainer("localstack/localstack:2.3.2")
+    container = new GenericContainer("localstack/localstack:4.14.0")
       .withEnvironment({
         SERVICES: "dynamodb",
         DEFAULT_REGION: "us-west-1",
