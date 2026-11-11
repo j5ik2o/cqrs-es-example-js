@@ -1,11 +1,11 @@
 version: '3.6'
 services:
   mysql:
-    image: mysql:9.7
+    image: mysql:26.10
     hostname: mysql-local
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --ngram_token_size=2 --performance-schema=OFF --innodb-buffer-pool-size=128M
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-ppasswd"]
+      test: MYSQL_PWD=passwd mysql -h127.0.0.1 -P3306 -uroot -e "SELECT 1"
       interval: 10s
       timeout: 5s
       retries: 10
@@ -49,7 +49,7 @@ services:
     depends_on:
       - mysql
   localstack:
-    image: localstack/localstack:2.3.2
+    image: localstack/localstack:4.14.0
     container_name: localstack-main
     hostname: localstack-local
     ports:
@@ -72,7 +72,7 @@ services:
       LAMBDA_REMOVE_CONTAINERS: 1
       LAMBDA_DOCKER_FLAGS: --platform linux/amd64
     volumes:
-      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      # LocalStack v4 wipes /tmp/localstack on startup, so it cannot be a bind mount.
       - "/var/run/docker.sock:/var/run/docker.sock"
   dynamodb-setup:
     image: mesosphere/aws-cli
@@ -91,7 +91,8 @@ services:
     entrypoint: [ "" ]
     command: [ "/setup/create-tables.sh", "-e", "dev" ]
     depends_on:
-      - localstack
+      localstack:
+        condition: service_healthy
   dynamodb-admin:
     image: aaronshaf/dynamodb-admin
     ports:
