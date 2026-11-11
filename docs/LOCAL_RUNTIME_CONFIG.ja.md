@@ -76,7 +76,7 @@ Writeはリージョンと接続先を個別に適用し、認証情報はキー
 - [イメージのビルドとCompose起動](DEBUG_ON_DOCKER_COMPOSE.ja.md#ビルドイメージ)。
 - [Compose停止](DEBUG_ON_DOCKER_COMPOSE.ja.md#docker-composeの停止)。
 - [ローカルマシンでのデバッグ](DEBUG_ON_LOCAL_MACHINE.ja.md)。
-> **e2eはローカルデータを削除します。** 既定では、e2eスクリプトは通常構成と同じComposeプロジェクト `cqrs-es-example-js` を使います。テスト構成の起動前に `down -v --remove-orphans` を実行するため、通常構成のMySQLボリュームのデータと、インメモリのDynamoDBデータが失われます。このローカルデータを破棄できる場合だけe2eを実行してください。
+> **e2eはローカルデータを削除しません。** e2eスクリプトは専用のComposeプロジェクト `cqrs-es-example-js-e2e` を使います（`E2E_COMPOSE_PROJECT_NAME` で変更できます）。`down -v --remove-orphans` で消えるのはこのプロジェクトのコンテナとボリュームだけで、通常構成 `cqrs-es-example-js` には及びません。e2eのoverrideは固定のコンテナ名とLocalStackのbind mountも外すため、2つの構成を同時に動かせます。通常構成と同じプロジェクト名を指定すると、スクリプトは実行を拒否します。
 
 - [ビルドとe2e実行](BUILD_AND_TEST.ja.md#e2eテスト)。
 - [リードモデルDBのマイグレーション](DATABASE_MIGRATIONS.ja.md)。

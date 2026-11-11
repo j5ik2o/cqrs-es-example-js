@@ -44,7 +44,7 @@ After the restart scenario, the script reads MySQL directly and checks the follo
 
 On failure, `tools/scripts/docker-compose-e2e-test.sh` prints the Compose state and logs.
 
-The e2e stack publishes no host ports, so it cannot collide with other processes on the host. The script fails if any container in the stack publishes one. To inspect the stack that the e2e leaves running, use `docker compose exec`, for example `docker compose -p cqrs-es-example-js exec mysql mysql -uroot -ppasswd ceer`. To reach the services from the host, start them with `pnpm docker-compose-up`. That command removes the e2e containers and their data first.
+The e2e stack publishes no host ports, so it cannot collide with other processes on the host. The script fails if any container in the stack publishes one. To inspect the stack that the e2e leaves running, use `docker compose exec`, for example `docker compose -p cqrs-es-example-js-e2e exec mysql mysql -uroot -ppasswd ceer`. The e2e uses its own Compose project, `cqrs-es-example-js-e2e`, so it does not touch the regular stack started by `pnpm docker-compose-up`. To remove the e2e stack, run `docker compose -p cqrs-es-example-js-e2e down -v --remove-orphans`.
 
 Unit tests cover duplicate, out-of-order, gap, mid-batch failure and restart cases in `packages/rmu/src/read-model-updater.integration.test.ts`. The Compose e2e does not cover out-of-order and gap cases because they need fault injection.
 

@@ -9,7 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "${SCRIPT_DIR}" || exit 1
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-cqrs-es-example-js}"
+# The e2e cleanup runs `down -v --remove-orphans`, so it must never share the
+# regular stack's project (`cqrs-es-example-js`, used by docker-compose-up.sh).
+REGULAR_PROJECT_NAME="cqrs-es-example-js"
+PROJECT_NAME="${E2E_COMPOSE_PROJECT_NAME:-cqrs-es-example-js-e2e}"
 RESILIENCE_GROUP_CHAT_NAME="${RESILIENCE_GROUP_CHAT_NAME:-resilience-check}"
 WAIT_REPLAY_ATTEMPTS="${WAIT_REPLAY_ATTEMPTS:-30}"
 WAIT_REPLAY_SLEEP_SEC="${WAIT_REPLAY_SLEEP_SEC:-1}"
@@ -44,6 +47,10 @@ fail() {
   echo "Error: $*" >&2
   exit 1
 }
+
+if [ "${PROJECT_NAME}" = "${REGULAR_PROJECT_NAME}" ]; then
+  fail "E2E_COMPOSE_PROJECT_NAME must differ from the regular project ${REGULAR_PROJECT_NAME}; the e2e cleanup would delete its data"
+fi
 
 dump_logs() {
   echo "=== Compose ps ===" >&2
