@@ -76,7 +76,7 @@ The regular start script can build and deploy the Lambda RMU and stop the local 
 - [Image build and Compose start](DEBUG_ON_DOCKER_COMPOSE.md#build-the-image).
 - [Compose stop](DEBUG_ON_DOCKER_COMPOSE.md#stop-docker-compose).
 - [Local machine debugging](DEBUG_ON_LOCAL_MACHINE.md).
-> **E2e keeps local data.** The e2e script uses its own Compose project, `cqrs-es-example-js-e2e`, which `E2E_COMPOSE_PROJECT_NAME` can change. Its `down -v --remove-orphans` removes only that project's containers and volumes, not the regular stack `cqrs-es-example-js`. The e2e override also drops the fixed container names and the LocalStack bind mounts, so both stacks can run at the same time. The script refuses to run with the regular project name.
+> **E2e keeps local data.** The e2e script uses its own Compose project, `cqrs-es-example-js-e2e`, which `E2E_COMPOSE_PROJECT_NAME` can change. Its `down -v --remove-orphans` removes only that project's containers and volumes, not the regular stack `cqrs-es-example-js`. The e2e override also drops the fixed container names and the LocalStack bind mounts, so both stacks can run at the same time. The script refuses to run with the regular project name, or when the project already has containers that the e2e Compose file did not create, such as a Spanner pipeline started under that name.
 
 - [Build and e2e execution](BUILD_AND_TEST.md#e2e-tests).
 - [Read-model database migrations](DATABASE_MIGRATIONS.md).

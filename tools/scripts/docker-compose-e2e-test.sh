@@ -52,6 +52,26 @@ if [ "${PROJECT_NAME}" = "${REGULAR_PROJECT_NAME}" ]; then
   fail "E2E_COMPOSE_PROJECT_NAME must differ from the regular project ${REGULAR_PROJECT_NAME}; the e2e cleanup would delete its data"
 fi
 
+# Another stack (the Spanner pipeline, for one) can be started under the e2e
+# project name. Its containers were not created from the e2e Compose file, so
+# refuse to clean up rather than delete them and their anonymous volumes.
+assert_project_owned_by_e2e() {
+  local containers
+  local container
+  local config_files
+  containers=$(docker ps -aq --filter "label=com.docker.compose.project=${PROJECT_NAME}") ||
+    fail "could not list the containers of project ${PROJECT_NAME}"
+  for container in ${containers}; do
+    config_files=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' "${container}") ||
+      fail "could not read the Compose files of ${container}"
+    case ",${config_files}," in
+      */docker-compose-e2e-test.yml,*) ;;
+      *) fail "project ${PROJECT_NAME} has $(docker inspect --format '{{.Name}}' "${container}"), which the e2e did not create (Compose files: ${config_files}); set E2E_COMPOSE_PROJECT_NAME to another name" ;;
+    esac
+  done
+}
+assert_project_owned_by_e2e
+
 dump_logs() {
   echo "=== Compose ps ===" >&2
   compose ps >&2 || true
