@@ -1,0 +1,364 @@
+{
+  "engines": [
+    "format",
+    "lint",
+    "code-quality",
+    "ai-slop",
+    "security"
+  ],
+  "missingToolsAllowed": {},
+  "accepted": [
+    {
+      "reason": "Lambda の動作確認用に残っている既存の console 出力。今回の aislop 組み込みとは無関係な既存コードで、変更範囲外のため修正しない。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/console-leftover",
+          "file": "packages/bootstrap/src/dynamodb-lambda-rmu-handler.ts",
+          "message": "console.log/debug/info statement left in production code"
+        }
+      ]
+    },
+    {
+      "reason": "既存の型チェック回避（as unknown as）。既存コードの課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/double-type-assertion",
+          "file": "packages/bootstrap/src/dynamodb-local-rmu-main.ts",
+          "message": "Double type assertion (as unknown as X) bypasses type checking"
+        }
+      ]
+    },
+    {
+      "reason": "ローカル開発向けに固定された URL。既存コードの課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/hardcoded-url",
+          "file": "packages/bootstrap/src/spanner-setup-main.ts",
+          "message": "Hardcoded environment URL in production code"
+        }
+      ]
+    },
+    {
+      "reason": "既存のフォールバック処理。既存コードの課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/hidden-fallback",
+          "file": "packages/bootstrap/src/dynamodb-lambda-rmu-handler.ts",
+          "message": "Fallback turns missing, failed, or impossible state into a safe-looking value"
+        }
+      ]
+    },
+    {
+      "reason": "既存コードの説明的・装飾的なコメント。既存の課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/processor/src/group-chat/group-chat-command-processor.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/command/processor/src/group-chat/group-chat-command-processor.ts",
+          "message": "Narrative comment block (decorative separator)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/rmu/src/head-scanner.ts",
+          "message": "Narrative comment block (cross-reference commentary)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/rmu/src/journal-reader.ts",
+          "message": "Narrative comment block (cross-reference commentary)"
+        },
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/narrative-comment",
+          "file": "packages/rmu/src/sequence-number.ts",
+          "message": "Narrative comment block (JSDoc preamble with slop signal)"
+        }
+      ]
+    },
+    {
+      "reason": "既存の薄いラッパー関数。既存コードの設計課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/thin-wrapper",
+          "file": "packages/command/domain/src/group-chat/group-chat.ts",
+          "message": "Function 'of' is a thin wrapper that only calls another function"
+        }
+      ]
+    },
+    {
+      "reason": "既存の as any による型安全性の回避。既存コードの課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "ai-slop",
+          "rule": "ai-slop/unsafe-type-assertion",
+          "file": "packages/bootstrap/src/spanner-change-stream-reader.ts",
+          "message": "'as any' bypasses type safety"
+        }
+      ]
+    },
+    {
+      "reason": "既存コード内の重複ブロック。既存の課題で、共通化は今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/query/interface-adaptor/src/graphql/resolvers.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/query/interface-adaptor/src/graphql/resolvers.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/query/interface-adaptor/src/graphql/resolvers.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/rmu/src/group-chat-dao.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/rmu/src/group-chat-dao.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/rmu/src/group-chat-dao.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "code-quality/duplicate-block",
+          "file": "packages/rmu/src/update-read-model.ts",
+          "message": "Duplicate code block — extract a shared helper"
+        }
+      ]
+    },
+    {
+      "reason": "既存の大きなファイル。既存の課題で、分割は今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "code-quality",
+          "rule": "complexity/file-too-large",
+          "file": "packages/command/domain/src/group-chat/group-chat-events.ts",
+          "message": "File too large (limit: 400, flagged above 441 lines)"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "complexity/file-too-large",
+          "file": "packages/command/domain/src/group-chat/group-chat.ts",
+          "message": "File too large (limit: 400, flagged above 441 lines)"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "complexity/file-too-large",
+          "file": "packages/rmu/src/group-chat-dao.ts",
+          "message": "File too large (limit: 400, flagged above 441 lines)"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "complexity/file-too-large",
+          "file": "packages/rmu/src/update-read-model.ts",
+          "message": "File too large (limit: 400, flagged above 441 lines)"
+        }
+      ]
+    },
+    {
+      "reason": "既存の長い関数。既存の課題で、分割は今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "code-quality",
+          "rule": "complexity/function-too-long",
+          "file": "packages/bootstrap/src/dynamodb-local-rmu-main.ts",
+          "message": "Function too long (limit: 80, flagged above 88 lines)"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "complexity/function-too-long",
+          "file": "packages/command/domain/src/group-chat/group-chat.ts",
+          "message": "Function too long (limit: 80, flagged above 88 lines)"
+        },
+        {
+          "engine": "code-quality",
+          "rule": "complexity/function-too-long",
+          "file": "packages/rmu/src/group-chat-dao.ts",
+          "message": "Function too long (limit: 80, flagged above 88 lines)"
+        }
+      ]
+    },
+    {
+      "reason": "既存の import 解決に関する警告。yargs の名前空間解決で、既存の課題。",
+      "findings": [
+        {
+          "engine": "lint",
+          "rule": "import/namespace",
+          "file": "packages/bootstrap/src/index.ts",
+          "message": "\"command\" not found in imported namespace \"yargs\"."
+        }
+      ]
+    },
+    {
+      "reason": "既存の重複 import。既存の課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "lint",
+          "rule": "import/no-duplicates",
+          "file": "packages/bootstrap/src/dynamodb-stream-client.ts",
+          "message": "Modules should not be imported multiple times in the same file"
+        }
+      ]
+    },
+    {
+      "reason": "既存の不要なスプレッド内フォールバック。既存の課題で、今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "lint",
+          "rule": "unicorn/no-useless-fallback-in-spread",
+          "file": "packages/rmu/src/stream-recovery.ts",
+          "message": "Empty fallbacks in spreads are unnecessary"
+        }
+      ]
+    },
+    {
+      "reason": "ローカル開発用 docker-compose に固定された DB 接続文字列。本番の秘密情報ではないが、検出は事実であり、既存の設定で今回の変更範囲外。",
+      "findings": [
+        {
+          "engine": "security",
+          "rule": "security/hardcoded-secret",
+          "file": "tools/docker-compose/docker-compose-applications.yml",
+          "message": "Possible Database connection string with credentials detected in source code"
+        },
+        {
+          "engine": "security",
+          "rule": "security/hardcoded-secret",
+          "file": "tools/docker-compose/docker-compose-applications.yml",
+          "message": "Possible Database connection string with credentials detected in source code"
+        },
+        {
+          "engine": "security",
+          "rule": "security/hardcoded-secret",
+          "file": "tools/docker-compose/docker-compose-applications.yml",
+          "message": "Possible Database connection string with credentials detected in source code"
+        },
+        {
+          "engine": "security",
+          "rule": "security/hardcoded-secret",
+          "file": "tools/docker-compose/docker-compose-databases.yml",
+          "message": "Possible Database connection string with credentials detected in source code"
+        },
+        {
+          "engine": "security",
+          "rule": "security/hardcoded-secret",
+          "file": "tools/docker-compose/docker-compose-spanner.yml",
+          "message": "Possible Database connection string with credentials detected in source code"
+        },
+        {
+          "engine": "security",
+          "rule": "security/hardcoded-secret",
+          "file": "tools/docker-compose/docker-compose-spanner.yml",
+          "message": "Possible Database connection string with credentials detected in source code"
+        }
+      ]
+    }
+  ]
+}
