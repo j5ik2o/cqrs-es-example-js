@@ -45,6 +45,23 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm prisma:generate
           pnpm run test
+  aislop:
+    runs-on: ubuntu-24.04
+    name: "Run aislop check"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20.x
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: |
+          pnpm install --frozen-lockfile
+          pnpm run check:aislop
+          pnpm run test:aislop
   e2e:
     runs-on: ubuntu-24.04
     needs: test
