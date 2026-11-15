@@ -8,7 +8,7 @@ on:
   issue_comment:
     types: [created, edited, deleted]
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "17 18 * * *"
   workflow_dispatch:
     inputs:
       pr_number:
@@ -18,30 +18,23 @@ on:
       wait_for_other_checks:
         description: Wait for other PR checks before evaluating review threads.
         required: false
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
-
-permissions:
-  contents: read
-  checks: write
-  issues: read
-  pull-requests: read
-  statuses: write
+        default: true
+        type: boolean
 
 jobs:
   refresh:
-    name: Refresh review-thread state
-    uses: j5ik2o/ci/.github/workflows/review-thread-resolution.yml@560170b61c74a9a643a483a052ccbad0d6ad409a
+    uses: j5ik2o/ci/.github/workflows/review-thread-resolution.yml@v1
     permissions:
       contents: read
       checks: write
+      statuses: write
       issues: read
       pull-requests: read
-      statuses: write
     with:
       pr_number: ${{ inputs.pr_number }}
-      wait_for_other_checks: ${{ inputs.wait_for_other_checks || 'true' }}
-      ci_ref: 560170b61c74a9a643a483a052ccbad0d6ad409a
+      wait_for_other_checks: ${{ inputs.wait_for_other_checks }}
+      base_branch: main
+      required_context: Check unresolved comments
+      # Publish the status on Dependabot PRs too, so that a required status does not leave them waiting.
+      skip_status_for_dependabot: "false"
+      ci_ref: v1

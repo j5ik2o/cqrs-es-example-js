@@ -47,7 +47,7 @@ let prisma: PrismaClient | undefined;
 let schema: GraphQLSchema | undefined;
 
 beforeAll(async () => {
-  container = await new GenericContainer("mysql:9.7")
+  container = await new GenericContainer("mysql:26.10")
     .withEnvironment({
       MYSQL_ROOT_PASSWORD: "passwd",
       MYSQL_DATABASE: "ceer",
