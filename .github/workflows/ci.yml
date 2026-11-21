@@ -110,15 +110,16 @@ jobs:
     if: ${{ always() }}
     steps:
       - name: Require all product CI jobs to succeed
+        if: ${{ always() }}
         env:
           LINT_RESULT: ${{ needs.lint.result }}
           TEST_RESULT: ${{ needs.test.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           AISLOP_RESULT: ${{ needs.aislop.result }}
-          RUN_CANCELLED: ${{ cancelled() }}
+          GATE_STATUS: ${{ job.status }}
         run: |
-          printf '%s\n' "lint=$LINT_RESULT" "test=$TEST_RESULT" "e2e=$E2E_RESULT" "aislop=$AISLOP_RESULT" "cancelled=$RUN_CANCELLED"
-          test "$RUN_CANCELLED" = false &&
+          printf '%s\n' "lint=$LINT_RESULT" "test=$TEST_RESULT" "e2e=$E2E_RESULT" "aislop=$AISLOP_RESULT" "gate=$GATE_STATUS"
+          test "$GATE_STATUS" = success &&
             test "$LINT_RESULT" = success &&
             test "$TEST_RESULT" = success &&
             test "$E2E_RESULT" = success &&
