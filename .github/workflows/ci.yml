@@ -4,6 +4,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    # GitHub uses edited both for base-branch changes and for metadata edits.
+    types: [opened, synchronize, reopened, edited]
 jobs:
   lint:
     runs-on: ubuntu-24.04
@@ -99,3 +101,25 @@ jobs:
             -f tools/docker-compose/docker-compose-applications.yml \
             -f tools/docker-compose/docker-compose-e2e-test.yml \
             logs --no-color --tail=400 || true
+  required-product-ci:
+    name: Required product CI
+    runs-on: ubuntu-24.04
+    permissions: {}
+    needs: [lint, test, e2e, aislop]
+    # Inspect skipped and failed dependencies as well as successful ones.
+    if: ${{ always() }}
+    steps:
+      - name: Require all product CI jobs to succeed
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          AISLOP_RESULT: ${{ needs.aislop.result }}
+          RUN_CANCELLED: ${{ cancelled() }}
+        run: |
+          printf '%s\n' "lint=$LINT_RESULT" "test=$TEST_RESULT" "e2e=$E2E_RESULT" "aislop=$AISLOP_RESULT" "cancelled=$RUN_CANCELLED"
+          test "$RUN_CANCELLED" = false &&
+            test "$LINT_RESULT" = success &&
+            test "$TEST_RESULT" = success &&
+            test "$E2E_RESULT" = success &&
+            test "$AISLOP_RESULT" = success
