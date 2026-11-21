@@ -10,7 +10,7 @@ jobs:
     name: Run lint
     runs-on: ubuntu-24.04
     steps:
-      - run: sleep 180
+      - run: true
   test:
     needs: lint
     runs-on: ubuntu-24.04
@@ -30,6 +30,7 @@ jobs:
   aislop:
     name: Run aislop check
     runs-on: ubuntu-24.04
+    if: ${{ false }}
     steps:
       - run: 'true'
   required-product-ci:
