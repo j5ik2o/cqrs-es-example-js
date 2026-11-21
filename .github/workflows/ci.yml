@@ -62,6 +62,7 @@ jobs:
             fi
           done
           echo "No test merge commit matched the event's base and head." >&2
+          echo "If the merge ref stays stale after a base change, push an updated PR head to regenerate it." >&2
           exit 1
   lint:
     runs-on: ubuntu-24.04
