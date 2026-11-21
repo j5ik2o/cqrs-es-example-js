@@ -10,7 +10,7 @@ jobs:
     name: Run lint
     runs-on: ubuntu-24.04
     steps:
-      - run: exit 1
+      - run: sleep 180
   test:
     needs: lint
     runs-on: ubuntu-24.04
@@ -30,7 +30,6 @@ jobs:
   aislop:
     name: Run aislop check
     runs-on: ubuntu-24.04
-    needs: lint
     steps:
       - run: 'true'
   required-product-ci:
