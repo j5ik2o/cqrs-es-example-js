@@ -4,12 +4,75 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    # GitHub uses edited both for base-branch changes and for metadata edits.
+    types: [opened, synchronize, reopened, edited]
 jobs:
+  resolve-revision:
+    name: Resolve product CI revision
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.revision.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: Verify the CI revision
+        id: revision
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ && "$PR_NUMBER" =~ ^[0-9]+$ ]]
+          printf 'Expected base %s, head %s. Event checkout %s.\n' "$BASE_SHA" "$HEAD_SHA" "$GITHUB_SHA"
+
+          matches_event() {
+            local parents
+            # Read the commit headers so shallow history still exposes both parents.
+            parents=$(git cat-file commit "$1" | awk '!NF { body = 1 } !body && $1 == "parent" { print $2 }') || return 1
+            printf 'Candidate %s parents: %s\n' "$1" "${parents//$'\n'/ }"
+            [[ "$parents" == "$BASE_SHA"$'\n'"$HEAD_SHA" ]]
+          }
+
+          if git fetch --no-tags --depth=1 origin "$GITHUB_SHA" && matches_event "$GITHUB_SHA"; then
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # The merge ref can still point at the old base when an edited run starts.
+          for attempt in {1..6}; do
+            if git fetch --no-tags --depth=1 origin "refs/pull/$PR_NUMBER/merge"; then
+              candidate=$(git rev-parse FETCH_HEAD)
+              if matches_event "$candidate"; then
+                echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            if [[ "$attempt" != 6 ]]; then
+              sleep 10
+            fi
+          done
+          echo "No test merge commit matched the event's base and head." >&2
+          echo "If the merge ref stays stale after a base change, push an updated PR head to regenerate it." >&2
+          exit 1
   lint:
     runs-on: ubuntu-24.04
     name: "Run lint"
+    needs: resolve-revision
+    if: ${{ needs.resolve-revision.outputs.sha != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-revision.outputs.sha }}
       - uses: pnpm/action-setup@v3
         with:
           version: 9.15.9
@@ -24,7 +87,8 @@ jobs:
           pnpm run lint
   test:
     runs-on: ubuntu-24.04
-    needs: lint
+    needs: [resolve-revision, lint]
+    if: ${{ needs.resolve-revision.outputs.sha != '' }}
     env:
       TEST_TIME_FACTOR: 10.0
     strategy:
@@ -32,6 +96,8 @@ jobs:
         node-version: [20.x]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-revision.outputs.sha }}
       - uses: pnpm/action-setup@v3
         with:
           version: 9.15.9
@@ -48,8 +114,12 @@ jobs:
   aislop:
     runs-on: ubuntu-24.04
     name: "Run aislop check"
+    needs: resolve-revision
+    if: ${{ needs.resolve-revision.outputs.sha != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-revision.outputs.sha }}
       - uses: pnpm/action-setup@v3
         with:
           version: 9.15.9
@@ -64,13 +134,16 @@ jobs:
           pnpm run test:aislop
   e2e:
     runs-on: ubuntu-24.04
-    needs: test
+    needs: [resolve-revision, test]
+    if: ${{ needs.resolve-revision.outputs.sha != '' }}
     timeout-minutes: 40
     strategy:
       matrix:
         node-version: [20.x]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-revision.outputs.sha }}
       - uses: pnpm/action-setup@v3
         with:
           version: 9.15.9
@@ -99,3 +172,31 @@ jobs:
             -f tools/docker-compose/docker-compose-applications.yml \
             -f tools/docker-compose/docker-compose-e2e-test.yml \
             logs --no-color --tail=400 || true
+  required-product-ci:
+    name: Required product CI
+    runs-on: ubuntu-24.04
+    permissions: {}
+    needs: [resolve-revision, lint, test, e2e, aislop]
+    # Inspect skipped and failed dependencies as well as successful ones.
+    if: ${{ always() }}
+    steps:
+      - name: Require all product CI jobs to succeed
+        if: ${{ always() }}
+        env:
+          REVISION_RESULT: ${{ needs.resolve-revision.result }}
+          VERIFIED_SHA: ${{ needs.resolve-revision.outputs.sha }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          AISLOP_RESULT: ${{ needs.aislop.result }}
+          GATE_STATUS: ${{ job.status }}
+        run: |
+          printf '%s\n' "revision=$REVISION_RESULT" "verified_sha=$VERIFIED_SHA"
+          printf '%s\n' "lint=$LINT_RESULT" "test=$TEST_RESULT" "e2e=$E2E_RESULT" "aislop=$AISLOP_RESULT" "gate=$GATE_STATUS"
+          test "$GATE_STATUS" = success &&
+            test "$REVISION_RESULT" = success &&
+            test -n "$VERIFIED_SHA" &&
+            test "$LINT_RESULT" = success &&
+            test "$TEST_RESULT" = success &&
+            test "$E2E_RESULT" = success &&
+            test "$AISLOP_RESULT" = success
