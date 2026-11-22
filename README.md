@@ -67,3 +67,5 @@ This OSS repository mainly utilizes the following technology stack.
 ## Links
 
 - [Common Documents](https://github.com/j5ik2o/cqrs-es-example)
+
+<!-- Temporary post-merge fixture for Required product CI verification. -->
