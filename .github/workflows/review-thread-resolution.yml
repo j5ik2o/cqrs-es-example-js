@@ -7,6 +7,12 @@ on:
     types: [created, edited, deleted]
   issue_comment:
     types: [created, edited, deleted]
+  # TAKT Review posts with GITHUB_TOKEN, which starts no review or comment
+  # event, and the shared workflow no longer waits for other checks.
+  # Re-evaluate when CI or TAKT Review finishes.
+  workflow_run:
+    workflows: [CI, TAKT Review]
+    types: [completed]
   schedule:
     - cron: "17 18 * * *"
   workflow_dispatch:
